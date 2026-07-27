@@ -18,6 +18,10 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 - Validate the knowledge standard against two pilot projects.
 - Define the read-only vault inventory milestone.
 
+### Added
+
+- ADR-0004 proposing project dashboards as the primary navigation layer.
+
 ## [0.1.0] - 2026-07-27
 
 ### Added

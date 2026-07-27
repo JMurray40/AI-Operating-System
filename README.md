@@ -114,18 +114,21 @@ The Obsidian vault and this repository complement rather than duplicate one anot
 
 Start with:
 
-1. [Executive Product and Architecture Summary](docs/EXECUTIVE_PRODUCT_ARCHITECTURE_SUMMARY.md)
-2. [Product Vision](docs/PRODUCT_VISION.md) and [Product Strategy](docs/product/PRODUCT_STRATEGY.md)
-3. [System Principles](docs/SYSTEM_PRINCIPLES.md)
-4. [Version Roadmap](docs/product/VERSION_ROADMAP.md)
-5. [The BRAIN v2](docs/THE_BRAIN_V2_SPEC.md)
-6. [System Architecture](docs/SYSTEM_ARCHITECTURE.md) and [Enterprise Review](docs/reviews/ENTERPRISE_ARCHITECTURE_REVIEW.md)
-7. [Storage Architecture](docs/STORAGE_ARCHITECTURE.md) and [Security Threat Model](docs/reviews/SECURITY_THREAT_MODEL.md)
-8. [Capability PRDs](docs/prd/README.md)
-9. [Plugin SDK](docs/sdk/PLUGIN_SDK_SPECIFICATION.md) and [Agent Specifications](docs/agents/AGENT_SPECIFICATIONS.md)
-10. [Architecture Decision Matrix](docs/ARCHITECTURE_DECISION_MATRIX.md) and [ADRs](docs/adr/)
-11. [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) and [Developer Experience](docs/DEVELOPER_EXPERIENCE_STRATEGY.md)
-12. [Future Research Backlog](research/FUTURE_RESEARCH_BACKLOG.md)
+1. [The Jarvis Bible](docs/JARVIS_BIBLE.md)
+2. [Foundation Executive Summary](docs/JARVIS_V1_FOUNDATION_EXECUTIVE_SUMMARY.md)
+3. [Executive Product and Architecture Summary](docs/EXECUTIVE_PRODUCT_ARCHITECTURE_SUMMARY.md)
+4. [Product Vision](docs/PRODUCT_VISION.md) and [Product Strategy](docs/product/PRODUCT_STRATEGY.md)
+5. [System Principles](docs/SYSTEM_PRINCIPLES.md)
+6. [Version Roadmap](docs/product/VERSION_ROADMAP.md)
+7. [The BRAIN v2](docs/THE_BRAIN_V2_SPEC.md)
+8. [System Architecture](docs/SYSTEM_ARCHITECTURE.md) and [Enterprise Review](docs/reviews/ENTERPRISE_ARCHITECTURE_REVIEW.md)
+9. [Storage Architecture](docs/STORAGE_ARCHITECTURE.md) and [Security Threat Model](docs/reviews/SECURITY_THREAT_MODEL.md)
+10. [AI Behavior Standard](docs/AI_BEHAVIOR_STANDARD.md), [UX Specification](docs/ux/UX_INTERACTION_SPECIFICATION.md), and [Query Evaluation](evaluations/QUERY_EVALUATION_BENCHMARK.md)
+11. [Capability PRDs](docs/prd/README.md)
+12. [Plugin SDK](docs/sdk/PLUGIN_SDK_SPECIFICATION.md) and [Agent Specifications](docs/agents/AGENT_SPECIFICATIONS.md)
+13. [Architecture Decision Matrix](docs/ARCHITECTURE_DECISION_MATRIX.md), [ADRs](docs/adr/), and [Architecture Review Board](docs/governance/ARCHITECTURE_REVIEW_BOARD.md)
+14. [Implementation Plan](docs/IMPLEMENTATION_PLAN.md), [Quality Checklists](docs/ENGINEERING_QUALITY_CHECKLISTS.md), and [Developer Experience](docs/DEVELOPER_EXPERIENCE_STRATEGY.md)
+15. [Prompt Library](prompts/PROMPT_LIBRARY.md), [Demo Vault](docs/demo/DEMO_VAULT_SPECIFICATION.md), and [Future Research Backlog](research/FUTURE_RESEARCH_BACKLOG.md)
 
 All human and AI contributions follow [CONTRIBUTING.md](CONTRIBUTING.md) and the [AI Behavior Standard](docs/AI_BEHAVIOR_STANDARD.md).
 

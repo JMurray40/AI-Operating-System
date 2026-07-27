@@ -61,6 +61,8 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Added
 
+- Jarvis v1 foundation package: definitive AI behavior constitution, 260-case query benchmark, reusable prompt library, demo vault design, multi-surface UX specification, competitive analysis, Jarvis Bible, quality checklists, and executive recommendations.
+- Standing Architecture Review Board procedure for independent review after each major implementation.
 - `SYSTEM_PRINCIPLES.md` as the enduring project-governance philosophy.
 - Accepted ADR-0004 establishing project dashboards as the primary navigation layer.
 - Accepted ADR-0005 requiring inventory before significant modification.

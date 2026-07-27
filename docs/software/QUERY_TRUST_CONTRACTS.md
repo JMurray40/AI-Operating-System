@@ -50,10 +50,21 @@ scope never means unrestricted access.
 A citation binds `source_id` + `source_identity_kind` + `title` + `relpath` +
 `source_fingerprint` + a deterministic **locator** (heading path + 1-based inclusive
 `line_start`/`line_end`) + a bounded **excerpt** + `relative_relevance` (when ranked) +
-reason. Validation proves: the current bytes match the fingerprint (else stale), the locator
-is within the source, and the excerpt occurs in the resolved passage. Excerpt bounding is
-deterministic (`EXCERPT_MAX_LINES`/`EXCERPT_MAX_CHARS`) and never reorders or normalizes
-source text.
+reason + `coverage`. Before a citation is emitted the engine validates the stored
+fingerprint against the **current source bytes** (re-read from the configured `source_root`,
+path-escape and missing files fail closed) as well as the full heading hierarchy at the
+locator and the non-empty excerpt; a source changed since discovery is stale and declined.
+When no `source_root` is configured, validation uses the discovery-time bytes (proving
+discovery-revision consistency only). Excerpt bounding is deterministic
+(`EXCERPT_MAX_LINES`/`EXCERPT_MAX_CHARS`) and never reorders or normalizes source text.
+
+`coverage` is `supported` when the citation is bound to a validated claim-specific passage,
+or `incomplete` when the source is referenced by identity and revision but no specific
+supporting passage exists — the engine never attaches arbitrary first content as support.
+Ranked (search/related/projects) citations are material: they cite the passage containing
+the retrieval evidence, or are declined. Unranked summarize/explain citations cite the
+passage that carries the claim-specific evidence (a link to the project or the other
+endpoint); absent that, they are marked `incomplete` rather than fabricated.
 
 ## Context budget invariant (R2)
 

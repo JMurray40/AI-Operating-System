@@ -305,3 +305,104 @@ count, or trace. Test: `tests/integration/test_authorization.py::test_duplicate_
 corrected with adversarial tests and equivalent p95 evidence; the duplicate-ID design is
 documented. QA remains blocked pending a superseding CTO architecture disposition. Branch not
 merged, not pushed; parked conversation candidate untouched.
+
+---
+
+# SUPERSEDING REVISION — Rev 3 (remediation of CTO Rev 2 "Refactor first")
+
+| Field | Value |
+|---|---|
+| Revision | 3 (supersedes Rev 2; Rev 1/2 retained for history) |
+| Prior reviewed SHA | `91636228e72f14c15fbc07c1733da00b8647f27f` (CTO Rev 2) |
+| CTO return commit | `ac03c3c9971be7957027d9b7ffa4f33abfc9f8a8` |
+| Remediation commits | `f3bca68` fix · `ffb7c13` test · this docs commit (see `git log`) |
+| Correction diff range | `9163622..HEAD` (from the Rev 2 implementation) |
+| Scope | AC-03R2 (current-bytes validation + claim-specific unranked citations), AC-04R2 (exact legacy shapes), AE-01R2 (total-pipeline p95) only |
+| Merged / pushed | **No** |
+
+AC-01, AC-02, and the duplicate-ID design were closed in Rev 2 and are **not** reopened. All
+original exclusions remain: no chat/streaming/provider/embedding/persistence/write/plugin/MCP/
+agent/automation/Project-Resume code; the parked conversation worktree was not touched; no
+accepted ADR was rewritten.
+
+## Corrections and requirement → test mapping
+
+**AC-03R2a — Current-byte validation before emission.** `QueryEngine` takes an optional
+`source_root`; `Note` retains exact `source_bytes`. `_make_citation` now validates the stored
+`source_fingerprint` against the **current source bytes** — re-read from `source_root` and
+confined to it (path-escape and missing files return empty bytes → fail the fingerprint check)
+— together with the full heading hierarchy and a non-empty excerpt, before emitting any
+citation. A source changed since discovery is stale and declined; without a `source_root`,
+validation uses the discovery-time bytes (documented as discovery-revision consistency only).
+The CLI passes `source_root=repo.root`. CRLF/LF exact bytes preserved (fingerprint over raw
+bytes; structural checks over `splitlines`).
+Tests: `tests/integration/test_citation_currentness.py::{test_citation_valid_before_mutation,
+test_post_discovery_mutation_declines_stale_citation, test_missing_source_after_discovery_fails_closed,
+test_without_source_root_uses_discovery_snapshot}`.
+
+**AC-03R2b — Claim-specific unranked citations.** `summarize`/`explain` no longer pass empty
+evidence. Summarize citations use the project title as claim evidence (each source is cited
+where it references the project); explain citations use the other endpoint/shared-note titles
+(each endpoint is cited at the passage that links the other). When no claim-specific passage
+exists, the citation is emitted with `coverage="incomplete"` (empty locator/excerpt) — never
+arbitrary first content. New `Citation.coverage` field (`supported` | `incomplete`).
+Tests: `tests/integration/test_citation_claims.py::{test_summarize_citations_are_claim_specific_not_first_content,
+test_explain_citations_cite_the_linking_passage, test_incomplete_coverage_has_no_arbitrary_excerpt}`.
+
+**AC-04R2 — Exact legacy shapes.** `compat.py` now enforces exact v0.3 key sets: citation
+required `{title, relpath, reason}` + allowed `{id, confidence, relative_relevance}`; result
+required `{intent, question, answer, citations}`. It rejects unknown keys, missing required
+fields, result/citation shape confusion, and new-only payloads (no legacy `confidence`);
+validates every ranking value (type + `[0,1]`) whenever present; validates every nested
+citation; and always removes the ambiguous old key. One-release removal target retained.
+Tests: `tests/unit/test_compat.py::{test_exact_legacy_citation_maps_and_drops_old,
+test_both_keys_equal_ok_conflict_rejected, test_unknown_key_rejected, test_missing_required_rejected,
+test_new_only_citation_rejected_at_legacy_boundary, test_wrong_type_and_out_of_range_rejected,
+test_result_shape_as_citation_rejected, test_exact_legacy_result_maps_nested_citations,
+test_result_unknown_key_and_missing_rejected, test_citation_shape_as_result_rejected,
+test_result_citations_must_be_list_and_validated, test_none_confidence_allowed}`.
+
+**AE-01R2 — Total-pipeline p95 (construction + query).** `scripts/benchmark_regression.py`
+now times, per sample, **engine construction + one public query** over the same pre-parsed
+note set (so authorized-view/index/graph construction and citation validation are included).
+The prebuilt-engine `run()` latency is reported separately as a steady-state diagnostic.
+
+Environment: Linux sandbox (x86-64), Python 3.10.12; synthetic 1,000-note vault; query
+`"links"`; 3 warm-ups; 100 measured runs; nearest-rank percentiles. Baseline v0.3 extracted at
+`ce0dc35` via `git archive`; same script run under each version's `PYTHONPATH`. Exact command:
+`python scripts/benchmark_regression.py --notes 1000 --runs 100`.
+
+| Version | total_pipeline min | p50 | **p95** | p99 | max |
+|---|---|---|---|---|---|
+| v0.3 baseline (`ce0dc35`) | 27.03 | 29.85 | **35.219** | 36.259 | 36.663 |
+| v0.3.1 candidate | 29.96 | 32.743 | **38.430** | 41.881 | 42.320 |
+
+**Regression (total-pipeline p95 → p95): (38.430 − 35.219) / 35.219 = +9.1%**, within the
+≤20% gate. Steady-state (diagnostic, query only): candidate p95 13.9 ms vs baseline 12.7 ms.
+Security filtering and citation validation were not weakened to meet the gate.
+
+## Commands and results (Rev 3)
+
+- `python -m pytest -q` → **190 passed** (was 180; +10 remediation tests).
+- `ruff check src tests scripts` → **All checks passed**.
+- `mypy` → **Success: no issues found in 52 source files** (cache on local disk; FUSE
+  `.mypy_cache` sqlite `disk I/O error` is environmental).
+- `git diff --check` → clean.
+- Unchanged-vault read-only evidence unchanged and still passing
+  (`tests/integration/test_readonly_v031.py`). Citation-currentness tests write only to
+  pytest `tmp_path`, never to a fixture.
+
+## Deviations, debt, unresolved
+
+- Per-citation current-byte re-read adds bounded I/O (≤ result size) per query; included in
+  the +9.1% total-pipeline figure and within gate. Without a `source_root`, behaviour is
+  discovery-revision consistency (documented).
+- Recorded debt from Rev 1/2 stands; no new debt introduced. No unresolved defects.
+
+## Exit statement (Rev 3)
+
+**Ready for CTO re-review of the correction diff `9163622..HEAD`.** AC-03R2 (current-bytes
+validation + claim-specific unranked citations), AC-04R2 (exact legacy shapes), and AE-01R2
+(total-pipeline p95, +9.1% ≤ 20%) are corrected with adversarial tests and equivalent
+evidence. Closed findings were not reopened. Branch not merged, not pushed; parked
+conversation candidate untouched. QA remains blocked pending a superseding CTO disposition.

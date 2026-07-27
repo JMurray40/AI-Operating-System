@@ -648,3 +648,271 @@ Until then, that output must not be produced.
 remain partially open, and AE-01 remains unproven under the accepted total-pipeline
 definition. Commit `91636228e72f14c15fbc07c1733da00b8647f27f` is returned to engineering.
 Quality & Release is not authorized to begin.
+
+---
+
+# FINAL SUPERSEDING CTO REVISION — Rev 3
+
+| Field | Value |
+|---|---|
+| Revision | 3 — supersedes CTO Rev 2 for the Rev 3 engineering candidate |
+| Review date | 2026-07-27 |
+| Reviewed branch | `feature/v0.3.1-query-trust-contracts` |
+| Reviewed HEAD | `47b1a0bf5609d29abb3633273fec2721b853ef45` |
+| Prior reviewed implementation | `91636228e72f14c15fbc07c1733da00b8647f27f` |
+| Chief-of-Staff return commit | `ac03c3c9971be7957027d9b7ffa4f33abfc9f8a8` |
+| Correction diff | `91636228e72f14c15fbc07c1733da00b8647f27f..47b1a0bf5609d29abb3633273fec2721b853ef45` |
+| Initial worktree state | Clean |
+| Architecture disposition | **Refactor first** |
+| Quality & Release authorization | Withheld |
+
+## R3.1 Executive disposition
+
+**Architecture disposition: Refactor first.**
+
+Rev 3 closes AC-04R2 and AE-01R2. It also closes most of AC-03R2: current-file checking is
+path-confined and fail-closed when `source_root` is configured; missing and changed files
+are declined; exact discovery bytes are retained; ranked citations remain material-only;
+and summarize/explain passage selection is now claim-specific.
+
+AC-03R2 is not completely closed:
+
+1. `source_root` remains optional at a citation-producing engine boundary, allowing a
+   citation to be emitted as `coverage="supported"` without checking current on-disk bytes;
+2. `coverage="incomplete"` is present in structured output but hidden by the CLI text
+   renderer, which presents the object under “Sources” with a misleading `0-0` line range.
+
+These are visible trust-contract defects. Quality & Release is not authorized to begin
+against `47b1a0bf5609d29abb3633273fec2721b853ef45`.
+
+## R3.2 Verification and review scope
+
+The review verified:
+
+- exact requested branch and HEAD;
+- initially clean worktree;
+- Rev 2 implementation `91636228e72f14c15fbc07c1733da00b8647f27f`
+  is an ancestor of HEAD;
+- Chief-of-Staff return commit
+  `ac03c3c9971be7957027d9b7ffa4f33abfc9f8a8` is an ancestor of HEAD;
+- the Rev 3 diff is confined to AC-03R2, AC-04R2, AE-01R2, their tests,
+  documentation, and handoffs;
+- no chat, streaming, provider, embedding, persisted-index, write, plugin, MCP,
+  agent, automation, background-service, or Project Resume scope was introduced.
+
+The review inspected the Rev 3 Engineering Review, the complete correction diff, current
+citation and compatibility code, currentness/claim tests, regression benchmark, ADR-0016,
+and the accepted implementation brief.
+
+The reported evidence is 190 passing tests, clean Ruff, clean mypy, clean
+`git diff --check`, passing unchanged-vault evidence, and total-pipeline p95 regression
+of +9.1%. The Windows CTO environment still did not expose a callable Python runtime, so
+those commands were not independently rerun. This is not a new architecture finding;
+Quality must rerun them after architecture clearance.
+
+## R3.3 Finding disposition
+
+| Finding | Final Rev 3 assessment | Status |
+|---|---|---|
+| AC-01 | No regression; explicit authorization scope remains mandatory | **Closed** |
+| AC-02 | No regression; path canonicalization and segment-boundary enforcement remain intact | **Closed** |
+| Duplicate-ID handling | No regression; owner validation and request non-disclosure remain separated | **Closed** |
+| AC-03R2 — path/currentness with root | Current bytes are re-read within a resolved root; escape, missing file, unreadable file, and fingerprint mismatch fail closed | **Closed when `source_root` is present** |
+| AC-03R2 — root omission | Discovery bytes are accepted as if sufficient for a supported citation, even though post-discovery currentness cannot be determined | **Open — blocking** |
+| AC-03R2 — claim-specific evidence | Ranked citations require support; summarize/explain search for project/link evidence rather than arbitrary first content | **Closed** |
+| AC-03R2 — incomplete coverage visibility | Structured output labels incomplete coverage, but CLI text does not display it and renders line `0-0` under “Sources” | **Open — blocking** |
+| AC-04R2 | Exact legacy result/citation key sets, required keys, nested validation, old-key removal, and ranking-value validation are enforced | **Closed** |
+| AE-01R2 | Equivalent construction-plus-query p95 comparison reports +9.1%, within the ≤20% gate | **Closed** |
+
+## R3.4 AC-03R2 findings
+
+### AC-03R3-01 — `source_root` must be mandatory or citation emission must fail closed
+
+The accepted implementation brief requires citation validation to prove:
+
+> the current bytes match `source_fingerprint`
+
+With a configured root, the implementation satisfies this:
+
+- `(source_root / relpath).resolve()` is checked with `is_relative_to(source_root)`;
+- symlink/path escape resolves outside and is rejected;
+- missing/unreadable files return no current bytes;
+- post-discovery mutation changes the fingerprint and declines the citation;
+- CRLF/LF and appended raw-byte changes are fingerprint-visible.
+
+Without a root, `_current_bytes` returns `note.source_bytes`. This validates only that the
+stored discovery fingerprint matches the stored discovery snapshot. It cannot determine
+whether the source currently exists or changed after discovery. Nevertheless, the engine
+can emit the citation with:
+
+```text
+coverage="supported"
+```
+
+The fallback therefore proves snapshot self-consistency, not current-source validity.
+Documenting the distinction does not satisfy the accepted current-byte invariant.
+
+**Required correction — choose one fail-closed contract:**
+
+1. Make `source_root` mandatory for `QueryEngine` because all supported query surfaces can
+   produce citations; update all callers and tests accordingly.
+
+   **Or**
+
+2. Permit snapshot-only construction, but prohibit `supported` citation emission without
+   a current-source resolver. Return no citation or an explicitly separate unavailable/
+   snapshot-only evidence object that cannot be mistaken for a validated citation.
+
+The preferred v0.3.1 design is option 1: the filesystem repository already owns the root,
+the CLI supplies it, and a required root keeps the citation guarantee uniform. A future
+non-filesystem repository may satisfy the same port through an explicit read-only
+current-source resolver rather than weakening the contract.
+
+Add tests proving:
+
+- omission of the current-source boundary fails at construction or citation emission;
+- all supported query constructors supply it;
+- path escape and symlink escape fail closed;
+- missing/unreadable source fails closed;
+- post-discovery raw-byte mutation declines the citation;
+- a discovery snapshot alone is never labeled `supported` under the current-byte
+  contract.
+
+### AC-03R3-02 — Incomplete coverage is not explicit in the text interface
+
+Using `coverage="incomplete"` is acceptable for an authorized source reference when the
+claim-specific evidence gap is made unmistakable and it is not represented as a
+passage-valid citation.
+
+The structured JSON includes `coverage`, an empty excerpt, and locator `0-0`. That is
+machine-visible. The CLI text renderer, however, ignores `coverage` and prints every object
+under:
+
+```text
+Sources:
+  - <title> (<path>:0-0) [relative relevance=n/a] <reason>
+```
+
+This makes an incomplete reference appear to be a normal source citation. The user does
+not see that the claim lacks a supporting passage. It violates the AI Behavior Standard's
+visible-uncertainty and citation-coverage rules.
+
+**Required correction:**
+
+- render supported passage citations and incomplete references separately in text;
+- never display `0-0` as a source line range;
+- use explicit language such as “Evidence coverage incomplete — source referenced, but no
+  claim-supporting passage was found”;
+- expose an answer-level citation-coverage/limitations signal so a consumer need not infer
+  incomplete support by scanning citations;
+- ensure exit/status behavior does not treat an answer containing only incomplete
+  references as fully evidence-backed;
+- add CLI text and JSON tests proving the gap is visible and cannot be confused with
+  supported evidence.
+
+The accepted R3 citation structure still applies to `coverage="supported"`. An incomplete
+reference with no locator/excerpt must not be counted as a valid material citation.
+
+## R3.5 AC-04R2 final assessment
+
+The compatibility reader now:
+
+- defines exact legacy result and citation key sets;
+- requires the documented identity/result fields;
+- rejects unknown keys and result/citation shape confusion;
+- rejects new-only payloads at the legacy boundary;
+- validates old and new ranking values when present;
+- requires equal old/new values and always removes `confidence`;
+- validates every nested citation;
+- never produces answer confidence.
+
+This is the narrowly bounded, one-release reader required by R6 and ADR-0014.
+
+**AC-04R2 is closed.**
+
+## R3.6 AE-01R2 final assessment
+
+The revised benchmark times, for each sample:
+
+1. `QueryEngine` construction over the same pre-parsed note set; and
+2. one public query.
+
+This includes the candidate's authorized-view, index, relationship graph, retrieval,
+ranking, citation/current-byte validation, and result construction. The baseline and
+candidate use the same synthetic fixture, query, warm-up count, 100 measured runs,
+percentile method, machine, and Python version.
+
+Reported 1,000-note p95:
+
+| Version | Total-pipeline p95 |
+|---|---:|
+| v0.3 baseline | 35.219 ms |
+| v0.3.1 candidate | 38.430 ms |
+| Regression | +9.1% |
+
+The result is below the accepted +20% ceiling. The prebuilt-engine measurement is correctly
+retained as a diagnostic rather than substituted for the release gate.
+
+**AE-01R2 is closed.**
+
+## R3.7 Architecture and security assessment
+
+Rev 3 does not regress ADR-0012 layering. The additional current-source logic is currently
+inside `QueryEngine`; at this prototype scale that is tolerable, but the next repository
+variant should introduce a small read-only source-revision resolver port rather than adding
+filesystem-specific branches to orchestration.
+
+The following remain architecturally sound:
+
+- authorization before index and graph construction;
+- excluded-source non-disclosure;
+- exact-byte fingerprints;
+- stable identity separated from revision/location;
+- full heading hierarchy and claim-specific passage selection;
+- hard context budget;
+- relevance/answer-confidence separation;
+- versioned outputs and strict legacy boundary;
+- isolated, per-scope authorized view;
+- local, offline, read-only behavior.
+
+The only remaining release blockers are the uniform current-source requirement and visible
+incomplete-coverage semantics described above.
+
+## R3.8 Required final engineering correction
+
+Return a narrowly scoped final correction containing:
+
+1. mandatory current-source validation for every citation-producing boundary, preferably
+   by requiring `source_root` for the current filesystem implementation;
+2. explicit separation/rendering of supported citations and incomplete evidence
+   references;
+3. answer-level coverage/limitation semantics and correct exit behavior;
+4. tests for omitted current-source boundary, path/symlink confinement, mutation/missing
+   source, snapshot-only behavior, CLI text, JSON, and incomplete-only answers;
+5. full tests, Ruff, mypy, `git diff --check`, unchanged-vault, and benchmark confirmation;
+6. exact new HEAD and diff from
+   `47b1a0bf5609d29abb3633273fec2721b853ef45`;
+7. confirmation that the branch remains unmerged, unpushed, and within v0.3.1 scope.
+
+The CTO must issue one more superseding architecture disposition. Do not begin QA directly.
+
+## R3.9 QA status
+
+**Quality & Release is not authorized to begin.**
+
+No QA output is authorized for this HEAD. After a future CTO clearance, the required QA
+artifact remains:
+
+```text
+docs/handovers/v0.3.1/05-quality-to-product-owner-release-review.md
+```
+
+The clearing disposition must pin the exact branch/HEAD and active QA evidence matrix.
+
+## R3.10 Exit statement
+
+**Refactor first.** AC-04R2 and AE-01R2 are closed. AC-03R2 is substantially improved but
+remains open because supported citations can still bypass current-source validation when
+`source_root` is omitted, and incomplete evidence coverage is not visible in CLI text.
+Commit `47b1a0bf5609d29abb3633273fec2721b853ef45` is returned to engineering. Quality &
+Release is not authorized to begin.

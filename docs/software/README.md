@@ -25,6 +25,7 @@ no writes to any source it reads.
 - [DEFERRED_DECISIONS.md](DEFERRED_DECISIONS.md) — choices left open for review.
 - [EXTENDING.md](EXTENDING.md) — how future provider and storage adapters plug in.
 - [VAULT_HEALTH.md](VAULT_HEALTH.md) — Phase 2: real-vault health report and performance.
+- [QUERYING.md](QUERYING.md) — `jarvis ask`: offline, deterministic vault queries.
 
 ## Governing documents
 

@@ -15,6 +15,14 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Added (Phase 2 — Real Vault Pilot, in review)
 
+- `jarvis ask` — an offline, deterministic query engine over the vault (summarize a
+  project, find projects mentioning a term, list notes related to a term, keyword
+  search). No AI provider, network, or keys.
+- Versioned JSON report envelope (`schemaVersion`, `generatedBy`, `timestamp`,
+  `vaultVersion` content fingerprint); `--deterministic` omits the timestamp.
+- Finer performance stages (disk read vs metadata vs markdown parse vs graph) plus
+  graph-size, note-cache-size, and opt-in peak-memory (`--memory`) metrics.
+
 - Real Obsidian-vault loading from a configurable directory (still strictly read-only).
 - Performance instrumentation (`jarvis_core.metrics`): per-stage timings for parse,
   relationship resolution, validation, and total runtime, with throughput.

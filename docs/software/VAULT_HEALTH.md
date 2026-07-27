@@ -37,8 +37,62 @@ Interpretation notes:
   modelling problem.
 
 ## Exit codes
+
 `vault-report` returns `0` (healthy), `2` (warnings only), or `1` (any error-severity
-finding), matching the rest of the CLI.
+finding), matching the rest of the CLI. This makes it usable as a CI gate.
+
+```bash
+# Healthy — exit 0
+$ jarvis vault-report ./vault ; echo "exit=$?"
+Vault Health Report — HEALTHY
+...
+exit=0
+
+# Warnings only (e.g. orphans, broken links) — exit 2
+$ jarvis vault-report ./vault ; echo "exit=$?"
+Vault Health Report — ISSUES FOUND
+...
+exit=2
+
+# Errors (duplicate IDs, invalid schema) — exit 1
+$ jarvis vault-report ./vault ; echo "exit=$?"
+Vault Health Report — ISSUES FOUND
+...
+exit=1
+```
+
+CI usage — fail the job on errors but tolerate warnings:
+
+```bash
+jarvis vault-report ./vault --format json --deterministic > health.json
+code=$?
+if [ "$code" -eq 1 ]; then echo "vault has errors"; exit 1; fi
+# exit 2 (warnings) is allowed to pass
+```
+
+The `--deterministic` flag omits the wall-clock timestamp so a report can be snapshot-
+tested (byte-stable for identical vault content).
+
+## Report envelope (JSON)
+
+Every JSON report is wrapped in a small, versioned envelope for downstream tooling:
+
+```json
+{
+  "schemaVersion": "1.0",
+  "generatedBy": "Jarvis 0.1.0",
+  "timestamp": "2026-07-27T16:02:16+00:00",
+  "vaultVersion": "sha256:71375ba8b07ed878",
+  "...": "report payload (findings, counts, performance) follows"
+}
+```
+
+- `schemaVersion` — bump on any breaking change to the report format.
+- `generatedBy` — the Jarvis version that produced the report.
+- `timestamp` — ISO-8601 generation time; `null` under `--deterministic`.
+- `vaultVersion` — a deterministic content fingerprint of the scanned vault (stable for
+  identical content, independent of filesystem timestamps) for cache invalidation and
+  change detection.
 
 ## Report structure
 `SUMMARY` (vault, note count, findings by category) · `PERFORMANCE` (per-stage timings) ·
@@ -46,10 +100,20 @@ finding), matching the rest of the CLI.
 
 ## Performance instrumentation
 
-Per-stage wall-clock timings (`time.perf_counter`) are collected for **parse**,
-**resolve**, **validate**, and **total**, plus note count and throughput. Include them
-with `--timing` (default on) or omit with `--no-timing`. Also available programmatically
-via `jarvis_core.metrics.PerfReport`.
+Per-stage wall-clock timings (`time.perf_counter`) are collected and reported. Parsing is
+split so you can see exactly where time goes:
+
+- `disk_read` — reading file bytes from disk (I/O);
+- `metadata_parse` — YAML frontmatter parsing;
+- `markdown_parse` — inline elements, links, tags, headings;
+- `graph` — relationship resolution (graph construction);
+- `validate` — schema validation;
+- `total` — whole run, plus throughput (notes/second).
+
+Resource metrics are also reported: **graph size** (nodes, edges) and **note cache size**
+(bytes read). Add `--memory` to also capture **peak memory** via `tracemalloc` (opt-in;
+it adds overhead). Include timings with `--timing` (default on) or omit with
+`--no-timing`. Everything is available programmatically via `jarvis_core.metrics.PerfReport`.
 
 ### Measured throughput (synthetic vaults, build sandbox)
 

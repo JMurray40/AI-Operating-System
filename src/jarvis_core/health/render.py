@@ -15,6 +15,11 @@ def render_text(report: VaultHealthReport) -> str:
     # --- Summary ---
     lines.append("")
     lines.append("SUMMARY")
+    lines.append(f"  Report: {report.generated_by} (schema {report.schema_version})")
+    if report.generated_at:
+        lines.append(f"  Generated: {report.generated_at}")
+    if report.vault_version:
+        lines.append(f"  Vault version: {report.vault_version}")
     lines.append(f"  Vault: {report.vault_path}")
     lines.append(f"  Obsidian vault: {'yes' if report.is_obsidian_vault else 'no'}")
     lines.append(f"  Notes analyzed: {report.note_count}")
@@ -39,6 +44,15 @@ def render_text(report: VaultHealthReport) -> str:
                 lines.append(f"  {stage}: {ms} ms")
         lines.append(f"  Total runtime: {report.perf.get('total_ms')} ms")
         lines.append(f"  Throughput: {report.perf.get('notes_per_second')} notes/s")
+        graph = report.perf.get("graph") if isinstance(report.perf, dict) else None
+        if isinstance(graph, dict):
+            lines.append(f"  Graph: {graph.get('nodes')} nodes, {graph.get('edges')} edges")
+        cache_bytes = report.perf.get("cache_bytes") if isinstance(report.perf, dict) else None
+        if isinstance(cache_bytes, (int, float)) and cache_bytes:
+            lines.append(f"  Note cache: {round(cache_bytes / 1024, 1)} KB")
+        memory = report.perf.get("memory") if isinstance(report.perf, dict) else None
+        if isinstance(memory, dict):
+            lines.append(f"  Peak memory: {memory.get('peak_mb')} MB")
 
     # --- Errors ---
     lines.append("")

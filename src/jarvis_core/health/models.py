@@ -4,7 +4,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+from jarvis_core import __version__
 from jarvis_core.models.validation import Severity
+
+#: Version of the health-report JSON envelope. Bump on any breaking format change.
+REPORT_SCHEMA_VERSION = "1.0"
 
 
 class HealthCategory(str, Enum):
@@ -79,6 +83,11 @@ class VaultHealthReport:
     is_obsidian_vault: bool
     findings: tuple[HealthFinding, ...] = ()
     perf: dict[str, object] | None = None
+    # --- report envelope (metadata for downstream tooling) ---
+    schema_version: str = REPORT_SCHEMA_VERSION
+    generated_by: str = f"Jarvis {__version__}"
+    generated_at: str | None = None   # ISO-8601; None keeps output deterministic
+    vault_version: str | None = None  # content fingerprint of the scanned vault
 
     @property
     def errors(self) -> tuple[HealthFinding, ...]:
@@ -114,6 +123,10 @@ class VaultHealthReport:
 
     def to_dict(self) -> dict[str, object]:
         return {
+            "schemaVersion": self.schema_version,
+            "generatedBy": self.generated_by,
+            "timestamp": self.generated_at,
+            "vaultVersion": self.vault_version,
             "vault_path": self.vault_path,
             "note_count": self.note_count,
             "is_obsidian_vault": self.is_obsidian_vault,

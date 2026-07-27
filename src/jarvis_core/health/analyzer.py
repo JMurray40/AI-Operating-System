@@ -1,6 +1,7 @@
 """Analyze a set of notes and produce a VaultHealthReport (read-only)."""
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 from jarvis_core.context.validator import validate_notes
@@ -15,6 +16,20 @@ def is_obsidian_vault(path: Path) -> bool:
     return (path / ".obsidian").is_dir()
 
 
+def compute_vault_fingerprint(notes: list[Note]) -> str:
+    """Deterministic content fingerprint of a vault (stable for identical content).
+
+    Independent of scan time or filesystem timestamps, so it is safe to embed in a
+    report envelope for cache-invalidation and change detection downstream.
+    """
+    hasher = hashlib.sha256()
+    for note in sorted(notes, key=lambda n: n.relpath):
+        body_hash = hashlib.md5(note.body.encode("utf-8", "replace")).hexdigest()
+        fm_hash = hashlib.md5(repr(sorted(note.frontmatter.items())).encode()).hexdigest()
+        hasher.update(f"{note.relpath}\x00{fm_hash}\x00{body_hash}\n".encode())
+    return "sha256:" + hasher.hexdigest()[:16]
+
+
 def analyze_vault(
     notes: list[Note],
     vault_path: Path,
@@ -22,6 +37,8 @@ def analyze_vault(
     resolution: ResolutionReport | None = None,
     validation: ValidationResult | None = None,
     perf: dict[str, object] | None = None,
+    generated_at: str | None = None,
+    vault_version: str | None = None,
 ) -> VaultHealthReport:
     """Run all seven health checks and aggregate findings.
 
@@ -48,6 +65,8 @@ def analyze_vault(
         is_obsidian_vault=is_obsidian_vault(vault_path),
         findings=tuple(sorted(findings)),
         perf=perf,
+        generated_at=generated_at,
+        vault_version=vault_version,
     )
 
 

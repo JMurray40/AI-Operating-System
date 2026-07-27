@@ -35,3 +35,22 @@ class Provider(Protocol):
 
     def summarize(self, package: ContextPackage, model_role: str = "fast") -> ProviderResponse:
         """Accept a context package and return a structured response."""
+
+
+from collections.abc import Iterator  # noqa: E402
+
+
+@runtime_checkable
+class SupportsStreaming(Protocol):
+    """Optional capability: a provider that can stream its summary in text chunks.
+
+    Streaming is opt-in. Providers that do not implement this are used non-streaming; the
+    conversation layer falls back to chunking the final text so behaviour is uniform.
+    """
+
+    name: str
+
+    def stream_summarize(
+        self, package: ContextPackage, model_role: str = "fast"
+    ) -> Iterator[str]:
+        """Yield the summary as a sequence of text deltas."""

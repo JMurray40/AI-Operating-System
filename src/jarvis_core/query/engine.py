@@ -36,7 +36,7 @@ from jarvis_core.query.ranking import Ranker, RankingWeights, ScoredNote
 from jarvis_core.query.results import Citation, QueryAnswer, citation_from_scored
 from jarvis_core.query.tokenizer import normalize
 from jarvis_core.query.trace import QueryTrace
-from jarvis_core.relationships.resolver import RelationshipResolver
+from jarvis_core.relationships.resolver import RelationshipResolver, ResolutionReport
 
 _SEARCH_LIMIT = 20
 
@@ -93,6 +93,23 @@ class QueryEngine:
             self._index, self._report, token_budget=token_budget
         )
         self._provider = provider or get_provider("mock")
+
+    # ============================================================ read-only accessors
+    @property
+    def report(self) -> ResolutionReport:
+        """The resolved relationship graph (read-only)."""
+        return self._report
+
+    @property
+    def provider_name(self) -> str:
+        return self._provider.name
+
+    def note_by_relpath(self, relpath: str) -> Note | None:
+        """Return a parsed note by relative path, or None."""
+        return self._by_relpath.get(relpath)
+
+    def all_notes(self) -> list[Note]:
+        return list(self._notes)
 
     # ============================================================ v0.2 API
     def ask(self, question: str) -> QueryResult:

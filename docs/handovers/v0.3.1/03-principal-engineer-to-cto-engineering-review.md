@@ -500,3 +500,88 @@ evidence across text/JSON/coverage signal/exit) are corrected with adversarial t
 previously closed findings remain closed; the ≤20% performance gate holds at +12.6%. Branch
 not merged, not pushed; parked conversation candidate untouched. QA remains blocked pending a
 superseding CTO disposition.
+
+---
+
+# SUPERSEDING REVISION — Rev 5 (final: benchmark entry-point migration)
+
+| Field | Value |
+|---|---|
+| Revision | 5 (supersedes Rev 4; Rev 1–4 retained for history) |
+| Prior reviewed SHA | `649e5a2ecfc98b2c4c9f23b5456716bb5f05f7f9` (CTO Rev 4) |
+| CTO return commit | `b58a42b8b09d44cf8953bf6cdb8a698daa5c84e1` |
+| Remediation commits | `e999737` fix · `4e2ffa8` test · this docs commit (see `git log`) |
+| Correction diff range | `649e5a2..HEAD` |
+| Scope | `scripts/benchmark_query.py` current-source migration + enforced smoke test only |
+| Merged / pushed | **No** |
+
+Only the returned finding was addressed. No citation semantics, compatibility, authorization,
+performance gate, or any other closed finding was modified. All exclusions remain; the parked
+conversation worktree was not touched; no accepted ADR was rewritten.
+
+## Correction
+
+The documented v0.3.1 query benchmark `scripts/benchmark_query.py` constructed
+`QueryEngine(notes, scope=scope)` in two current-version paths — the per-size **warm-up**
+(line 62) and the 1,000-note **memory measurement** (line 118) — without the mandatory
+`source_root` (AC-03R3-01), so the entry point raised at construction before executing. Both
+now pass `source_root=root` (the synthetic vault root already in scope). No timing or
+measurement semantics changed.
+
+## Enforced smoke test (constructor-contract drift)
+
+`tests/integration/test_benchmark_smoke.py` loads the scripts by file path and executes their
+documented entry points at tiny size, so any future construction that omits `scope` or
+`source_root` fails the suite:
+
+- `test_benchmark_query_bench_constructs_engine` — runs `bench(5, 1, scope)` (warm-up path).
+- `test_benchmark_query_entrypoint_runs` — runs `main()` with `--sizes 5 --runs 1`, exercising
+  the warm-up **and** the memory-measurement construction (asserts "Peak memory" and
+  "authorization stress" output).
+- `test_benchmark_regression_entrypoint_runs` — runs the regression harness `main()`.
+
+## Call-site audit (current-version constructions)
+
+Every non-baseline `QueryEngine(...)` construction in `src`, `scripts`, and `tests` supplies
+**both** an explicit authorization scope and a `source_root`:
+
+- `src/jarvis_core/cli.py` — `scope=local_allow_all("local"), source_root=repo.root`.
+- `scripts/benchmark_query.py` (warm-up + memory) — `scope=scope, source_root=root`.
+- `scripts/benchmark_regression.py` — candidate branch passes `scope=_SCOPE, source_root=root`;
+  the `scope`-only and no-arg branches are reached **only** on the v0.3 baseline via
+  `TypeError` fallback (the baseline constructor accepts neither), as the CTO permitted for
+  the deliberately-baseline compatibility harness.
+- All test helpers pass `scope` + `source_root`. The only `QueryEngine(...)` calls without
+  both are the **deliberate fail-closed negative tests**
+  (`tests/unit/test_policy.py::test_engine_requires_explicit_scope`,
+  `tests/integration/test_citation_currentness.py::test_source_root_is_mandatory`), which
+  assert `TypeError`/`PolicyError`.
+
+## Commands and results (Rev 5)
+
+- `python -m pytest -q` → **199 passed** (was 196; +3 benchmark smoke tests).
+- `ruff check src tests scripts` → **All checks passed**.
+- `mypy` → **Success: no issues found in 52 source files** (cache on local disk; FUSE
+  `.mypy_cache` sqlite `disk I/O error` is environmental).
+- `git diff --check` → clean.
+- Unchanged-vault read-only evidence unchanged and still passing.
+- **Documented query benchmark now executes**:
+  `python scripts/benchmark_query.py --sizes 1000 --runs 5` → total p50/p95 34.8/38.6 ms,
+  Peak memory 6.12 MB, authorization stress (500 excluded) total p50/p95 16.4/22.4 ms.
+- **Regression benchmark executes** (gate unchanged/closed): total_pipeline p95 candidate
+  ~37.4 ms vs the accepted v0.3 baseline 33.812 ms → +12.6% at the Rev 4 measurement,
+  within the ≤20% gate. No performance-gate change was made in Rev 5.
+
+## Deviations, debt, unresolved
+
+No behaviour change beyond making the documented benchmark entry point runnable under the
+mandatory-root contract, plus a new enforced smoke test. No new debt; recorded Rev 1–4 debt
+stands. No unresolved defects.
+
+## Exit statement (Rev 5)
+
+**Ready for exact-HEAD CTO clearance of `649e5a2..HEAD`.** The final open finding (benchmark
+entry-point current-source migration) is corrected and guarded by an enforced smoke test; all
+previously closed findings remain closed; both documented benchmark entry points execute;
+199 tests, Ruff, mypy, and `git diff --check` pass. Branch not merged, not pushed; parked
+conversation candidate untouched. QA remains blocked pending exact-HEAD CTO clearance.

@@ -34,14 +34,22 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Planned
 
-- Validate the knowledge standard against two pilot projects.
-- Define the read-only vault inventory milestone.
+- Validate the accepted two-project knowledge pilot through daily use.
+- Review and approve the migration execution plan before broader vault changes.
 
 ### Added
 
 - `SYSTEM_PRINCIPLES.md` as the enduring project-governance philosophy.
 - Accepted ADR-0004 establishing project dashboards as the primary navigation layer.
 - Accepted ADR-0005 requiring inventory before significant modification.
+- Migration runbook, storage architecture, naming/taxonomy, automation/synchronization architecture, and architecture decision matrix.
+- Product strategy and implementation-gated release roadmap through v2.0.
+- Ten capability PRDs covering chat, agents, plugins, memory, search, graph, dashboard, mobile, automation, and MCP.
+- Enterprise architecture, product/platform, and comprehensive security reviews.
+- Eight bounded reference agent specifications and the public plugin SDK design.
+- Developer experience strategy and 100-item future research backlog.
+- Executive product and architecture summary with pre-coding decision gates.
+- ADR-0007 through ADR-0011 covering read-only defaults, plugin manifests, proposal-based memory, provider abstraction, and MCP isolation.
 
 ## [0.1.0] - 2026-07-27
 

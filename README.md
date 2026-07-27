@@ -114,19 +114,24 @@ The Obsidian vault and this repository complement rather than duplicate one anot
 
 Start with:
 
-1. [Product Vision](docs/PRODUCT_VISION.md)
-2. [System Principles](docs/SYSTEM_PRINCIPLES.md)
-3. [The BRAIN v2](docs/THE_BRAIN_V2_SPEC.md)
-4. [System Architecture](docs/SYSTEM_ARCHITECTURE.md)
-5. [Architecture Decision Records](docs/adr/)
-6. [Roadmap](docs/ROADMAP.md)
-7. [Development Guide](docs/DEVELOPMENT_GUIDE.md)
+1. [Executive Product and Architecture Summary](docs/EXECUTIVE_PRODUCT_ARCHITECTURE_SUMMARY.md)
+2. [Product Vision](docs/PRODUCT_VISION.md) and [Product Strategy](docs/product/PRODUCT_STRATEGY.md)
+3. [System Principles](docs/SYSTEM_PRINCIPLES.md)
+4. [Version Roadmap](docs/product/VERSION_ROADMAP.md)
+5. [The BRAIN v2](docs/THE_BRAIN_V2_SPEC.md)
+6. [System Architecture](docs/SYSTEM_ARCHITECTURE.md) and [Enterprise Review](docs/reviews/ENTERPRISE_ARCHITECTURE_REVIEW.md)
+7. [Storage Architecture](docs/STORAGE_ARCHITECTURE.md) and [Security Threat Model](docs/reviews/SECURITY_THREAT_MODEL.md)
+8. [Capability PRDs](docs/prd/README.md)
+9. [Plugin SDK](docs/sdk/PLUGIN_SDK_SPECIFICATION.md) and [Agent Specifications](docs/agents/AGENT_SPECIFICATIONS.md)
+10. [Architecture Decision Matrix](docs/ARCHITECTURE_DECISION_MATRIX.md) and [ADRs](docs/adr/)
+11. [Implementation Plan](docs/IMPLEMENTATION_PLAN.md) and [Developer Experience](docs/DEVELOPER_EXPERIENCE_STRATEGY.md)
+12. [Future Research Backlog](research/FUTURE_RESEARCH_BACKLOG.md)
 
 All human and AI contributions follow [CONTRIBUTING.md](CONTRIBUTING.md) and the [AI Behavior Standard](docs/AI_BEHAVIOR_STANDARD.md).
 
 ## Current status
 
-Version `0.1.0` establishes the documentation, governance, templates, schemas, and GitHub workflows required before implementation begins.
+Version `0.1.0` established the read-only Jarvis Core foundation. Phase 2 adds real-vault health reporting, deterministic offline querying, metrics, and implementation-ready product architecture while preserving read-only operation.
 
 ## Related documents
 
@@ -135,6 +140,9 @@ Version `0.1.0` establishes the documentation, governance, templates, schemas, a
 - [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
 - [Knowledge Standard](docs/KNOWLEDGE_STANDARD.md)
 - [Vault Schema](docs/VAULT_SCHEMA.md)
+- [Storage Architecture](docs/STORAGE_ARCHITECTURE.md)
+- [Migration Execution Plan](docs/MIGRATION_EXECUTION_PLAN.md)
+- [Architecture Decision Matrix](docs/ARCHITECTURE_DECISION_MATRIX.md)
 
 ## Revision history
 

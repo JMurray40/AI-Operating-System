@@ -205,3 +205,63 @@ def build_feature_vault(root: Path) -> None:
     # Missing-frontmatter note that still mentions a term.
     (root / "Scratch.md").write_text("# Scratch\n\nNotes about QuickBooks exports.\n",
                                      encoding="utf-8")
+
+
+def build_trust_vault(root: Path) -> None:
+    """A vault exercising v0.3.1 trust contracts: sensitivity, identity, passages, CRLF.
+
+    Deterministic. Contains:
+    - Alpha (public project) linking a restricted note and an internal concept;
+    - Secret (restricted) with a unique term ``zebrasecret``;
+    - Shared (internal concept);
+    - Bare.md (no frontmatter -> unknown sensitivity, fails closed);
+    - Dup1/Dup2 (duplicate explicit id);
+    - Crlf.md written with CRLF line endings and nested headings.
+    """
+    root.mkdir(parents=True, exist_ok=True)
+
+    (root / "Alpha.md").write_text(
+        "---\nid: project-alpha\ntype: project\ntitle: \"Alpha\"\nstatus: active\n"
+        f"created: {_DATE}\nupdated: {_DATE}\ngoal: \"Ship Alpha widget\"\npriority: high\n"
+        "sensitivity: public\n---\n\n# Alpha\n\n"
+        "Alpha widget project. Links [[Shared]] and [[Secret]].\n",
+        encoding="utf-8",
+    )
+    (root / "Secret.md").write_text(
+        "---\nid: note-secret\ntype: reference\ntitle: \"Secret\"\nresource_type: doc\n"
+        f"source_of_truth: local\nstatus: active\ncreated: {_DATE}\nupdated: {_DATE}\n"
+        "sensitivity: restricted\n---\n\n# Secret\n\nContains zebrasecret material. [[Alpha]]\n",
+        encoding="utf-8",
+    )
+    (root / "Shared.md").write_text(
+        _concept("concept-shared", "Shared", "Shared concept text. Links [[Alpha]]."),
+        encoding="utf-8",
+    )
+    (root / "Bare.md").write_text("# Bare\n\nNo frontmatter here; sensitivity unknown.\n",
+                                  encoding="utf-8")
+    (root / "Dup1.md").write_text(
+        "---\nid: dup-id\ntype: concept\ntitle: \"Dup One\"\nstatus: active\n"
+        f"created: {_DATE}\nupdated: {_DATE}\nsensitivity: internal\n---\n\n"
+        "# Dup One\n\n[[Alpha]]\n",
+        encoding="utf-8",
+    )
+    (root / "Dup2.md").write_text(
+        "---\nid: dup-id\ntype: concept\ntitle: \"Dup Two\"\nstatus: active\n"
+        f"created: {_DATE}\nupdated: {_DATE}\nsensitivity: internal\n---\n\n"
+        "# Dup Two\n\n[[Alpha]]\n",
+        encoding="utf-8",
+    )
+    # CRLF file with nested headings for locator/newline tests.
+    crlf = (
+        "---\r\nid: note-crlf\r\ntype: concept\r\ntitle: \"Crlf\"\r\nstatus: active\r\n"
+        f"created: {_DATE}\r\nupdated: {_DATE}\r\nsensitivity: internal\r\n---\r\n\r\n"
+        "# Crlf\r\n\r\n## Details\r\n\r\nCrlf carriage content here. [[Alpha]]\r\n"
+    )
+    (root / "Crlf.md").write_bytes(crlf.encode("utf-8"))
+
+
+def build_trust_vault_no_dupes(root: Path) -> None:
+    """Like :func:`build_trust_vault` but without the duplicate-id notes (loadable)."""
+    build_trust_vault(root)
+    (root / "Dup1.md").unlink()
+    (root / "Dup2.md").unlink()

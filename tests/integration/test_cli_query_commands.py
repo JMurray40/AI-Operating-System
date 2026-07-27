@@ -12,7 +12,7 @@ def test_cli_search_ok(tmp_path: Path, capsys):
     out = capsys.readouterr().out
     assert code == cli.EXIT_OK
     assert "Sources:" in out
-    assert "conf=" in out
+    assert "relative relevance=" in out
 
 
 def test_cli_search_empty_warns(tmp_path: Path):
@@ -25,7 +25,7 @@ def test_cli_search_json_has_citations(tmp_path: Path, capsys):
     cli.main(["search", "ledger", "--path", str(tmp_path), "--format", "json"])
     out = capsys.readouterr().out
     assert '"citations"' in out
-    assert '"confidence"' in out
+    assert '"relative_relevance"' in out
 
 
 def test_cli_summarize_cited(tmp_path: Path, capsys):

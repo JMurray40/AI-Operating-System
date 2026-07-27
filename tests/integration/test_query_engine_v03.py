@@ -18,7 +18,7 @@ def _engine(path: Path) -> QueryEngine:
 def test_search_exact_title_ranks_first(tmp_path: Path):
     a = _engine(tmp_path).search("Ledger")
     assert a.citations[0].relpath == "Ledger.md"
-    assert a.citations[0].confidence == 1.0
+    assert a.citations[0].relative_relevance == 1.0
 
 
 def test_search_alias_match(tmp_path: Path):
@@ -34,7 +34,8 @@ def test_search_tag_match(tmp_path: Path):
 def test_search_partial_term(tmp_path: Path):
     a = _engine(tmp_path).search("quickbooks")
     hits = {c.relpath for c in a.citations}
-    assert {"Invoicing.md", "Payments.md", "Scratch.md"} <= hits
+    assert {"Invoicing.md", "Payments.md"} <= hits
+    assert "Scratch.md" not in hits  # unknown sensitivity -> excluded (ADR-0015)
 
 
 def test_search_empty_result(tmp_path: Path):
@@ -43,16 +44,17 @@ def test_search_empty_result(tmp_path: Path):
     assert "No notes match" in a.answer
 
 
-def test_search_missing_frontmatter_note_is_searchable(tmp_path: Path):
+def test_missing_frontmatter_note_is_excluded_fail_closed(tmp_path: Path):
+    # A note without frontmatter has unknown sensitivity and must fail closed (ADR-0015).
     a = _engine(tmp_path).search("exports")
-    assert any(c.relpath == "Scratch.md" for c in a.citations)
+    assert all(c.relpath != "Scratch.md" for c in a.citations)
 
 
-def test_every_citation_has_reason_and_confidence(tmp_path: Path):
+def test_every_citation_has_reason_and_relevance(tmp_path: Path):
     a = _engine(tmp_path).search("quickbooks")
     for c in a.citations:
         assert c.reason
-        assert 0.0 <= c.confidence <= 1.0
+        assert c.relative_relevance is None or 0.0 <= c.relative_relevance <= 1.0
         assert c.relpath
 
 

@@ -1,0 +1,50 @@
+name: Feature
+description: Propose a user-valued capability
+title: "[Feature]: "
+labels: ["type: feature", "status: needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Describe the outcome before proposing an implementation.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or opportunity
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope and non-goals
+    validations:
+      required: true
+  - type: textarea
+    id: criteria
+    attributes:
+      label: Completion criteria
+    validations:
+      required: true
+  - type: textarea
+    id: risks
+    attributes:
+      label: Security, privacy, permission, or migration risks
+  - type: dropdown
+    id: milestone
+    attributes:
+      label: Candidate milestone
+      options:
+        - Milestone 0 — Foundation
+        - Milestone 1 — Knowledge System
+        - Milestone 2 — Cross-AI Memory
+        - Milestone 3 — Read-only Jarvis
+        - Milestone 4 — Project Resume
+        - Milestone 5 — Relationship Engine
+        - Milestone 6 — Automation
+        - Milestone 7 — Voice
+        - Unassigned

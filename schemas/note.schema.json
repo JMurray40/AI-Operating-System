@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.local/ai-operating-system/note.schema.json",
+  "title": "The BRAIN v2 Note Metadata",
+  "description": "Version 0.1.0 common metadata contract for durable notes.",
+  "type": "object",
+  "required": ["id", "type", "title", "status", "created", "updated", "sensitivity"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 3,
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "type": {
+      "enum": [
+        "project",
+        "area",
+        "concept",
+        "research",
+        "reference",
+        "playbook",
+        "person",
+        "organization",
+        "resource",
+        "decision",
+        "session-summary",
+        "prompt",
+        "daily",
+        "meeting"
+      ]
+    },
+    "title": {"type": "string", "minLength": 1},
+    "status": {
+      "enum": [
+        "inbox",
+        "draft",
+        "active",
+        "waiting",
+        "blocked",
+        "completed",
+        "published",
+        "proposed",
+        "accepted",
+        "implemented",
+        "rejected",
+        "superseded",
+        "archived"
+      ]
+    },
+    "created": {"type": "string", "format": "date"},
+    "updated": {"type": "string", "format": "date"},
+    "sensitivity": {
+      "enum": ["public", "internal", "private", "restricted"]
+    },
+    "aliases": {"type": "array", "items": {"type": "string"}},
+    "projects": {"type": "array", "items": {"type": "string"}},
+    "areas": {"type": "array", "items": {"type": "string"}},
+    "topics": {"type": "array", "items": {"type": "string"}},
+    "people": {"type": "array", "items": {"type": "string"}},
+    "organizations": {"type": "array", "items": {"type": "string"}},
+    "related": {"type": "array", "items": {"type": "string"}},
+    "sources": {"type": "array", "items": {"type": "string"}}
+  },
+  "additionalProperties": true
+}

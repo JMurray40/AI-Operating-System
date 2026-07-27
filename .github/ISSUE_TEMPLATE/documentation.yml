@@ -1,0 +1,29 @@
+name: Documentation
+description: Improve a specification, guide, ADR, template, or example
+title: "[Docs]: "
+labels: ["type: documentation", "status: needs-triage"]
+body:
+  - type: textarea
+    id: gap
+    attributes:
+      label: Documentation gap
+    validations:
+      required: true
+  - type: input
+    id: documents
+    attributes:
+      label: Affected documents
+    validations:
+      required: true
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed improvement
+    validations:
+      required: true
+  - type: checkboxes
+    id: decision
+    attributes:
+      label: Architecture impact
+      options:
+        - label: This may require a new or superseding ADR.

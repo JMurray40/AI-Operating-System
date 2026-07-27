@@ -188,3 +188,120 @@ recorded here).
 this evidence against ADR-0012/0014–0017 and issues the architecture disposition and
 architect-to-QA handoff (`04-cto-to-quality-architecture-disposition.md`). The parked
 conversation candidate remains untouched and out of scope.
+
+---
+
+# SUPERSEDING REVISION — Rev 2 (remediation of CTO "Refactor first")
+
+| Field | Value |
+|---|---|
+| Revision | 2 (supersedes Rev 1 above; Rev 1 retained for history) |
+| Prior reviewed SHA | `62f2269245890b3f55925056c93e156c179d4b5b` |
+| CTO disposition addressed | [04-cto-to-quality-architecture-disposition.md](04-cto-to-quality-architecture-disposition.md) — Refactor first |
+| Correction base | `4285e28` (CTO return commit) |
+| Remediation commits | `871a7cf` fix · `dea0733` test · this docs commit (see `git log`) |
+| Correction diff range | `62f2269..HEAD` |
+| Scope | AC-01, AC-02, AC-03, AC-04, AE-01 + duplicate-ID clarification only |
+| Merged / pushed | **No** |
+
+Only the five returned findings were addressed. All original exclusions remain in force; the
+parked conversation worktree was not touched; no accepted ADR was rewritten; no chat,
+streaming, provider, embedding, persistence, plugin, MCP, agent, automation, or write code was
+added.
+
+## Corrections and requirement → test mapping
+
+**AC-01 — Explicit scope, fail closed.** `QueryEngine.__init__` now takes a required
+keyword-only `scope` (no default, no `local_allow_all()` fallback); omitted scope raises
+`TypeError`, explicit `None` raises `PolicyError`. All library callers/tests pass an explicit
+scope; the CLI already did. `local_allow_all` remains an explicit factory only.
+Tests: `tests/unit/test_policy.py::test_engine_requires_explicit_scope`.
+
+**AC-02 — Path-boundary-safe prefixes.** `AuthorizationScope.__post_init__` canonicalizes and
+validates `allowed_path_prefixes` (reject absolute, empty/blank, and `..` traversal;
+lower-case + forward-slash to match identity rules). `permits` matches an exact path or a
+descendant by complete path segments (`norm == p or norm.startswith(p + "/")`), so
+`projects/alpha` no longer grants `projects/alpha-restricted`.
+Tests: `tests/unit/test_policy.py::{test_path_prefix_rejects_absolute_empty_and_traversal,
+test_path_prefix_segment_boundary_no_sibling_leak, test_path_prefix_slash_and_case_normalization}`.
+
+**AC-03 — Claim-supporting citations.** `passages.locate` now finds the supporting passage on
+the actual retrieval signal across the whole source (frontmatter/title/metadata as well as
+body); returns an empty locator when evidence is absent or the source is empty.
+`validate_against_text` verifies the full heading hierarchy encloses the locator (not
+leaf-anywhere), verifies the locator range, and rejects empty excerpts. The engine validates
+every citation before emitting it and **declines** citations with no supporting passage
+(`_cite_scored`/`_cite_note` return `None`; declined citations are dropped). Additive parser
+unchanged. Consequence: a project that mentions a term only via a linked note yields no
+material citation for the project itself (its evidence lives in the neighbour) — recorded in
+`test_projects_mentioning_via_linked_note`.
+Tests: `tests/unit/test_passages_ac03.py::{test_metadata_title_match_cites_frontmatter,
+test_duplicate_leaf_heading_requires_full_path, test_renamed_parent_invalidates_citation,
+test_locator_moved_outside_section_invalid, test_empty_excerpt_rejected,
+test_empty_source_declines, test_evidence_absent_declines}`; plus
+`tests/integration/test_citations_resolve.py::*` and `tests/unit/test_passages.py::*`.
+
+**AC-04 — Narrow legacy reader.** `compat.py` accepts only mapping shapes; validates the
+legacy ranking value is a number in `[0,1]` or `None`; when both `confidence` and
+`relative_relevance` are present it requires equality and always removes the old key, else
+raises `LegacyContractError`; never maps to `answer_confidence`; nested citations validated.
+One-release removal boundary retained.
+Tests: `tests/unit/test_compat.py::{test_maps_confidence_to_relevance, test_both_keys_equal_drops_old,
+test_both_keys_conflict_rejected, test_wrong_type_rejected, test_out_of_range_rejected,
+test_non_mapping_rejected, test_nested_citations_mapped_and_bad_shape_rejected,
+test_never_synthesizes_answer_confidence, test_none_value_allowed}`.
+
+**AE-01 — Equivalent p95-to-p95 benchmark.** New `scripts/benchmark_regression.py` measures the
+complete public `QueryEngine.run(query)` end-to-end on a prebuilt engine with identical
+fixture, query, warm-up, run count, and percentile method for both versions (adaptive
+construction: candidate requires a scope, baseline does not). Stage timings remain diagnostics
+in `benchmark_query.py` (auth-stress scope fixed to a source-id allowlist).
+
+Environment: Linux sandbox (x86-64), Python 3.10.12; synthetic 1,000-note vault; query
+`"links"`; 3 warm-ups; 100 measured runs; nearest-rank percentiles; exact commands:
+`PYTHONPATH=src:. python scripts/benchmark_regression.py --notes 1000 --runs 100`
+(candidate) and the same script under `PYTHONPATH` of the v0.3 baseline extracted at
+`ce0dc35` via `git archive`.
+
+| Version | min | p50 | p95 | p99 | max |
+|---|---|---|---|---|---|
+| v0.3 baseline (`ce0dc35`) | 6.597 | 7.763 | 11.831 | 12.227 | 14.620 |
+| v0.3.1 candidate | 7.258 | 8.213 | 12.259 | 13.241 | 13.286 |
+
+Regression (p95→p95): (12.259 − 11.831) / 11.831 = **+3.6%**, within the ≤20% gate. A 50-run
+repeat gave candidate p95 13.223 vs baseline 12.337 (+7.2%), also within gate. Security
+filtering and citation validation were not weakened to meet the gate.
+
+## Duplicate-ID validation vs query disclosure (clarification)
+
+Documented in `docs/software/QUERY_TRUST_CONTRACTS.md`: whole-vault validation (validator/
+health) flags duplicate IDs across all notes for the owner; request-scoped querying detects
+duplicates **only within the authorized view**, raising `DuplicateIdentityError` before index/
+graph construction, so an excluded source can never surface through a request-visible error,
+count, or trace. Test: `tests/integration/test_authorization.py::test_duplicate_explicit_id_fails_closed`.
+
+## Commands and results (Rev 2)
+
+- `python -m pytest -q` → **180 passed** (was 163; +17 remediation tests).
+- `ruff check src tests scripts` → **All checks passed**.
+- `mypy` → **Success: no issues found in 52 source files** (cache on local disk; FUSE
+  `.mypy_cache` sqlite `disk I/O error` is environmental).
+- `git diff --check` → clean.
+- Unchanged-vault evidence unchanged and still passing
+  (`tests/integration/test_readonly_v031.py`).
+
+## Deviations, debt, unresolved
+
+- `projects_mentioning` now emits a material citation only for notes whose own text supports
+  the term; graph-only mentions appear in prose without a (false) self-citation. This is the
+  intended AC-03 consequence, not a regression.
+- Recorded debt from Rev 1 stands (per-request authorized view; heuristic passage selection
+  now validated; `ContextPackage` literal contract string). No new debt introduced. No
+  unresolved defects.
+
+## Exit statement (Rev 2)
+
+**Ready for CTO re-review of the correction diff `62f2269..HEAD`.** AC-01–AC-04 and AE-01 are
+corrected with adversarial tests and equivalent p95 evidence; the duplicate-ID design is
+documented. QA remains blocked pending a superseding CTO architecture disposition. Branch not
+merged, not pushed; parked conversation candidate untouched.

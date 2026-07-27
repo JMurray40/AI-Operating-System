@@ -87,3 +87,21 @@ A single-release compatibility **reader** (`jarvis_core.query.compat`) accepts s
 emit only the new names. Removal target: no earlier than v0.4. No vault migration and no
 source writes occur; notes lacking an explicit `id` continue through the path-derived
 fallback.
+
+## Duplicate identity handling (workspace validation vs request disclosure)
+
+Duplicate explicit IDs are validation failures (ADR-0017), handled at two separate layers so
+that fixing one never leaks the other:
+
+- **Workspace validation** (all notes): the existing vault validator / health analyzer flags
+  duplicate IDs across the entire vault, independent of any request. This is the authoritative
+  data-integrity signal for the vault owner.
+- **Request-scoped query** (authorized notes only): `build_authorized_view` checks for
+  duplicate explicit IDs **only among the notes authorized for the request**, raising
+  `DuplicateIdentityError` before any index/graph is built. Because the check runs strictly
+  over the authorized subset, a duplicate that involves an *excluded* source can never surface
+  through a request-visible error, count, or trace (ADR-0015). A duplicate wholly within the
+  authorized set fails the query closed without naming any excluded source.
+
+The two layers are intentionally separate: query disclosure never reveals excluded identities,
+while whole-vault validation still surfaces all duplicates to the owner.

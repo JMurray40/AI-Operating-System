@@ -41,7 +41,7 @@ governance document, follow the order of precedence in
 | Engineer prompt package | [Chief of Staff validation and prompt](../handovers/v0.3.1/02-chief-of-staff-to-principal-engineer-validated-prompt.md) |
 | Principal Engineer work | Returned for bounded remediation after CTO disposition **Refactor first** |
 | CTO disposition | [Refactor first](../handovers/v0.3.1/04-cto-to-quality-architecture-disposition.md) |
-| Remediation prompt | [Chief of Staff final remediation package](../handovers/v0.3.1/04-chief-of-staff-to-principal-engineer-remediation-prompt-rev3.md) |
+| Remediation prompt | [Chief of Staff benchmark entry-point correction](../handovers/v0.3.1/04-chief-of-staff-to-principal-engineer-remediation-prompt-rev4.md) |
 | QA review | Blocked pending corrected engineering evidence and superseding CTO clearance |
 | Librarian pass | Not started |
 | Primary gate | Close ARB conditions C1–C5 before conversational/generated-answer release |
@@ -50,11 +50,11 @@ governance document, follow the order of precedence in
 
 **Required next actions:**
 
-1. Require `source_root` at every filesystem-backed citation-producing engine boundary.
-2. Make incomplete evidence unmistakable in CLI text, JSON, answer-level coverage, and
-   exit/status behavior.
-3. Append Rev 4 to the Engineering Review with the exact correction diff and evidence.
-4. Return to CTO for the final superseding architecture-conformance review.
+1. Update every `scripts/benchmark_query.py` engine construction with the synthetic vault
+   root.
+2. Add an enforced benchmark-entry-point smoke test and audit all current call sites.
+3. Append Rev 5 to the Engineering Review with exact evidence.
+4. Return to CTO for exact-HEAD architecture clearance.
 
 ### Parked candidate: conversational implementation currently named v0.4
 

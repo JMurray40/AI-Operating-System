@@ -916,3 +916,182 @@ remains open because supported citations can still bypass current-source validat
 `source_root` is omitted, and incomplete evidence coverage is not visible in CLI text.
 Commit `47b1a0bf5609d29abb3633273fec2721b853ef45` is returned to engineering. Quality &
 Release is not authorized to begin.
+
+---
+
+# Final Superseding CTO Revision 4 — Final Conformance Review
+
+**Date:** 2026-07-27
+
+**Role:** Chief Architect / CTO
+
+**Supersedes:** Final Superseding CTO Revision 3 above
+
+**Reviewed branch:** `feature/v0.3.1-query-trust-contracts`
+
+**Reviewed HEAD:** `649e5a2ecfc98b2c4c9f23b5456716bb5f05f7f9`
+
+**Prior candidate:** `47b1a0bf5609d29abb3633273fec2721b853ef45`
+
+**Chief-of-Staff return commit:** `33434b6e99824bc32517dad8bd574cf7d0d5b072`
+
+**Correction diff:** `47b1a0bf5609d29abb3633273fec2721b853ef45..649e5a2ecfc98b2c4c9f23b5456716bb5f05f7f9`
+
+## R4.1 Verification and reviewed evidence
+
+Before this disposition was appended, the worktree was clean, the branch and HEAD matched
+the values above, and the prior candidate and Chief-of-Staff return commits were present in
+the reviewed history.
+
+The independent review covered:
+
+- Final Superseding CTO Revision 3;
+- Engineering Review Rev 4;
+- the complete correction diff;
+- the current query engine, result contract, CLI rendering and exit handling;
+- currentness, authorization, citation-claim, CLI text/JSON, versioning, scale, and
+  read-only tests;
+- the benchmark harnesses and their documented entry points;
+- ADR-0016 and the previously accepted ADR-0012/0014–0017 compatibility constraints.
+
+The correction is narrowly scoped to the returned findings. No unapproved feature scope or
+layering change was found.
+
+## R4.2 AC-03R3-01 — mandatory current-source boundary
+
+The public `QueryEngine` constructor now requires both an explicit authorization scope and
+a `source_root`. Explicit `None` fails at construction. Supported citations are validated
+against bytes read from a resolved current path beneath that root; the discovery snapshot
+is no longer a validation fallback.
+
+The current-byte path correctly fails closed for:
+
+- lexical or resolved path escape;
+- symlink escape;
+- missing or non-file sources;
+- unreadable sources;
+- post-discovery mutation, including byte-level changes that normalize to the same text.
+
+However, one supported repository entry point was not migrated:
+
+```text
+scripts/benchmark_query.py
+```
+
+Both its warm-up and its 1,000-note memory measurement construct the current
+`QueryEngine(notes, scope=scope)` without `source_root`. The constructor now requires that
+argument, so the documented v0.3.1 authorized-query benchmark raises before it can execute.
+This is an active compatibility surface: it remains named in the implementation brief,
+`CHANGELOG.md`, and `docs/software/TESTING.md`.
+
+The regression is not a route to snapshot-only `coverage="supported"`; it fails closed.
+Nevertheless, AC-03R3-01 explicitly required every supported citation-producing engine
+boundary to supply a valid current-source root, and the final correction leaves this
+documented boundary unusable.
+
+**AC-03R3-01 remains open.**
+
+## R4.3 AC-03R3-02 — visible and structural coverage semantics
+
+The answer contract now separates `supported_citations()` from
+`incomplete_citations()` and emits an answer-level `citation_coverage` object with label,
+counts, and a limitation when coverage is partial or incomplete.
+
+The text CLI:
+
+- renders only validated passages under `Sources (supporting passages)`;
+- renders incomplete references under an explicit evidence-coverage warning;
+- does not render an incomplete `0-0` locator as a passage citation;
+- prints answer-level coverage; and
+- returns warning status when an answer has no supported citation.
+
+JSON retains the incomplete reference as structured provenance while distinguishing it
+through citation coverage and the answer-level coverage object. A snapshot-only,
+missing-file, escaped-path, or changed-byte path cannot be represented as supported
+evidence.
+
+**AC-03R3-02 is closed.**
+
+## R4.4 Earlier findings and performance evidence
+
+The correction diff does not regress the previously closed findings:
+
+- **AC-01 remains closed:** authorization precedes index, candidate, graph, context, and
+  citation construction, with excluded-source non-disclosure preserved.
+- **AC-02 remains closed:** path-prefix canonicalization, traversal rejection, segment
+  boundaries, and case behavior remain unchanged.
+- **Duplicate-ID handling remains closed:** fail-closed ambiguity handling is unchanged.
+- **AC-04R2 remains closed:** the legacy reader retains exact shape validation and removes
+  ambiguous `confidence`.
+- **AE-01R2 remains closed:** the equivalent construction-plus-query p95 comparison reports
+  33.812 ms for v0.3 and 38.075 ms for v0.3.1, a **+12.6%** regression, within the
+  accepted 20% gate.
+
+The hard context budget, exact-byte fingerprints, additive line/heading provenance, full
+heading-hierarchy validation, claim-specific retrieval binding (including
+metadata-derived evidence), empty-excerpt rejection, relevance/confidence separation, and
+ADR-0012 layered pipeline remain unregressed.
+
+The per-request authorized view remains acceptable bounded coupling for v0.3.1. The
+existing recommendation to introduce a read-only source-revision resolver port before
+adding another repository implementation remains technical debt, not a release blocker.
+
+## R4.5 Security and trust-boundary assessment
+
+The corrected production CLI and direct engine boundary fail closed when a trusted live
+source root is unavailable. Path resolution and symlink confinement prevent a note
+identity from redirecting validation outside the authorized source root. Current-byte
+fingerprint comparison prevents stale discovery state, missing sources, and post-discovery
+mutation from becoming supported citations.
+
+Supported passages and incomplete references are now visibly and structurally distinct;
+an incomplete-only answer is explicitly not fully evidence-backed. No excluded-source
+content was found to re-enter results through trace, conflict, error, citation, or graph
+paths.
+
+The remaining defect is availability/compatibility rather than disclosure: the documented
+benchmark boundary fails closed because it does not supply the newly mandatory root.
+
+## R4.6 Required engineering correction
+
+Return one minimal correction that:
+
+1. passes the synthetic vault root to every current-branch `QueryEngine` construction in
+   `scripts/benchmark_query.py`, including warm-up and memory measurement;
+2. adds an automated smoke test or equivalent enforced check that runs this documented
+   benchmark entry point far enough to detect constructor-contract drift;
+3. searches all non-baseline current-version call sites and confirms that no supported
+   `QueryEngine` construction omits either authorization scope or `source_root`;
+4. reruns the full test, Ruff, mypy, `git diff --check`, unchanged-vault, and both benchmark
+   harness checks;
+5. reports the new exact HEAD and correction diff while preserving the equivalent
+   total-pipeline p95 gate.
+
+The compatibility branches in `scripts/benchmark_regression.py` that deliberately load the
+v0.3 baseline are not subject to the v0.3.1 constructor and must remain narrowly bounded to
+that comparison.
+
+## R4.7 Explicit architecture disposition
+
+**REFRACTOR FIRST.**
+
+AC-03R3-02 is closed, AE-01R2 remains closed at +12.6%, and all earlier closed findings
+remain unregressed. AC-03R3-01 is not fully closed because the documented current-version
+benchmark is an unmigrated `QueryEngine` boundary and cannot run with the mandatory
+current-source contract.
+
+Commit `649e5a2ecfc98b2c4c9f23b5456716bb5f05f7f9` is returned to engineering for the
+bounded correction in R4.6.
+
+## R4.8 Quality & Release status
+
+**Quality & Release is not authorized to begin.**
+
+No adversarial QA matrix is activated and no QA artifact is authorized for this HEAD.
+After a future exact-HEAD CTO clearance, the required Quality & Release output remains:
+
+```text
+docs/handovers/v0.3.1/05-quality-to-product-owner-release-review.md
+```
+
+Stop at this CTO disposition. Do not perform the Quality & Release role.

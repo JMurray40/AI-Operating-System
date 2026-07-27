@@ -11,14 +11,15 @@ from __future__ import annotations
 
 import hashlib
 import time
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 from jarvis_core.context.loader import ProjectContextLoader, ProjectNotFoundError
 from jarvis_core.models.base import NoteType
 from jarvis_core.models.context import SourceRef
 from jarvis_core.models.note import Note
-from jarvis_core.policy.scope import AuthorizationScope, local_allow_all
+from jarvis_core.policy.errors import PolicyError
+from jarvis_core.policy.scope import AuthorizationScope
 from jarvis_core.providers import get_provider
 from jarvis_core.providers.base import Provider
 from jarvis_core.query.authorized import build_authorized_view
@@ -30,7 +31,7 @@ from jarvis_core.query.context_builder import (
 from jarvis_core.query.contract import CONTRACT_VERSION, INDEX_VERSION
 from jarvis_core.query.index import LexicalIndex
 from jarvis_core.query.intent import Intent, IntentParser, ParsedQuery
-from jarvis_core.query.passages import locate
+from jarvis_core.query.passages import locate, validate_against_text
 from jarvis_core.query.ranking import Ranker, RankingWeights, ScoredNote
 from jarvis_core.query.results import Citation, QueryAnswer, citation_from_scored
 from jarvis_core.query.tokenizer import normalize
@@ -67,15 +68,20 @@ class QueryEngine:
         self,
         notes: list[Note],
         *,
-        scope: AuthorizationScope | None = None,
+        scope: AuthorizationScope,
         weights: RankingWeights | None = None,
         token_budget: int = DEFAULT_TOKEN_BUDGET,
         provider: Provider | None = None,
     ) -> None:
-        # Authorize BEFORE building the index/graph (ADR-0015). Absence of an explicit
-        # scope uses an explicit local allow-all (still ceiling-bounded and fail-closed),
-        # never a silent unrestricted bypass.
-        self._scope = scope or local_allow_all()
+        # An explicit AuthorizationScope is REQUIRED at the query boundary (AC-01, ADR-0015).
+        # A missing/None scope fails closed rather than silently broadening to allow-all; use
+        # the explicit local_allow_all() factory for local read-only workflows.
+        if scope is None:
+            raise PolicyError(
+                "QueryEngine requires an explicit AuthorizationScope; "
+                "use jarvis_core.policy.local_allow_all() for local workflows"
+            )
+        self._scope = scope
         view = build_authorized_view(notes, self._scope)
         self._notes = view.notes
         self._identities = view.identities
@@ -187,7 +193,7 @@ class QueryEngine:
             else f"{len(ranked)} note(s) match {terms}; top {len(top)} by relative relevance."
         )
         ev = frozenset(terms)
-        citations = tuple(self._cite_scored(s, ev) for s in top)
+        citations = self._drop_none(self._cite_scored(s, ev) for s in top)
         self._fill_trace(
             trace, candidates, top, provider="none",
             timings={"retrieval": (t1 - t0) * 1000, "ranking": (t2 - t1) * 1000},
@@ -213,7 +219,7 @@ class QueryEngine:
             names = ", ".join(s.note.title or s.note.path.stem for s in ranked)
             answer = f"{len(ranked)} project(s) mention '{parsed.target}': {names}."
         ev = frozenset(parsed.terms) or frozenset({term})
-        citations = tuple(self._cite_scored(s, ev) for s in ranked)
+        citations = self._drop_none(self._cite_scored(s, ev) for s in ranked)
         self._fill_trace(trace, {n.relpath for n in hits}, ranked, provider="none", timings={})
         return self._answer(Intent.PROJECTS_MENTIONING, parsed.question, answer, citations)
 
@@ -243,7 +249,7 @@ class QueryEngine:
                  f"(direct matches and neighbours)."
         )
         ev = frozenset(parsed.terms) or frozenset({term})
-        citations = tuple(self._cite_scored(s, ev) for s in ranked)
+        citations = self._drop_none(self._cite_scored(s, ev) for s in ranked)
         context = self._context.build([s.relpath for s in ranked]) if ranked else None
         self._fill_trace(
             trace, set(related), ranked, provider="none", timings={}, context=context
@@ -262,7 +268,7 @@ class QueryEngine:
         t0 = time.perf_counter()
         response = self._provider.summarize(package, model_role="research")
         t1 = time.perf_counter()
-        citations = tuple(
+        citations = self._drop_none(
             self._cite_note(self._by_relpath[s.relpath], frozenset(), relevance=None)
             for s in package.sources if s.relpath in self._by_relpath
         )
@@ -299,7 +305,9 @@ class QueryEngine:
         if not parts:
             parts.append(f"No direct link or shared neighbour connects '{lt}' and '{rt}'.")
         cited_notes = [left, right, *(self._by_relpath[s] for s in shared)]
-        citations = tuple(self._cite_note(n, frozenset(), relevance=None) for n in cited_notes)
+        citations = self._drop_none(
+            self._cite_note(n, frozenset(), relevance=None) for n in cited_notes
+        )
         if trace is not None:
             context = self._context.build([lp, rp, *shared])
             self._fill_trace(
@@ -314,10 +322,13 @@ class QueryEngine:
     ) -> QueryAnswer:
         return QueryAnswer(intent, question, text, citations, excluded_count=self._excluded_count)
 
-    def _cite_scored(self, scored: ScoredNote, evidence: frozenset[str]) -> Citation:
+    def _cite_scored(self, scored: ScoredNote, evidence: frozenset[str]) -> Citation | None:
+        """Build a validated passage citation, or None if no supporting passage exists."""
         note = scored.note
         ident = self._identities[note.relpath]
         locator, excerpt = locate(note, evidence)
+        if not validate_against_text(locator, excerpt, note.source_text).ok:
+            return None  # decline a material citation with no valid supporting passage (AC-03)
         return citation_from_scored(
             scored, source_id=ident.source_id, source_identity_kind=ident.kind,
             source_fingerprint=note.source_fingerprint, locator=locator, excerpt=excerpt,
@@ -325,15 +336,21 @@ class QueryEngine:
 
     def _cite_note(
         self, note: Note, evidence: frozenset[str], *, relevance: float | None
-    ) -> Citation:
+    ) -> Citation | None:
         ident = self._identities[note.relpath]
         locator, excerpt = locate(note, evidence)
+        if not validate_against_text(locator, excerpt, note.source_text).ok:
+            return None
         return Citation(
             source_id=ident.source_id, source_identity_kind=ident.kind,
             title=note.title or note.path.stem, relpath=note.relpath,
             source_fingerprint=note.source_fingerprint, locator=locator, excerpt=excerpt,
             reason="in assembled context", relative_relevance=relevance,
         )
+
+    @staticmethod
+    def _drop_none(cits: Iterable[Citation | None]) -> tuple[Citation, ...]:
+        return tuple(c for c in cits if c is not None)
 
     def _rank_subset(
         self, terms: list[str], notes: list[Note], *, phrase: str | None = None,

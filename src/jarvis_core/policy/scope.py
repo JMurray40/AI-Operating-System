@@ -17,6 +17,28 @@ _ALLOW_ALL_POLICY = "local-allow-all"
 _POLICY_VERSION = "1"
 
 
+def _normalize_relpath(relpath: str) -> str:
+    """Lowercase, forward-slash, leading-slash-stripped path (matches identity rules)."""
+    return relpath.strip().replace("\\", "/").lstrip("/").rstrip("/").lower()
+
+
+def _canonical_prefix(prefix: str) -> str:
+    """Canonicalize and validate an allowed relative-path prefix (AC-02, fail closed)."""
+    if prefix is None or not str(prefix).strip():
+        raise PolicyError("allowed_path_prefixes: empty/blank prefix is not permitted")
+    raw = str(prefix).strip().replace("\\", "/")
+    if raw.startswith("/") or (len(raw) >= 2 and raw[1] == ":"):
+        raise PolicyError(f"allowed_path_prefixes: absolute path not permitted: {prefix!r}")
+    norm = raw.lstrip("/").rstrip("/").lower()
+    if not norm:
+        raise PolicyError("allowed_path_prefixes: prefix resolves to empty")
+    if ".." in norm.split("/"):
+        raise PolicyError(
+            f"allowed_path_prefixes: parent traversal not permitted: {prefix!r}"
+        )
+    return norm
+
+
 @dataclass(frozen=True)
 class AuthorizationScope:
     """A workspace-scoped, immutable authorization decision context.
@@ -42,6 +64,14 @@ class AuthorizationScope:
             raise PolicyError("authorization scope requires a non-empty request_id")
         # Validates the ceiling is a known label; raises PolicyError otherwise (fail closed).
         ceiling_rank(self.max_sensitivity)
+        # Canonicalize + validate allowed path prefixes at construction (AC-02). Prefixes are
+        # matched by complete path segments, so they must be relative, non-empty, and free of
+        # parent-traversal. Case is normalized to lower to match repository identity rules.
+        if self.allowed_path_prefixes is not None:
+            object.__setattr__(
+                self, "allowed_path_prefixes",
+                tuple(_canonical_prefix(p) for p in self.allowed_path_prefixes),
+            )
 
     # ------------------------------------------------------------- decisions
     def permits(
@@ -58,8 +88,12 @@ class AuthorizationScope:
         if self.allowed_source_ids is not None and source_id not in self.allowed_source_ids:
             return False
         if self.allowed_path_prefixes is not None:
-            norm = relpath.replace("\\", "/").lstrip("/")
-            if not any(norm.startswith(p) for p in self.allowed_path_prefixes):
+            norm = _normalize_relpath(relpath)
+            # Match an exact path or a descendant by complete path segments — never a raw
+            # string prefix (so 'projects/alpha' does NOT grant 'projects/alpha-restricted').
+            if not any(
+                norm == p or norm.startswith(p + "/") for p in self.allowed_path_prefixes
+            ):
                 return False
         return not (
             self.allowed_types is not None

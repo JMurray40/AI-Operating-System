@@ -3,13 +3,15 @@ from __future__ import annotations
 from pathlib import Path
 
 from jarvis_core.config import Config
+from jarvis_core.policy import local_allow_all
 from jarvis_core.query import Intent, QueryEngine
 from jarvis_core.repositories import FileSystemKnowledgeRepository
 from tests.support.synthetic_vault import build_query_vault
 
 
 def _engine(path: Path) -> QueryEngine:
-    return QueryEngine(FileSystemKnowledgeRepository(Config(vault_path=path)).discover())
+    return QueryEngine(FileSystemKnowledgeRepository(Config(vault_path=path)).discover(),
+                       scope=local_allow_all("local"))
 
 
 def test_projects_mentioning_quickbooks(tmp_path: Path):

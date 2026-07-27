@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from jarvis_core.config import Config
+from jarvis_core.policy import local_allow_all
 from jarvis_core.query import QueryEngine
 from jarvis_core.repositories import FileSystemKnowledgeRepository
 from tests.support.synthetic_vault import build_synthetic_vault
@@ -18,7 +19,7 @@ from tests.support.synthetic_vault import build_synthetic_vault
 
 def _engine(path: Path) -> QueryEngine:
     notes = FileSystemKnowledgeRepository(Config(vault_path=path)).discover()
-    return QueryEngine(notes)
+    return QueryEngine(notes, scope=local_allow_all("local"))
 
 
 @pytest.mark.parametrize("n", [100, 500, 1000])

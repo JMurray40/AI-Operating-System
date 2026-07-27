@@ -53,3 +53,48 @@ def test_trace_summary_has_no_content():
     d = scope.trace_summary()
     assert d["workspace_id"] == "local"
     assert set(d) >= {"policy_id", "policy_version", "max_sensitivity", "request_id"}
+
+
+def test_engine_requires_explicit_scope(tmp_path):
+    """AC-01: omitted scope is a TypeError; explicit None fails closed with PolicyError."""
+    import pytest
+
+    from jarvis_core.config import Config
+    from jarvis_core.query import QueryEngine
+    from jarvis_core.repositories import FileSystemKnowledgeRepository
+    from tests.support.synthetic_vault import build_query_vault
+
+    build_query_vault(tmp_path)
+    notes = FileSystemKnowledgeRepository(Config(vault_path=tmp_path)).discover()
+    with pytest.raises(TypeError):
+        QueryEngine(notes)                    # scope is required (keyword-only, no default)
+    with pytest.raises(PolicyError):
+        QueryEngine(notes, scope=None)        # explicit None fails closed
+
+
+def _permit(scope, relpath):
+    return scope.permits(source_id="s", relpath=relpath, sensitivity="internal",
+                         note_type="concept")
+
+
+def test_path_prefix_rejects_absolute_empty_and_traversal():
+    for bad in ("/abs/x", "", "   ", "a/../b", "..", "C:/x"):
+        with pytest.raises(PolicyError):
+            AuthorizationScope(workspace_id="w", max_sensitivity="restricted",
+                               allowed_path_prefixes=(bad,))
+
+
+def test_path_prefix_segment_boundary_no_sibling_leak():
+    scope = AuthorizationScope(workspace_id="w", max_sensitivity="restricted",
+                               allowed_path_prefixes=("projects/alpha",))
+    assert _permit(scope, "projects/alpha/notes.md") is True   # descendant
+    assert _permit(scope, "projects/alpha") is True            # exact
+    assert _permit(scope, "projects/alpha-restricted/x.md") is False  # sibling prefix
+    assert _permit(scope, "projects/alphabet.md") is False     # near match
+
+
+def test_path_prefix_slash_and_case_normalization():
+    scope = AuthorizationScope(workspace_id="w", max_sensitivity="restricted",
+                               allowed_path_prefixes=("Projects\\Alpha",))
+    assert _permit(scope, "projects/alpha/x.md") is True       # backslash + case folded
+    assert _permit(scope, "/projects/Alpha/x.md") is True      # leading slash tolerated

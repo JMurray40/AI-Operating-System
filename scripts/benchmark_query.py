@@ -120,10 +120,10 @@ def main() -> None:
         tracemalloc.stop()
         print(f"Peak memory @ 1000 notes: {round(peak / (1024 * 1024), 3)} MB")
 
-    # Authorization stress: exclude ~half of 1000 notes via path prefixes for buckets 00-04.
+    # Authorization stress: exclude ~half of 1000 notes via a source-id allowlist.
+    allowed = frozenset(f"local:id:note-{i:04d}" for i in range(500))
     stress = AuthorizationScope(
-        workspace_id="local", max_sensitivity="restricted",
-        allowed_path_prefixes=("Note 00", "Note 01", "Note 02", "Note 03", "Note 04"),
+        workspace_id="local", max_sensitivity="restricted", allowed_source_ids=allowed,
     )
     res, excl = bench(1000, args.runs, stress)
     print(f"\n## authorization stress @ 1000 notes ({excl} excluded)")

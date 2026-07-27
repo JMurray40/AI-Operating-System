@@ -1,0 +1,234 @@
+"""Command-line interface for Jarvis Core (read-only).
+
+Commands:
+    jarvis inspect  <path>              Discover and parse notes; print a summary.
+    jarvis validate <path>              Validate notes across the five schema stages.
+    jarvis load-project "<name>"        Assemble and print a project context package.
+    jarvis summarize-project "<name>"   Send the package to a provider (mock) and print.
+
+Exit codes:
+    0  success / validation OK
+    1  fatal error (bad path, project not found, validation errors)
+    2  completed with validation warnings (non-fatal)
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+from jarvis_core.config import Config, LogLevel, OutputFormat, default_fixture_path
+from jarvis_core.context.loader import ProjectContextLoader, ProjectNotFoundError
+from jarvis_core.context.validator import validate_notes
+from jarvis_core.logging_setup import configure_logging
+from jarvis_core.models.context import ContextPackage
+from jarvis_core.models.validation import ValidationResult
+from jarvis_core.providers import get_provider
+from jarvis_core.repositories import FileSystemKnowledgeRepository
+
+EXIT_OK = 0
+EXIT_FATAL = 1
+EXIT_WARNINGS = 2
+
+
+def _build_config(args: argparse.Namespace) -> Config:
+    vault = Path(args.path) if getattr(args, "path", None) else default_fixture_path()
+    return Config(
+        vault_path=vault,
+        log_level=LogLevel(args.log_level),
+        provider=getattr(args, "provider", "mock"),
+        output_format=OutputFormat(getattr(args, "format", "text")),
+        max_files=getattr(args, "max_files", 5000),
+    )
+
+
+def _dumps(obj: object) -> str:
+    return json.dumps(obj, indent=2, ensure_ascii=False, sort_keys=False)
+
+
+# --------------------------------------------------------------------------- inspect
+def _cmd_inspect(args: argparse.Namespace) -> int:
+    config = _build_config(args)
+    repo = FileSystemKnowledgeRepository(config)
+    notes = repo.discover()
+    total_links = sum(len(n.links) for n in notes)
+    total_attach = sum(len(n.attachments) for n in notes)
+    parse_errors = [(n.relpath, e) for n in notes for e in n.parse_errors]
+    types: dict[str, int] = {}
+    for n in notes:
+        key = n.raw_type or "(none)"
+        types[key] = types.get(key, 0) + 1
+
+    if config.output_format is OutputFormat.JSON:
+        print(_dumps({
+            "vault": str(repo.root),
+            "note_count": len(notes),
+            "link_count": total_links,
+            "attachment_count": total_attach,
+            "types": dict(sorted(types.items())),
+            "parse_errors": [{"relpath": r, "error": e} for r, e in parse_errors],
+            "notes": [n.relpath for n in notes],
+        }))
+    else:
+        print(f"Vault: {repo.root}")
+        print(f"Notes: {len(notes)} | Links: {total_links} | Attachments: {total_attach}")
+        print("Types:")
+        for t, c in sorted(types.items()):
+            print(f"  {c:3d}  {t}")
+        if parse_errors:
+            print(f"Parse errors ({len(parse_errors)}):")
+            for r, e in parse_errors:
+                print(f"  {r}: {e}")
+    return EXIT_WARNINGS if parse_errors else EXIT_OK
+
+
+# -------------------------------------------------------------------------- validate
+def _print_validation(result: ValidationResult, fmt: OutputFormat) -> None:
+    if fmt is OutputFormat.JSON:
+        print(_dumps(result.to_dict()))
+        return
+    print(f"Validation: {'OK' if result.ok else 'FAILED'} "
+          f"({len(result.errors)} error(s), {len(result.warnings)} warning(s))")
+    for issue in sorted(result.issues):
+        print(f"  [{issue.severity.value}] {issue.stage.value} {issue.location}: {issue.message}")
+
+
+def _cmd_validate(args: argparse.Namespace) -> int:
+    config = _build_config(args)
+    repo = FileSystemKnowledgeRepository(config)
+    notes = repo.discover()
+    result = validate_notes(notes)
+    _print_validation(result, config.output_format)
+    if result.errors:
+        return EXIT_FATAL
+    if result.warnings:
+        return EXIT_WARNINGS
+    return EXIT_OK
+
+
+# ---------------------------------------------------------------------- load-project
+def _print_package(package: ContextPackage, fmt: OutputFormat) -> None:
+    if fmt is OutputFormat.JSON:
+        print(_dumps(package.to_dict()))
+        return
+    print(f"# {package.project_title}")
+    print(f"id: {package.project_id}  status: {package.status}  priority: {package.priority}")
+    print(f"goal: {package.goal}")
+    print(f"milestone: {package.current_milestone}")
+    print(f"\n## Resume\n{package.resume or '(none)'}")
+    print(f"\n## Decisions ({len(package.decisions)})")
+    for d in package.decisions:
+        print(f"  - {d.decision_date or '????-??-??'} {d.title} [{d.status}]")
+    print(f"\n## Sessions ({len(package.sessions)})")
+    for s in package.sessions:
+        print(f"  - {s.session_date or '????-??-??'} {s.title} ({s.provider})")
+    print(f"\n## Resources ({len(package.resources)})")
+    for r in package.resources:
+        print(f"  - {r.title} [{r.resource_type}] -> {r.uri or 'n/a'}")
+    print(f"\n## Concepts ({len(package.concepts)})")
+    for c in package.concepts:
+        print(f"  - {c.title}")
+    print(f"\n## Outstanding questions ({len(package.outstanding_questions)})")
+    for q in package.outstanding_questions:
+        print(f"  - {q}")
+    if package.warnings:
+        print(f"\n## Warnings ({len(package.warnings)})")
+        for w in package.warnings:
+            print(f"  - {w}")
+    if package.unresolved_references:
+        print(f"\n## Unresolved references ({len(package.unresolved_references)})")
+        for u in package.unresolved_references:
+            print(f"  - {u}")
+
+
+def _load_package(args: argparse.Namespace) -> tuple[Config, ContextPackage]:
+    config = _build_config(args)
+    repo = FileSystemKnowledgeRepository(config)
+    notes = repo.discover()
+    loader = ProjectContextLoader(notes)
+    return config, loader.load(args.project)
+
+
+def _cmd_load_project(args: argparse.Namespace) -> int:
+    config, package = _load_package(args)
+    _print_package(package, config.output_format)
+    return EXIT_WARNINGS if (package.warnings or package.unresolved_references) else EXIT_OK
+
+
+# ----------------------------------------------------------------- summarize-project
+def _cmd_summarize_project(args: argparse.Namespace) -> int:
+    config, package = _load_package(args)
+    provider = get_provider(config.provider)
+    response = provider.summarize(package, model_role=args.model_role)
+    if config.output_format is OutputFormat.JSON:
+        print(_dumps(response.to_dict()))
+    else:
+        print(response.summary)
+    return EXIT_WARNINGS if (package.warnings or package.unresolved_references) else EXIT_OK
+
+
+# ------------------------------------------------------------------------------ main
+def _add_common(parser: argparse.ArgumentParser, *, with_path: bool) -> None:
+    if with_path:
+        parser.add_argument(
+            "path", nargs="?", default=None,
+            help="Vault/fixture directory (defaults to bundled sample fixtures).",
+        )
+    parser.add_argument("--log-level", default="INFO",
+                        choices=[lvl.value for lvl in LogLevel])
+    parser.add_argument("--format", default="text",
+                        choices=[f.value for f in OutputFormat])
+    parser.add_argument("--max-files", type=int, default=5000)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="jarvis",
+        description="Read-only Obsidian-vault context assembly for the AI Operating System.",
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    p_inspect = sub.add_parser("inspect", help="Discover and parse notes; print a summary.")
+    _add_common(p_inspect, with_path=True)
+    p_inspect.set_defaults(func=_cmd_inspect)
+
+    p_validate = sub.add_parser("validate", help="Validate notes across schema stages.")
+    _add_common(p_validate, with_path=True)
+    p_validate.set_defaults(func=_cmd_validate)
+
+    p_load = sub.add_parser("load-project", help="Assemble a project context package.")
+    p_load.add_argument("project", help="Project name, title, alias, or id.")
+    p_load.add_argument("--path", default=None, help="Vault/fixture directory.")
+    _add_common(p_load, with_path=False)
+    p_load.set_defaults(func=_cmd_load_project)
+
+    p_sum = sub.add_parser("summarize-project", help="Send a project package to a provider.")
+    p_sum.add_argument("project", help="Project name, title, alias, or id.")
+    p_sum.add_argument("--path", default=None, help="Vault/fixture directory.")
+    p_sum.add_argument("--provider", default="mock", help="Provider name (only 'mock').")
+    p_sum.add_argument("--model-role", default="fast",
+                       help="Role alias (coding, research, fast, private, vision).")
+    _add_common(p_sum, with_path=False)
+    p_sum.set_defaults(func=_cmd_summarize_project)
+
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    """CLI entry point. Returns a process exit code."""
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    configure_logging(LogLevel(args.log_level))
+    try:
+        return int(args.func(args))
+    except (ProjectNotFoundError, FileNotFoundError, NotADirectoryError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_FATAL
+    except NotImplementedError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_FATAL
+
+
+if __name__ == "__main__":  # pragma: no cover
+    raise SystemExit(main())

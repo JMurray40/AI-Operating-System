@@ -406,3 +406,97 @@ validation + claim-specific unranked citations), AC-04R2 (exact legacy shapes), 
 (total-pipeline p95, +9.1% ≤ 20%) are corrected with adversarial tests and equivalent
 evidence. Closed findings were not reopened. Branch not merged, not pushed; parked
 conversation candidate untouched. QA remains blocked pending a superseding CTO disposition.
+
+---
+
+# SUPERSEDING REVISION — Rev 4 (final: CTO Rev 3 AC-03R3-01 & AC-03R3-02)
+
+| Field | Value |
+|---|---|
+| Revision | 4 (supersedes Rev 3; Rev 1–3 retained for history) |
+| Prior reviewed SHA | `47b1a0bf5609d29abb3633273fec2721b853ef45` (CTO Rev 3) |
+| CTO return commit | `33434b6e99824bc32517dad8bd574cf7d0d5b072` |
+| Remediation commits | `a4b3fac` fix · `93410c9` test · this docs commit (see `git log`) |
+| Correction diff range | `47b1a0b..HEAD` |
+| Scope | AC-03R3-01 (mandatory source_root) and AC-03R3-02 (visible incomplete evidence) only |
+| Merged / pushed | **No** |
+
+AC-01, AC-02, AC-04R2, AE-01R2, and the duplicate-ID design were closed in earlier revisions
+and are **not** reopened. All original exclusions remain: no chat/streaming/provider/
+embedding/persistence/write/plugin/MCP/agent/automation/Project-Resume code; the parked
+conversation worktree was not touched; no accepted ADR was rewritten.
+
+## AC-03R3-01 — Uniform current-source validation (CTO option 1)
+
+`QueryEngine` now requires `source_root` (keyword-only, no default). The discovery-snapshot
+fallback in `_current_bytes` is removed: current bytes are always re-read from the resolved
+root, confined by `is_relative_to`, and path/symlink escape, missing, or unreadable sources
+return empty bytes that fail the fingerprint check. A missing root fails closed at
+construction (`PolicyError`). A discovery snapshot alone can therefore never produce a
+`coverage="supported"` citation. The CLI supplies `source_root=repo.root`; every supported
+caller/test/benchmark passes an explicit root. No new repository framework or non-filesystem
+resolver was introduced (the filesystem repository already owns the root).
+
+Tests: `tests/integration/test_citation_currentness.py::{test_source_root_is_mandatory,
+test_symlink_escape_declines_citation, test_post_discovery_mutation_declines_stale_citation,
+test_missing_source_after_discovery_fails_closed, test_citation_valid_before_mutation}`;
+`tests/unit/test_policy.py::test_engine_requires_explicit_scope` (updated: omitted scope AND
+root → `TypeError`; explicit `scope=None` → `PolicyError`; explicit `source_root=None` →
+`PolicyError`).
+
+## AC-03R3-02 — Visible incomplete evidence
+
+`QueryAnswer` exposes `citation_coverage()` — `{label: complete|partial|incomplete|none,
+supported, incomplete, limitation}` — serialized in `to_dict()`. Helpers `supported_citations()`
+/ `incomplete_citations()` separate the two classes. CLI text now renders them under distinct
+headings ("Sources (supporting passages):" vs "Evidence coverage incomplete — … no
+claim-supporting passage was found"), never prints a `0-0` line range, and prints a
+`Coverage:` summary line. Exit status uses only supported citations, so an answer with only
+incomplete references returns `EXIT_WARNINGS` (not fully evidence-backed). Incomplete
+references are never counted as material citations. Locators/excerpts are never fabricated to
+upgrade coverage.
+
+Tests: `tests/integration/test_cli_coverage_visibility.py::{test_text_separates_supported_from_incomplete_and_hides_0_0,
+test_json_exposes_answer_level_coverage, test_incomplete_only_answer_is_not_fully_evidence_backed,
+test_incomplete_only_text_shows_coverage_incomplete}`;
+`tests/integration/test_citation_claims.py::test_summarize_produces_a_visible_incomplete_reference`.
+
+## Commands and results (Rev 4)
+
+- `python -m pytest -q` → **196 passed** (was 190; +6 net).
+- `ruff check src tests scripts` → **All checks passed**.
+- `mypy` → **Success: no issues found in 52 source files** (cache on local disk; FUSE
+  `.mypy_cache` sqlite `disk I/O error` is environmental).
+- `git diff --check` → clean.
+- Unchanged-vault read-only evidence unchanged and still passing
+  (`tests/integration/test_readonly_v031.py`); currentness/coverage tests write only to
+  pytest `tmp_path`.
+
+## Benchmark (AE-01R2 gate re-confirmed under mandatory root)
+
+Total-pipeline p95 (construction + query), 1,000 notes, 100 runs, same fixture/query/warm-up/
+percentile; baseline v0.3 at `ce0dc35`. Command:
+`python scripts/benchmark_regression.py --notes 1000 --runs 100`.
+
+| Version | min | p50 | **p95** | p99 | max |
+|---|---|---|---|---|---|
+| v0.3 baseline (`ce0dc35`) | 27.202 | 29.406 | **33.812** | 34.909 | 35.115 |
+| v0.3.1 candidate | 29.460 | 32.671 | **38.075** | 39.306 | 39.478 |
+
+**Regression (total-pipeline p95→p95): (38.075 − 33.812) / 33.812 = +12.6%**, within the
+≤20% gate. (Slightly above Rev 3's +9.1% because current bytes are now always re-read.)
+
+## Deviations, debt, unresolved
+
+- Mandatory root re-reads each cited source's current bytes at emission (≤ result size per
+  query); included in the +12.6% figure and within gate. No new debt; recorded Rev 1–3 debt
+  stands. No unresolved defects.
+
+## Exit statement (Rev 4)
+
+**Ready for the final CTO conformance review of `47b1a0b..HEAD`.** AC-03R3-01 (mandatory
+source_root; no snapshot-only supported citations) and AC-03R3-02 (visible incomplete
+evidence across text/JSON/coverage signal/exit) are corrected with adversarial tests; all
+previously closed findings remain closed; the ≤20% performance gate holds at +12.6%. Branch
+not merged, not pushed; parked conversation candidate untouched. QA remains blocked pending a
+superseding CTO disposition.

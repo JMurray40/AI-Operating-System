@@ -7,7 +7,7 @@
 | Version | 0.1.0 |
 | Owner | Jason |
 | Revised | 2026-07-27 |
-| Related | [Product Vision](PRODUCT_VISION.md), [Implementation Plan](IMPLEMENTATION_PLAN.md) |
+| Related | [Product Vision](PRODUCT_VISION.md), [Version Roadmap v0.2–v2.0](product/VERSION_ROADMAP.md), [Implementation Plan](IMPLEMENTATION_PLAN.md) |
 
 ## Milestone 0 — Foundation
 

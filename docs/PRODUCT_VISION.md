@@ -3,11 +3,15 @@
 | Field | Value |
 |---|---|
 | Purpose | Define the product's intended value and boundaries |
-| Status | Draft |
-| Version | 0.1.0 |
+| Status | Active |
+| Version | 0.2.0 |
 | Owner | Jason |
 | Revised | 2026-07-27 |
-| Related | [The BRAIN v2](THE_BRAIN_V2_SPEC.md), [Architecture](SYSTEM_ARCHITECTURE.md), [Roadmap](ROADMAP.md) |
+| Related | [Product Strategy](product/PRODUCT_STRATEGY.md), [The BRAIN v2](THE_BRAIN_V2_SPEC.md), [Architecture](SYSTEM_ARCHITECTURE.md), [Version Roadmap](product/VERSION_ROADMAP.md) |
+
+## Mission
+
+Help people turn fragmented digital activity into durable, trustworthy knowledge and safe, resumable action—without surrendering ownership to an application or AI provider.
 
 ## Vision
 
@@ -79,4 +83,5 @@ After the read-only MVP proves useful:
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.0 | 2026-07-27 | Added mission and delegated measurable strategy to the Product Strategy |
 | 0.1.0 | 2026-07-27 | Initial product vision |

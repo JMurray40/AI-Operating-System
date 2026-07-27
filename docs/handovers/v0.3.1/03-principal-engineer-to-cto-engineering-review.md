@@ -585,3 +585,115 @@ entry-point current-source migration) is corrected and guarded by an enforced sm
 previously closed findings remain closed; both documented benchmark entry points execute;
 199 tests, Ruff, mypy, and `git diff --check` pass. Branch not merged, not pushed; parked
 conversation candidate untouched. QA remains blocked pending exact-HEAD CTO clearance.
+
+---
+
+# SUPERSEDING REVISION — Rev 6 (QA remediation: benchmark entry points & evidence)
+
+| Field | Value |
+|---|---|
+| Revision | 6 (supersedes Rev 5; Rev 1–5 retained for history) |
+| Prior reviewed SHA | `09a4ca5a6e0d9b73a1e37a9e086abe788c894c72` (QA-reviewed candidate) |
+| QA return commit | `be527a8148914a08007e6c2fb6d0f2ed8cd9a4d4` |
+| Remediation commits | `14b836f` fix · `4d174ad` test · this docs commit (see `git log`) |
+| Correction diff range | `09a4ca5..HEAD` |
+| Scope | QR-031-01, QR-031-02, QR-031-03 (benchmark/test tooling only) |
+| Merged / pushed | **No** |
+
+Benchmark/test tooling only. No trust-contract, authorization, citation, compatibility,
+performance-gate, or other closed-finding code was modified. All exclusions remain; the parked
+conversation worktree was not touched; no accepted ADR was rewritten.
+
+## QR-031-01 — Documented benchmarks run from the repository root
+
+`scripts/benchmark_query.py` and `scripts/benchmark_regression.py` self-bootstrap `sys.path`
+(repo root + `src/`), so the exact documented commands run from the repo root **without a
+PYTHONPATH override**:
+
+```text
+python scripts/benchmark_query.py --sizes 100,500,1000 --runs 10
+python scripts/benchmark_regression.py --runs 20
+```
+
+Candidate/baseline isolation is preserved: each version runs from its own tree (the baseline
+tree bootstraps its own root/src). Direct run (no PYTHONPATH) evidence:
+
+| notes | total p50 | total p95 |
+|---|---|---|
+| 100 | 3.07 | 3.58 |
+| 500 | 15.55 | 19.86 |
+| 1000 | 31.18 | 40.01 |
+
+Peak memory @1000: **6.12 MB**. Authorization stress @1000 (500 excluded): total p50 16.3 /
+p95 24.2 ms.
+
+## QR-031-02 — Real process-boundary smoke test
+
+`tests/integration/test_benchmark_smoke.py` now runs the documented commands as **subprocesses
+from the repo root with PYTHONPATH stripped**, asserting exit 0 and completion markers, and
+includes a negative case proving the smoke fails when the runtime dependency is unavailable:
+
+- `test_benchmark_query_runs_from_repo_root` — asserts "Peak memory" + "authorization stress".
+- `test_benchmark_regression_runs_from_repo_root` — asserts "total_pipeline".
+- `test_benchmark_regression_json_emits_raw_samples` — asserts raw sample count.
+- `test_smoke_fails_when_runtime_dependency_unavailable` — copies only the script (no sibling
+  `src/`/`tests/`) and asserts non-zero exit + `ModuleNotFoundError`.
+- `test_benchmark_paired_entrypoint_smoke` — runs the paired tool end-to-end at tiny size.
+
+The earlier import-based smoke (which masked the missing import path) is removed.
+
+## QR-031-03 — Paired, interleaved same-machine performance evidence
+
+`scripts/benchmark_paired.py` runs multiple paired attempts; within each it measures candidate
+and v0.3 baseline back-to-back and **alternates order** (candidate-first / baseline-first) to
+neutralize run-order and background-load bias. Both versions use the **identical** harness
+(the current `benchmark_regression.py` is copied into the baseline tree; only `jarvis_core`
+differs), the same fixture, query, warm-ups, measured runs, percentile estimator, and
+construction-plus-query boundary. Raw per-attempt samples for both versions are retained via
+`--out` (and `benchmark_regression.py --json`).
+
+Evidence — `python scripts/benchmark_paired.py --baseline-root <v0.3 tree> --notes 1000
+--runs 30 --attempts 5` (baseline = `ce0dc35` via `git archive`; PYTHONPATH stripped):
+
+| attempt | order | candidate p95 (ms) | baseline p95 (ms) | regression % |
+|---|---|---|---|---|
+| 0 | candidate_first | 37.373 | 32.824 | 13.86 |
+| 1 | baseline_first | 37.065 | 35.733 | 3.73 |
+| 2 | candidate_first | 36.683 | 35.149 | 4.36 |
+| 3 | baseline_first | 37.211 | 33.070 | 12.52 |
+| 4 | candidate_first | 37.282 | 33.658 | 10.77 |
+
+Aggregate: **median regression 10.77%** (min 3.73%, max 13.86%); median candidate p95 37.211
+ms vs baseline 33.658 ms. **GATE (≤ 20% on median): PASS** — every individual pair is also
+within gate, and the candidate p95 is stable (~36.7–37.4 ms) regardless of order, resolving
+the earlier run-order variance conflict. No waiver requested or needed.
+
+## Commands and results (Rev 6)
+
+- `python -m pytest -q` → **201 passed** (was 199; +2 net from the new subprocess smoke suite).
+- `ruff check src tests scripts` → **All checks passed**.
+- `mypy` → **Success: no issues found in 52 source files** (cache on local disk; FUSE
+  `.mypy_cache` sqlite `disk I/O error` is environmental).
+- `git diff --check` → clean (0 bytes).
+- Unchanged-vault read-only evidence covering the query/benchmark paths still passing
+  (`tests/integration/test_readonly_v031.py`, `test_readonly_safety.py`); benchmark temp
+  vaults live in `TemporaryDirectory`, never in a fixture.
+
+## Deviations, debt, unresolved
+
+- The benchmarks depend on `tests.support.synthetic_vault` (the deterministic vault generator);
+  resolved by the `sys.path` bootstrap rather than a packaging framework, per the CTO
+  constraint. `benchmark_paired.py` requires a v0.3 baseline tree (`--baseline-root`) or
+  `git archive`-able `--baseline-ref`. No trust-contract behaviour changed. No new product
+  debt; recorded Rev 1–5 debt stands. No unresolved defects.
+
+## Exit statement (Rev 6)
+
+**Ready for CTO clearance of the changed benchmark/test scope (`09a4ca5..HEAD`).** Both
+documented benchmark commands run from the repo root with no PYTHONPATH; a real
+process-boundary smoke test (with a failing-dependency negative case) guards them; paired
+interleaved evidence shows a stable median regression of 10.77% (≤ 20% gate, PASS) that
+resolves the run-order variance. All previously closed findings remain closed; 201 tests,
+Ruff, mypy, and `git diff --check` pass. Branch not merged, not pushed; parked conversation
+candidate untouched. QA remains blocked pending CTO clearance and the subsequent re-run of
+Areas A, G, and H.

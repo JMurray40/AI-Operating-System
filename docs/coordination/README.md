@@ -39,22 +39,21 @@ governance document, follow the order of precedence in
 | Product Owner decision | [Architecture approval](../handovers/v0.3.1/01-product-owner-to-cto-architecture-approval.md) |
 | Implementation brief | [CTO implementation brief](../handovers/v0.3.1/02-cto-to-principal-engineer-implementation-brief.md) — validated |
 | Engineer prompt package | [Chief of Staff validation and prompt](../handovers/v0.3.1/02-chief-of-staff-to-principal-engineer-validated-prompt.md) |
-| Principal Engineer work | Returned for bounded remediation after CTO disposition **Refactor first** |
-| CTO disposition | [Refactor first](../handovers/v0.3.1/04-cto-to-quality-architecture-disposition.md) |
-| Remediation prompt | [Chief of Staff benchmark entry-point correction](../handovers/v0.3.1/04-chief-of-staff-to-principal-engineer-remediation-prompt-rev4.md) |
-| QA review | Blocked pending corrected engineering evidence and superseding CTO clearance |
+| Principal Engineer work | Returned for benchmark-only QA remediation |
+| CTO disposition | Exact HEAD `09a4ca5…` was cleared for QA; clearance is superseded for any changed candidate |
+| QA review | [Refactor first](../handovers/v0.3.1/05-quality-to-product-owner-release-review.md) |
+| Remediation prompt | [Chief of Staff QA remediation](../handovers/v0.3.1/05-chief-of-staff-to-principal-engineer-qa-remediation.md) |
 | Librarian pass | Not started |
 | Primary gate | Close ARB conditions C1–C5 before conversational/generated-answer release |
 
-**Next responsible role:** Principal Engineer / Claude — remediation
+**Next responsible role:** Principal Engineer / Claude — benchmark-only QA remediation
 
 **Required next actions:**
 
-1. Update every `scripts/benchmark_query.py` engine construction with the synthetic vault
-   root.
-2. Add an enforced benchmark-entry-point smoke test and audit all current call sites.
-3. Append Rev 5 to the Engineering Review with exact evidence.
-4. Return to CTO for exact-HEAD architecture clearance.
+1. Correct direct benchmark startup and process-boundary smoke coverage.
+2. Produce stable paired/interleaved performance evidence.
+3. Append Rev 6 to the Engineering Review.
+4. Return changed benchmark/test scope to CTO, then affected QA areas A, G, and H.
 
 ### Parked candidate: conversational implementation currently named v0.4
 

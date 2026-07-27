@@ -1095,3 +1095,294 @@ docs/handovers/v0.3.1/05-quality-to-product-owner-release-review.md
 ```
 
 Stop at this CTO disposition. Do not perform the Quality & Release role.
+
+---
+
+# Exact-HEAD CTO Clearance Revision 5
+
+**Date:** 2026-07-27
+
+**Role:** Chief Architect / CTO
+
+**Supersedes:** Final Superseding CTO Revision 4 above
+
+**Reviewed branch:** `feature/v0.3.1-query-trust-contracts`
+
+**Reviewed HEAD:** `09a4ca5a6e0d9b73a1e37a9e086abe788c894c72`
+
+**Prior candidate:** `649e5a2ecfc98b2c4c9f23b5456716bb5f05f7f9`
+
+**Chief-of-Staff return commit:** `b58a42b8b09d44cf8953bf6cdb8a698daa5c84e1`
+
+**Correction diff:** `649e5a2ecfc98b2c4c9f23b5456716bb5f05f7f9..09a4ca5a6e0d9b73a1e37a9e086abe788c894c72`
+
+## R5.1 Exact-state verification
+
+Before this clearance was appended, the worktree was clean. The checked-out branch and
+HEAD matched the exact values above. Both the prior candidate and Chief-of-Staff return
+commit are ancestors of the reviewed HEAD. The correction contains:
+
+- the Chief-of-Staff routing record;
+- the two-call-site benchmark correction;
+- one benchmark smoke-test module; and
+- the Rev 5 engineering evidence and coordination updates.
+
+The implementation diff is confined to `scripts/benchmark_query.py` and
+`tests/integration/test_benchmark_smoke.py`. No production query, authorization, citation,
+result-contract, CLI, compatibility-reader, context-budget, or graph code changed.
+`git diff --check` is clean.
+
+## R5.2 AC-03R3-01 closure
+
+Every current-version benchmark construction now supplies both an explicit authorization
+scope and the current synthetic-vault root:
+
+- the per-size warm-up uses
+  `QueryEngine(notes, scope=scope, source_root=root)`;
+- the 1,000-note memory path uses
+  `QueryEngine(notes, scope=scope, source_root=root)`; and
+- the candidate path in `scripts/benchmark_regression.py` continues to use
+  `QueryEngine(notes, scope=_SCOPE, source_root=root)`.
+
+The current `src`, `scripts`, and `tests` call-site audit found no positive current-version
+construction lacking either argument. Calls that omit one or both arguments are limited
+to explicit fail-closed contract tests and the v0.3 compatibility branches described
+below.
+
+The new smoke tests load the documented scripts by file path and:
+
+1. call `benchmark_query.bench(5, 1, scope)`, executing the warm-up construction;
+2. call the complete `benchmark_query.main()` with a small measured size, which reaches
+   both the warm-up and fixed 1,000-note memory construction and then asserts the memory
+   and authorization-stress completion markers; and
+3. call `benchmark_regression.main()` with a small fixture and assert its
+   `total_pipeline` output.
+
+An omitted future `scope` or `source_root` at either corrected current-version site would
+raise before these assertions and fail the integration suite. The test therefore detects
+the constructor-contract drift returned in Revision 4.
+
+**AC-03R3-01 is closed.**
+
+## R5.3 Baseline adapter confinement
+
+`scripts/benchmark_regression.py` first attempts the complete current candidate signature:
+
+```text
+QueryEngine(notes, scope=_SCOPE, source_root=root)
+```
+
+Its adaptive scope-only and no-argument branches exist solely so the same harness can load
+the historical v0.3 implementation, whose constructor does not accept the v0.3.1
+arguments. On the current implementation, omitting `source_root` and then omitting both
+arguments still fails closed; the fallback cannot produce a current-version engine or
+weaken current citation validation. The smoke test confirms that the candidate path
+completes through the full signature.
+
+This remains an acceptable, narrowly bounded benchmark compatibility adapter. It is not a
+general legacy reader or production construction path.
+
+## R5.4 Regression and performance assessment
+
+The correction does not alter retrieval, graph, authorization, context, citation,
+rendering, result, or persistence behavior. All previously closed findings and accepted
+contracts therefore remain unmodified and unregressed:
+
+- AC-01 authorization ordering and excluded-source non-disclosure;
+- AC-02 canonical path-prefix authorization;
+- duplicate-ID fail-closed handling;
+- AC-03R3-02 supported-versus-incomplete evidence semantics;
+- AC-04R2 strict, bounded legacy reading;
+- exact-byte/current-source citation validation;
+- full locator and heading-hierarchy validation;
+- claim-specific retrieval binding, including metadata evidence;
+- hard context-budget accounting;
+- relevance and answer-confidence separation;
+- ADR-0012 layering and ADR-0014 through ADR-0017;
+- local, offline, read-only operation.
+
+The benchmark correction supplies a required constructor argument outside the measured
+stage and does not change the total-pipeline harness or gate semantics. The accepted
+equivalent total-pipeline result remains:
+
+| Version | Total-pipeline p95 |
+|---|---:|
+| v0.3 baseline | 33.812 ms |
+| v0.3.1 candidate | 38.075 ms |
+| Regression | +12.6% |
+
+**AE-01R2 remains closed:** +12.6% is within the accepted +20% ceiling.
+
+## R5.5 Security, architecture, and debt assessment
+
+All supported citation-producing boundaries now require a current source root. Snapshot
+bytes cannot independently yield `coverage="supported"`. Current path confinement,
+symlink confinement, missing-file handling, and post-discovery exact-byte mutation checks
+remain fail closed.
+
+Supported citations and incomplete references remain visibly and structurally distinct in
+text and JSON. Incomplete locators are not rendered as `0-0` passage citations, and
+incomplete-only answers retain warning/not-fully-evidence-backed semantics.
+
+No new architectural coupling or technical debt was introduced. The previously recorded
+bounded debt remains: before adding another repository implementation, replace direct
+filesystem current-source resolution in orchestration with a small read-only
+source-revision resolver port.
+
+## R5.6 Explicit architecture disposition
+
+**READY FOR QUALITY & RELEASE.**
+
+The exact candidate
+`feature/v0.3.1-query-trust-contracts@09a4ca5a6e0d9b73a1e37a9e086abe788c894c72`
+conforms to the accepted v0.3.1 architecture and trust contracts. AC-03R3-01 and
+AC-03R3-02 are closed, all earlier findings remain closed, and the equivalent performance
+gate remains satisfied.
+
+This clearance applies only to the exact HEAD above. Any code, test, contract, benchmark,
+or dependency change requires renewed disposition of the changed scope.
+
+## R5.7 Quality & Release authorization
+
+**Quality & Release is explicitly authorized to begin** against:
+
+- **Branch:** `feature/v0.3.1-query-trust-contracts`
+- **Exact HEAD:** `09a4ca5a6e0d9b73a1e37a9e086abe788c894c72`
+- **Architecture evidence:** this Revision 5, Engineering Review Rev 5, ADR-0012 and
+  ADR-0014 through ADR-0017, correction diff `649e5a2..09a4ca5`, and the complete
+  implementation evidence accumulated in Engineering Reviews Rev 1 through Rev 5.
+- **Required QA output:**
+  `docs/handovers/v0.3.1/05-quality-to-product-owner-release-review.md`
+
+Quality & Release must remain read-only except for its required review artifact. It must
+not fix defects, merge, push, or change the candidate.
+
+## R5.8 Activated adversarial QA matrix
+
+Quality & Release must independently execute and record every matrix area below.
+
+### A. Candidate identity and evidence integrity
+
+1. Verify exact branch, HEAD, clean starting worktree, ancestry, and the complete release
+   diff.
+2. Confirm the reviewed implementation and evidence all refer to the same exact HEAD.
+3. Run the full test suite, Ruff, mypy, and `git diff --check`.
+4. Verify unchanged-vault/read-only evidence before and after representative commands.
+5. Identify any untracked, generated, environment-specific, or unreviewed release input.
+
+### B. Authorization and non-disclosure
+
+1. Exercise workspace mismatch, sensitivity limits, source allowlists, path-prefix
+   allowlists, empty scopes, and explicit deny cases.
+2. Test traversal, absolute paths, mixed separators, dot segments, prefix-segment
+   collisions, case behavior, and canonicalization.
+3. Confirm authorization precedes index construction, candidate generation, graph
+   resolution/expansion, context assembly, and citation construction.
+4. Verify excluded source identity and content do not leak through results, excerpts,
+   citations, traces, conflicts, errors, counts, graph paths, or ordering/timing-derived
+   diagnostics.
+5. Confirm ambiguous duplicate stable IDs fail closed and disclose neither candidate.
+
+### C. Current-source and citation trust boundary
+
+1. Verify every supported CLI, direct-engine, benchmark, and test-helper construction
+   requires explicit scope and a valid `source_root`.
+2. Exercise omitted and explicit-`None` roots, nonexistent roots, roots that are files,
+   missing sources, unreadable sources, and sources replaced after discovery.
+3. Exercise lexical traversal, resolved traversal, symlink/junction escape, symlink target
+   mutation, and path confinement at segment boundaries.
+4. Mutate current bytes after discovery using content changes, whitespace-only changes,
+   BOM changes, CRLF/LF changes, encoding changes, and other changes that normalize to the
+   same parsed text; all stale citations must fail closed.
+5. Confirm snapshot-only evidence can never become `coverage="supported"`.
+6. Verify exact-byte fingerprints, stable identity, additive line/heading provenance,
+   full heading hierarchy, locator bounds, excerpt equality, and non-empty excerpts.
+7. Test title-, tag-, alias-, frontmatter-, heading-, body-, and relationship-derived
+   retrieval signals; a supported citation must bind to the actual material signal.
+8. Confirm mandatory validation occurs immediately before emission and catches mutation
+   between discovery and answer construction.
+
+### D. Evidence coverage and consumer semantics
+
+1. Exercise supported-only, mixed supported/incomplete, incomplete-only, and no-citation
+   answers.
+2. Verify text output visibly separates supporting passages from incomplete references.
+3. Verify no incomplete `0-0` locator is rendered as a passage citation.
+4. Verify JSON structurally distinguishes supported citations, incomplete references, and
+   answer-level coverage.
+5. Validate coverage labels, supported/incomplete counts, and limitation text for every
+   combination.
+6. Confirm incomplete-only answers return warning/not-fully-evidence-backed status for
+   `ask`, `query`, `context`, and `brief`, including text and JSON modes.
+7. Confirm a reference without a validated locator/excerpt is never counted or presented
+   as claim-supporting material.
+
+### E. Retrieval, ranking, graph, and context
+
+1. Test deterministic candidate generation and ranking across repeated runs.
+2. Verify retrieval relevance remains distinct from answer confidence in memory and every
+   serialized contract.
+3. Exercise graph cycles, missing targets, ambiguous targets, excluded neighbors, high
+   fan-out, and depth limits.
+4. Confirm graph paths cannot bypass authorization or reveal excluded nodes.
+5. Verify the hard context budget for empty, minimal, exact-boundary, one-byte-over,
+   multibyte, many-passage, and wrapper/separator-heavy cases.
+6. Count every emitted byte/token unit required by the accepted budget contract,
+   including headings, labels, separators, and wrappers.
+
+### F. Versioning and compatibility
+
+1. Validate current result and citation contract versions and all required fields.
+2. Exercise the legacy reader with exact valid legacy shapes.
+3. Reject missing keys, unknown keys, mixed old/new shapes, result/citation shape
+   confusion, invalid nested citations, invalid ranking values, and unequal legacy/new
+   ranking aliases.
+4. Confirm ambiguous `confidence` is removed and never becomes answer confidence.
+5. Verify the legacy path is reader-only, bounded to the accepted release window, and
+   cannot relax current authorization or citation validation.
+
+### G. CLI, exit behavior, and operational safety
+
+1. Exercise `ask`, `query`, `context`, and `brief` in text and JSON modes for success,
+   warning, policy failure, invalid input, and internal failure paths.
+2. Verify stdout/stderr separation, deterministic JSON, stable exit codes, and no
+   unsupported evidence claims.
+3. Confirm local/offline behavior and absence of network, subprocess, write, deletion,
+   rename, permission, timestamp, or vault-content mutation.
+4. Test malformed configuration, empty vaults, scale limits, Unicode paths/content, and
+   platform-relevant path behavior.
+
+### H. Benchmark and release gate
+
+1. Run `scripts/benchmark_query.py` through its warm-up, measured sizes, memory
+   measurement, and authorization-stress phases.
+2. Run `tests/integration/test_benchmark_smoke.py` and confirm constructor drift at either
+   corrected site would fail it.
+3. Run `scripts/benchmark_regression.py` against the exact v0.3 baseline and exact
+   v0.3.1 candidate using identical fixture, query, warm-ups, sample count, percentile
+   method, machine, Python version, and construction-plus-query boundary.
+4. Record raw samples or a reproducible evidence location, candidate and baseline p95,
+   percentage change, peak memory, and authorization-stress behavior.
+5. Confirm the release result remains no more than 20% above the equivalent v0.3 p95.
+6. Verify baseline-only adaptive constructor branches cannot instantiate the current
+   candidate without both scope and `source_root`.
+
+### I. QA disposition and handoff
+
+The QA artifact must list exact branch, HEAD, environment, commands, results, failures,
+waivers, residual risks, and evidence locations. It must issue one explicit Quality &
+Release disposition to the Product Owner. Any failure involving authorization ordering,
+non-disclosure, path confinement, exact-byte currentness, citation support, hard context
+budget, contract ambiguity, read-only behavior, or the 20% performance ceiling is
+release-blocking unless returned through governance and explicitly superseded.
+
+## R5.9 Exit statement
+
+Architecture review is complete. Quality & Release is authorized only for exact HEAD
+`09a4ca5a6e0d9b73a1e37a9e086abe788c894c72` and must produce:
+
+```text
+docs/handovers/v0.3.1/05-quality-to-product-owner-release-review.md
+```
+
+Stop after this CTO disposition. Do not perform the Quality & Release review.

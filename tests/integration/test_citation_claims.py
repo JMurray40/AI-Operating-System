@@ -1,0 +1,70 @@
+"""AC-03R2b: unranked (summarize/explain) citations are claim-specific, never arbitrary."""
+from __future__ import annotations
+
+from pathlib import Path
+
+from jarvis_core.config import Config
+from jarvis_core.policy import local_allow_all
+from jarvis_core.query import QueryEngine
+from jarvis_core.repositories import FileSystemKnowledgeRepository
+
+_DATE = "2026-07-27"
+
+
+def _build(root: Path) -> None:
+    root.mkdir(parents=True, exist_ok=True)
+    # Project whose FIRST body section is unrelated; the project identity/link is later.
+    (root / "Zeta.md").write_text(
+        "---\nid: project-zeta\ntype: project\ntitle: \"Zeta\"\nstatus: active\n"
+        f"created: {_DATE}\nupdated: {_DATE}\ngoal: \"Zeta goal\"\npriority: high\n"
+        "sensitivity: internal\n---\n\n# Zeta\n\n## Intro\n\n"
+        "Completely unrelated preamble content about weather.\n\n"
+        "## Links\n\nRelated work: [[Helper]].\n",
+        encoding="utf-8",
+    )
+    (root / "Helper.md").write_text(
+        "---\nid: concept-helper\ntype: concept\ntitle: \"Helper\"\nstatus: active\n"
+        f"created: {_DATE}\nupdated: {_DATE}\nsensitivity: internal\nprojects: [Zeta]\n---\n\n"
+        "# Helper\n\nUnrelated opening line about cooking.\n\nSupports [[Zeta]] directly.\n",
+        encoding="utf-8",
+    )
+
+
+def _engine(path: Path) -> QueryEngine:
+    _build(path)
+    notes = FileSystemKnowledgeRepository(Config(vault_path=path)).discover()
+    return QueryEngine(notes, scope=local_allow_all("local"), source_root=path)
+
+
+def test_summarize_citations_are_claim_specific_not_first_content(tmp_path: Path):
+    a = _engine(tmp_path).summarize("Zeta")
+    by = {c.relpath: c for c in a.citations}
+    # Every supported citation cites a passage that actually references the project 'Zeta',
+    # never the unrelated first section.
+    for c in a.citations:
+        if c.coverage == "supported":
+            assert "zeta" in c.excerpt.lower()
+            assert "weather" not in c.excerpt.lower()   # not the unrelated preamble
+            assert "cooking" not in c.excerpt.lower()
+    # Helper references Zeta -> supported with the linking passage.
+    assert "Helper.md" in by and by["Helper.md"].coverage == "supported"
+    assert "zeta" in by["Helper.md"].excerpt.lower()
+
+
+def test_explain_citations_cite_the_linking_passage(tmp_path: Path):
+    a = _engine(tmp_path).explain("Zeta", "Helper")
+    by = {c.relpath: c for c in a.citations}
+    assert "directly linked" in a.answer or "share" in a.answer
+    # Zeta cites the passage linking Helper (not its unrelated first section).
+    if "Zeta.md" in by and by["Zeta.md"].coverage == "supported":
+        assert "helper" in by["Zeta.md"].excerpt.lower()
+        assert "weather" not in by["Zeta.md"].excerpt.lower()
+
+
+def test_incomplete_coverage_has_no_arbitrary_excerpt(tmp_path: Path):
+    # A source with no claim-specific supporting passage is marked incomplete, not filled.
+    a = _engine(tmp_path).summarize("Zeta")
+    for c in a.citations:
+        if c.coverage == "incomplete":
+            assert c.excerpt == ""
+            assert c.locator.line_start == 0 and c.locator.line_end == 0

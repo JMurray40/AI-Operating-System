@@ -1,12 +1,14 @@
-"""Equivalent p95-to-p95 regression benchmark for the public QueryEngine (AE-01).
+"""Total-pipeline p95 regression benchmark for the query engine (AE-01R2).
 
-Measures the *complete public* ``QueryEngine.run(query)`` call end-to-end on a prebuilt
-engine, using the same fixture, query, warm-up policy, run count, and percentile method for
-both the v0.3 baseline and the v0.3.1 candidate. Construction is adaptive so the same script
-runs against either version (the candidate requires an explicit scope; the baseline does not).
+The accepted total query pipeline includes authorized-view/index/graph construction, which
+happen in ``QueryEngine.__init__``. So the release gate times, per sample, engine
+CONSTRUCTION plus one public query over the same pre-parsed note set. The prebuilt-engine
+``run()`` latency is reported separately as a steady-state diagnostic only.
 
-Run against each version by pointing PYTHONPATH at that version's ``src`` (and the repo root
-for ``tests.support``). Report is Markdown with raw min/median/max plus p50/p95/p99.
+The same script runs against either version by pointing PYTHONPATH at that version's ``src``
+(plus the repo root for ``tests.support``): the candidate requires an explicit scope (and
+accepts a source root); the v0.3 baseline accepts neither. Notes are parsed once and reused
+for every sample, so only engine construction + query are measured.
 
 Usage: python scripts/benchmark_regression.py [--notes 1000] [--runs 50] [--query links]
 """
@@ -23,27 +25,37 @@ from jarvis_core.config import Config
 from jarvis_core.query.engine import QueryEngine
 from jarvis_core.repositories import FileSystemKnowledgeRepository
 
-try:  # candidate requires an explicit scope; baseline does not accept one
+try:  # candidate requires an explicit scope; baseline accepts neither scope nor source root
     from jarvis_core.policy import local_allow_all
     _SCOPE = local_allow_all("local")
 except Exception:  # pragma: no cover - baseline path
     _SCOPE = None
 
 
-def _make_engine(notes: list) -> QueryEngine:
+def _make_engine(notes: list, root: Path) -> QueryEngine:
     if _SCOPE is not None:
         try:
-            return QueryEngine(notes, scope=_SCOPE)  # type: ignore[call-arg]
+            return QueryEngine(notes, scope=_SCOPE, source_root=root)  # type: ignore[call-arg]
         except TypeError:
-            pass
+            try:
+                return QueryEngine(notes, scope=_SCOPE)  # type: ignore[call-arg]
+            except TypeError:
+                pass
     return QueryEngine(notes)  # type: ignore[call-arg]
 
 
-def _pct(sorted_s: list[float], q: float) -> float:
-    if not sorted_s:
+def _pct(samples: list[float], q: float) -> float:
+    s = sorted(samples)
+    if not s:
         return 0.0
-    idx = min(len(sorted_s) - 1, round(q * (len(sorted_s) - 1)))
-    return round(sorted_s[idx] * 1000, 3)
+    return round(s[min(len(s) - 1, round(q * (len(s) - 1)))] * 1000, 3)
+
+
+def _summary(name: str, samples: list[float]) -> None:
+    s = sorted(samples)
+    print(f"## {name}")
+    print(f"min={round(s[0]*1000,3)}ms  max={round(s[-1]*1000,3)}ms  "
+          f"p50={_pct(s,0.5)}ms  p95={_pct(s,0.95)}ms  p99={_pct(s,0.99)}ms")
 
 
 def main() -> None:
@@ -60,20 +72,31 @@ def main() -> None:
         notes = FileSystemKnowledgeRepository(
             Config(vault_path=root, max_files=20000)
         ).discover()
-        engine = _make_engine(notes)  # construction excluded from the per-query gate
+
+        for _ in range(args.warmups):
+            _make_engine(notes, root).run(args.query)
+
+        total: list[float] = []          # construction + one query (RELEASE GATE)
+        for _ in range(args.runs):
+            t0 = time.perf_counter()
+            engine = _make_engine(notes, root)
+            engine.run(args.query)
+            total.append(time.perf_counter() - t0)
+
+        engine = _make_engine(notes, root)  # steady-state diagnostic (prebuilt engine)
         for _ in range(args.warmups):
             engine.run(args.query)
-        samples: list[float] = []
+        steady: list[float] = []
         for _ in range(args.runs):
             t0 = time.perf_counter()
             engine.run(args.query)
-            samples.append(time.perf_counter() - t0)
+            steady.append(time.perf_counter() - t0)
 
-    s = sorted(samples)
-    print(f"# QueryEngine.run() end-to-end — notes={args.notes} runs={args.runs} "
-          f"query={args.query!r}")
-    print(f"min={round(s[0]*1000,3)}ms  median={_pct(s,0.5)}ms  max={round(s[-1]*1000,3)}ms")
-    print(f"p50={_pct(s,0.5)}ms  p95={_pct(s,0.95)}ms  p99={_pct(s,0.99)}ms")
+    print(f"# QueryEngine total pipeline — notes={args.notes} runs={args.runs} "
+          f"query={args.query!r} warmups={args.warmups}\n")
+    _summary("total_pipeline (construction + query) — RELEASE GATE", total)
+    print()
+    _summary("steady_state (prebuilt engine, query only) — diagnostic", steady)
 
 
 if __name__ == "__main__":

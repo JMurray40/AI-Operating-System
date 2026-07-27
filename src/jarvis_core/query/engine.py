@@ -71,10 +71,10 @@ class QueryEngine:
         notes: list[Note],
         *,
         scope: AuthorizationScope,
+        source_root: Path,
         weights: RankingWeights | None = None,
         token_budget: int = DEFAULT_TOKEN_BUDGET,
         provider: Provider | None = None,
-        source_root: Path | None = None,
     ) -> None:
         # An explicit AuthorizationScope is REQUIRED at the query boundary (AC-01, ADR-0015).
         # A missing/None scope fails closed rather than silently broadening to allow-all; use
@@ -84,10 +84,16 @@ class QueryEngine:
                 "QueryEngine requires an explicit AuthorizationScope; "
                 "use jarvis_core.policy.local_allow_all() for local workflows"
             )
+        # A source_root is REQUIRED so every emitted 'supported' citation is validated against
+        # the CURRENT on-disk bytes, not a discovery snapshot (AC-03R3-01, ADR-0016). A
+        # discovery snapshot alone can never establish current-source validity, so there is no
+        # snapshot fallback; a missing root fails closed at construction.
+        if source_root is None:
+            raise PolicyError(
+                "QueryEngine requires a source_root for current-source citation validation"
+            )
         self._scope = scope
-        # When provided, current source bytes are re-read from this root (confined to it)
-        # at citation emission so a post-discovery change makes the citation stale (AC-03R2).
-        self._source_root = source_root.resolve() if source_root is not None else None
+        self._source_root = source_root.resolve()
         view = build_authorized_view(notes, self._scope)
         self._notes = view.notes
         self._identities = view.identities
@@ -344,22 +350,19 @@ class QueryEngine:
         return QueryAnswer(intent, question, text, citations, excluded_count=self._excluded_count)
 
     def _current_bytes(self, note: Note) -> bytes:
-        """Exact current source bytes for ``note``, confined to the configured root.
+        """Exact CURRENT source bytes for ``note``, re-read within the resolved source root.
 
-        With a source root, the file is re-read (path-escape and missing files fail closed
-        by returning empty bytes, which then fail the fingerprint check). Without a root, the
-        discovery-time bytes are used (this proves discovery-revision consistency only, not a
-        post-discovery on-disk change).
+        Path/symlink escape, a missing or unreadable file, and any read error fail closed by
+        returning empty bytes, which then fail the fingerprint check and decline the citation
+        (AC-03R3-01). There is no discovery-snapshot fallback.
         """
-        if self._source_root is not None:
-            try:
-                cand = (self._source_root / note.relpath).resolve()
-                if cand.is_relative_to(self._source_root) and cand.is_file():
-                    return cand.read_bytes()
-            except OSError:
-                pass
-            return b""  # missing / escaped / unreadable under a known root -> fail closed
-        return note.source_bytes
+        try:
+            cand = (self._source_root / note.relpath).resolve()
+            if cand.is_relative_to(self._source_root) and cand.is_file():
+                return cand.read_bytes()
+        except OSError:
+            pass
+        return b""  # missing / escaped / unreadable -> fail closed
 
     def _make_citation(
         self,

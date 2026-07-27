@@ -35,7 +35,7 @@ from jarvis_core.models.note import Note
 from jarvis_core.models.validation import ValidationResult
 from jarvis_core.policy import local_allow_all
 from jarvis_core.providers import get_provider
-from jarvis_core.query import Intent, QueryAnswer, QueryEngine, QueryTrace
+from jarvis_core.query import QueryAnswer, QueryEngine, QueryTrace
 from jarvis_core.relationships import RelationshipResolver
 from jarvis_core.relationships.resolver import ResolutionReport
 from jarvis_core.repositories import FileSystemKnowledgeRepository
@@ -258,9 +258,11 @@ def _print_answer(answer: QueryAnswer, trace: QueryTrace | None, fmt: OutputForm
         print(_dumps(payload))
         return
     print(answer.answer)
-    if answer.citations:
-        print("\nSources:")
-        for c in answer.citations:
+    supported = answer.supported_citations()
+    incomplete = answer.incomplete_citations()
+    if supported:
+        print("\nSources (supporting passages):")
+        for c in supported:
             rel = (
                 f"relative relevance={c.relative_relevance:g}"
                 if c.relative_relevance is not None else "relative relevance=n/a"
@@ -270,16 +272,25 @@ def _print_answer(answer: QueryAnswer, trace: QueryTrace | None, fmt: OutputForm
                 f"  - {c.title} ({c.relpath}:{loc.line_start}-{loc.line_end})  "
                 f"[{rel}] {c.reason}"
             )
+    if incomplete:
+        print("\nEvidence coverage incomplete — the following sources were referenced, but "
+              "no claim-supporting passage was found:")
+        for c in incomplete:
+            print(f"  - {c.title} ({c.relpath})  [no supporting passage] {c.reason}")
+    cov = answer.citation_coverage()
+    print(f"\nCoverage: {cov['label']} "
+          f"({cov['supported']} supported, {cov['incomplete']} incomplete)")
     if answer.excluded_count:
-        print(f"\n({answer.excluded_count} source(s) excluded by policy)")
+        print(f"({answer.excluded_count} source(s) excluded by policy)")
     if trace is not None:
         print()
         print(trace.render_text())
 
 
 def _answered_exit(answer: QueryAnswer) -> int:
-    answered = bool(answer.citations) or answer.intent is Intent.SUMMARIZE_PROJECT
-    return EXIT_OK if answered else EXIT_WARNINGS
+    # Only a supported (passage-backed) citation counts as an evidence-backed answer; an
+    # answer with only incomplete references is not fully evidence-backed (AC-03R3-02).
+    return EXIT_OK if answer.supported_citations() else EXIT_WARNINGS
 
 
 def _cmd_ask(args: argparse.Namespace) -> int:
@@ -293,21 +304,21 @@ def _cmd_search(args: argparse.Namespace) -> int:
     config = _build_config(args)
     answer = _engine(args).search(args.query, limit=args.limit)
     _print_answer(answer, None, config.output_format)
-    return EXIT_OK if answer.citations else EXIT_WARNINGS
+    return EXIT_OK if answer.supported_citations() else EXIT_WARNINGS
 
 
 def _cmd_summarize(args: argparse.Namespace) -> int:
     config = _build_config(args)
     answer = _engine(args).summarize(args.name)
     _print_answer(answer, None, config.output_format)
-    return EXIT_OK if answer.citations else EXIT_WARNINGS
+    return EXIT_OK if answer.supported_citations() else EXIT_WARNINGS
 
 
 def _cmd_explain(args: argparse.Namespace) -> int:
     config = _build_config(args)
     answer = _engine(args).explain(args.left, args.right)
     _print_answer(answer, None, config.output_format)
-    return EXIT_OK if answer.citations else EXIT_WARNINGS
+    return EXIT_OK if answer.supported_citations() else EXIT_WARNINGS
 
 
 # ------------------------------------------------------------------------------ main

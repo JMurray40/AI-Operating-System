@@ -61,6 +61,40 @@ class QueryAnswer:
     # Reserved for a later evidence-assessment contract; unavailable in v0.3.1 (ADR-0014).
     answer_confidence: None = None
 
+    def supported_citations(self) -> tuple[Citation, ...]:
+        """Material citations bound to a validated claim-supporting passage."""
+        return tuple(c for c in self.citations if c.coverage == "supported")
+
+    def incomplete_citations(self) -> tuple[Citation, ...]:
+        """Authorized source references with no claim-supporting passage."""
+        return tuple(c for c in self.citations if c.coverage != "supported")
+
+    def citation_coverage(self) -> dict[str, object]:
+        """Answer-level citation-coverage/limitations signal (AC-03R3-02).
+
+        ``label`` is 'complete' (only supported), 'partial' (supported + incomplete),
+        'incomplete' (only incomplete references), or 'none' (no citations).
+        """
+        supported = len(self.supported_citations())
+        incomplete = len(self.incomplete_citations())
+        if supported and not incomplete:
+            label = "complete"
+        elif supported and incomplete:
+            label = "partial"
+        elif incomplete:
+            label = "incomplete"
+        else:
+            label = "none"
+        return {
+            "label": label,
+            "supported": supported,
+            "incomplete": incomplete,
+            "limitation": (
+                None if label in ("complete", "none")
+                else "one or more sources were referenced without a claim-supporting passage"
+            ),
+        }
+
     def to_dict(self) -> dict[str, object]:
         return {
             "contract_version": CONTRACT_VERSION,
@@ -68,6 +102,7 @@ class QueryAnswer:
             "question": self.question,
             "answer": self.answer,
             "answer_confidence": self.answer_confidence,
+            "citation_coverage": self.citation_coverage(),
             "citations": [c.to_dict() for c in self.citations],
             "excluded_count": self.excluded_count,
         }

@@ -13,6 +13,17 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+### Added (Phase 2 — Real Vault Pilot, in review)
+
+- Real Obsidian-vault loading from a configurable directory (still strictly read-only).
+- Performance instrumentation (`jarvis_core.metrics`): per-stage timings for parse,
+  relationship resolution, validation, and total runtime, with throughput.
+- Vault health analyzer and `jarvis vault-report` command: missing frontmatter,
+  duplicate IDs, orphan notes, broken wikilinks, invalid schemas, missing aliases, and
+  circular references, rendered as a human-readable report (file output opt-in).
+- Synthetic-vault generators and scale tests at 100/500/1,000 notes plus a
+  one-of-each-defect vault; 54 tests total.
+
 ### Planned
 
 - Validate the knowledge standard against two pilot projects.

@@ -21,3 +21,9 @@ architecture choices for review).
 6. **Provider role catalog.** Role aliases (`coding`, `research`, `fast`, `private`,
    `vision`) are accepted as strings; formalizing them is deferred to the real provider
    work.
+
+7. **Incremental / cached parsing.** Phase 2 re-parses the whole vault each run. Whether
+   to add mtime-based caching or an index is deferred to a later phase.
+8. **Health severity policy.** Whether orphans and missing frontmatter should ever be
+   errors (vs. warnings) is deferred; current defaults treat only duplicate IDs and
+   invalid schemas as errors.

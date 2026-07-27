@@ -23,3 +23,9 @@ Functional limitations of the current implementation:
   remove that dependency.
 - **Tested on Python 3.10** in the build sandbox; 3.12+ is the recommended target
   (see ADR-0006).
+- **Health `missing_alias`** uses a filename-vs-title heuristic; it does not yet infer
+  aliases from inbound broken links.
+- **Circular-reference detection** reports strongly-connected components (clusters), not
+  every elementary cycle, and is advisory only.
+- **Performance** is single-threaded; parsing is the dominant cost. No caching between
+  runs (each run re-parses).

@@ -6,6 +6,10 @@ relationships, assembles a deterministic **project context package**, validates 
 sends it to a **mock** AI provider — all with no network, no API keys, no database, and
 no writes to any source it reads.
 
+> Phase 2 adds real-vault loading, performance instrumentation, and a vault health
+> report (`jarvis vault-report`) — all still strictly read-only. See
+> [VAULT_HEALTH.md](VAULT_HEALTH.md).
+
 > Scope guardrail: this prototype implements the read-only slice of
 > [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md) Phase 3. It deliberately omits the
 > web UI, SQLite persistence, real providers, agents, MCP, and any write capability.
@@ -20,6 +24,7 @@ no writes to any source it reads.
 - [KNOWN_LIMITATIONS.md](KNOWN_LIMITATIONS.md) — what it does not do yet.
 - [DEFERRED_DECISIONS.md](DEFERRED_DECISIONS.md) — choices left open for review.
 - [EXTENDING.md](EXTENDING.md) — how future provider and storage adapters plug in.
+- [VAULT_HEALTH.md](VAULT_HEALTH.md) — Phase 2: real-vault health report and performance.
 
 ## Governing documents
 

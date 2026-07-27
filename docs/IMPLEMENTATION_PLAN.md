@@ -7,7 +7,7 @@
 | Version | 0.1.0 |
 | Owner | Jason |
 | Revised | 2026-07-27 |
-| Related | [Roadmap](ROADMAP.md), [Architecture](SYSTEM_ARCHITECTURE.md), [Development Guide](DEVELOPMENT_GUIDE.md) |
+| Related | [Roadmap](ROADMAP.md), [Architecture](SYSTEM_ARCHITECTURE.md), [Migration Plan](MIGRATION_EXECUTION_PLAN.md), [Development Guide](DEVELOPMENT_GUIDE.md) |
 
 ## Phase 0: Repository foundation
 
@@ -19,13 +19,13 @@
 
 ## Phase 1: Knowledge pilot
 
-1. Verify the vault backup.
-2. Run a read-only inventory.
-3. Install approved templates and `VAULT-INDEX.md`.
-4. Select Jarvis and one active existing project.
-5. Create dashboards and verified resource notes.
-6. Use Daily Notes and session closeout for two weeks.
-7. Record friction and revise the standard through reviewed changes.
+1. Preserve and review the completed read-only inventory baseline.
+2. Use the accepted AI Operating System and Cloud Organizer Pro pilot for seven working days.
+3. Record navigation friction, missing context, and useful relationships.
+4. Review and approve the [Migration Execution Plan](MIGRATION_EXECUTION_PLAN.md).
+5. Finalize naming, taxonomy, storage ownership, and templates.
+6. Migrate additional projects only in approved, validated batches.
+7. Revise the standards through reviewed changes.
 
 ## Phase 2: Read-only engineering discovery
 

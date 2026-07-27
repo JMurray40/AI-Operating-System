@@ -7,7 +7,7 @@
 | Version | 1.0.0 |
 | Owner | Jason |
 | Revised | 2026-07-27 |
-| Related | [Product Vision](PRODUCT_VISION.md), [System Architecture](SYSTEM_ARCHITECTURE.md), [Architecture Decision Records](adr/) |
+| Related | [Product Vision](PRODUCT_VISION.md), [System Architecture](SYSTEM_ARCHITECTURE.md), [Storage Architecture](STORAGE_ARCHITECTURE.md), [Decision Matrix](ARCHITECTURE_DECISION_MATRIX.md), [Architecture Decision Records](adr/) |
 
 ## Role of this document
 

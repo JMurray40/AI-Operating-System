@@ -13,6 +13,28 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+### Added (v0.3 — Intelligent Query Engine, in review)
+
+- Dedicated query layer under `jarvis_core.query`, composed of small, injectable
+  collaborators: `tokenizer`, `LexicalIndex` (inverted index over title/aliases/tags/
+  filename/frontmatter/wikilinks/body), `IntentParser`, `Ranker` (deterministic,
+  explainable), `QueryContextBuilder` (token-budgeted), `results` (citations), and
+  `trace`. No embeddings, vectors, or background indexing.
+- Deterministic, explainable ranking: every result carries per-signal contributions and
+  a confidence (relative to the top hit). Weights are configurable via `RankingWeights`.
+- Source citations on every answer: title, relative path, confidence, and reason.
+- New CLI commands `search`, `summarize`, and `explain`, plus `--trace` on `ask`, which
+  shows intent, candidates, ranking explanation, selected/excluded context, provider,
+  timings, and token counts.
+- `explain_relationship` intent: describes how two notes connect (direct link and/or
+  shared neighbours).
+- Query benchmark harness (`scripts/benchmark_query.py`) and scale tests at
+  100/500/1,000 notes; ranking backlink counts precomputed to keep scoring linear.
+- 55 new tests (124 total): tokenizer, index, intent, ranking, context builder, engine
+  edge cases (alias/tag/duplicate-title/broken-link/missing-frontmatter/empty), CLI
+  commands, trace, and performance guardrails. Existing behaviour (`ask`/`QueryResult`)
+  is preserved.
+
 ### Added (Phase 2 — Real Vault Pilot, in review)
 
 - `jarvis ask` — an offline, deterministic query engine over the vault (summarize a

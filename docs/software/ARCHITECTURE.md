@@ -50,6 +50,28 @@ flowchart TD
 - **health** — `analyze_vault()` runs seven read-only checks (missing frontmatter,
   duplicate IDs, orphans, broken wikilinks, invalid schemas, missing aliases, circular
   references via Tarjan SCC) into a `VaultHealthReport`, rendered as text or JSON.
+- **query** (v0.3) — a dedicated, composable query layer, deliberately separate from the
+  parser and graph builder:
+    - `tokenizer` — pure, deterministic tokenization/normalization (no stemming, no
+      embeddings) shared by the index and the intent parser.
+    - `index.LexicalIndex` — an in-memory inverted index plus per-note field token
+      counts over title, aliases, tags, filename, frontmatter, wikilinks, and body.
+    - `intent.IntentParser` — text → `ParsedQuery` (summarize / projects-mentioning /
+      related-to / explain-relationship / search). Parsing is isolated here; nothing
+      else re-parses free text.
+    - `ranking.Ranker` — deterministic, explainable scoring with a configurable
+      `RankingWeights`; every hit carries a `RankingExplanation` (per-signal
+      contributions) and a confidence relative to the top hit.
+    - `context_builder.QueryContextBuilder` — expands ranked seeds along the graph into
+      a token-budgeted, provider-independent `QueryContext` (what was included, what was
+      excluded, and why).
+    - `results` — `Citation` and `QueryAnswer` (source note, relpath, confidence,
+      reason).
+    - `trace.QueryTrace` — a full, inspectable record of a run for `--trace`.
+    - `engine.QueryEngine` — orchestrates the above via constructor injection. It exposes
+      the stable v0.2 `ask()` (`QueryResult`) for backwards compatibility and the v0.3
+      `run()`/`search()`/`summarize()`/`explain()` surface returning cited
+      `QueryAnswer`s. Providers are reached only through the `Provider` abstraction.
 
 ## Determinism
 

@@ -7,7 +7,7 @@
 | Version | 0.1.0 |
 | Owner | Jason |
 | Revised | 2026-07-27 |
-| Related | [Product Vision](PRODUCT_VISION.md), [The BRAIN v2](THE_BRAIN_V2_SPEC.md), [ADRs](adr/) |
+| Related | [Product Vision](PRODUCT_VISION.md), [System Principles](SYSTEM_PRINCIPLES.md), [The BRAIN v2](THE_BRAIN_V2_SPEC.md), [ADRs](adr/) |
 
 ## Architectural drivers
 

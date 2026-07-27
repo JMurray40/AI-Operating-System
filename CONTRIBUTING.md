@@ -7,7 +7,7 @@
 | Version | 0.1.0 |
 | Owner | Jason |
 | Revised | 2026-07-27 |
-| Related | [Development Guide](docs/DEVELOPMENT_GUIDE.md), [AI Behavior Standard](docs/AI_BEHAVIOR_STANDARD.md) |
+| Related | [System Principles](docs/SYSTEM_PRINCIPLES.md), [Development Guide](docs/DEVELOPMENT_GUIDE.md), [AI Behavior Standard](docs/AI_BEHAVIOR_STANDARD.md) |
 
 ## Principles
 
@@ -22,11 +22,12 @@
 1. Start from an issue or a documented milestone outcome.
 2. Create a focused branch named `feature/...`, `fix/...`, `docs/...`, or `chore/...`.
 3. Review relevant specifications and ADRs.
-4. Make the smallest coherent change.
-5. Update related documentation and the changelog when behavior or architecture changes.
-6. Run available validation.
-7. Open a pull request using the repository template.
-8. Obtain human approval for architecture, security, schema, migration, or external-write changes.
+4. Check the proposal against the System Principles.
+5. Make the smallest coherent change.
+6. Update related documentation and the changelog when behavior or architecture changes.
+7. Run available validation.
+8. Open a pull request using the repository template.
+9. Obtain human approval for architecture, security, schema, migration, or external-write changes.
 
 ## Documentation changes
 

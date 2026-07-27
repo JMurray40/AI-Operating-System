@@ -20,7 +20,9 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ### Added
 
-- ADR-0004 proposing project dashboards as the primary navigation layer.
+- `SYSTEM_PRINCIPLES.md` as the enduring project-governance philosophy.
+- Accepted ADR-0004 establishing project dashboards as the primary navigation layer.
+- Accepted ADR-0005 requiring inventory before significant modification.
 
 ## [0.1.0] - 2026-07-27
 

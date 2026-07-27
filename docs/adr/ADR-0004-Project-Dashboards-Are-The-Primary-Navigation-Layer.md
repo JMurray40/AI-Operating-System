@@ -2,8 +2,9 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
-| Version | 0.1.0 |
+| Purpose | Establish project dashboards as the primary navigation and context-loading layer |
+| Status | Accepted |
+| Version | 1.0.0 |
 | Owner | Jason |
 | Date | 2026-07-27 |
 | Related | [The BRAIN v2](../THE_BRAIN_V2_SPEC.md), [Product Vision](../PRODUCT_VISION.md), [Roadmap](../ROADMAP.md) |
@@ -98,3 +99,4 @@ Broader project-dashboard adoption requires successful pilot validation and sepa
 | Version | Date | Change |
 |---|---|---|
 | 0.1.0 | 2026-07-27 | Initial proposal |
+| 1.0.0 | 2026-07-27 | Accepted as a foundational navigation decision |

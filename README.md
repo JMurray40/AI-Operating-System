@@ -115,10 +115,12 @@ The Obsidian vault and this repository complement rather than duplicate one anot
 Start with:
 
 1. [Product Vision](docs/PRODUCT_VISION.md)
-2. [The BRAIN v2](docs/THE_BRAIN_V2_SPEC.md)
-3. [System Architecture](docs/SYSTEM_ARCHITECTURE.md)
-4. [Roadmap](docs/ROADMAP.md)
-5. [Development Guide](docs/DEVELOPMENT_GUIDE.md)
+2. [System Principles](docs/SYSTEM_PRINCIPLES.md)
+3. [The BRAIN v2](docs/THE_BRAIN_V2_SPEC.md)
+4. [System Architecture](docs/SYSTEM_ARCHITECTURE.md)
+5. [Architecture Decision Records](docs/adr/)
+6. [Roadmap](docs/ROADMAP.md)
+7. [Development Guide](docs/DEVELOPMENT_GUIDE.md)
 
 All human and AI contributions follow [CONTRIBUTING.md](CONTRIBUTING.md) and the [AI Behavior Standard](docs/AI_BEHAVIOR_STANDARD.md).
 
@@ -129,6 +131,7 @@ Version `0.1.0` establishes the documentation, governance, templates, schemas, a
 ## Related documents
 
 - [Product Vision](docs/PRODUCT_VISION.md)
+- [System Principles](docs/SYSTEM_PRINCIPLES.md)
 - [Implementation Plan](docs/IMPLEMENTATION_PLAN.md)
 - [Knowledge Standard](docs/KNOWLEDGE_STANDARD.md)
 - [Vault Schema](docs/VAULT_SCHEMA.md)

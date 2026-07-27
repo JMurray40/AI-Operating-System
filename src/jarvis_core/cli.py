@@ -21,10 +21,15 @@ from pathlib import Path
 from jarvis_core.config import Config, LogLevel, OutputFormat, default_fixture_path
 from jarvis_core.context.loader import ProjectContextLoader, ProjectNotFoundError
 from jarvis_core.context.validator import validate_notes
+from jarvis_core.health import analyze_vault, render_text
 from jarvis_core.logging_setup import configure_logging
+from jarvis_core.metrics import PerfReport, measure
 from jarvis_core.models.context import ContextPackage
+from jarvis_core.models.note import Note
 from jarvis_core.models.validation import ValidationResult
 from jarvis_core.providers import get_provider
+from jarvis_core.relationships import RelationshipResolver
+from jarvis_core.relationships.resolver import ResolutionReport
 from jarvis_core.repositories import FileSystemKnowledgeRepository
 
 EXIT_OK = 0
@@ -168,6 +173,53 @@ def _cmd_summarize_project(args: argparse.Namespace) -> int:
     return EXIT_WARNINGS if (package.warnings or package.unresolved_references) else EXIT_OK
 
 
+# -------------------------------------------------------------------- vault-report
+def _run_pipeline_with_perf(
+    config: Config,
+) -> tuple[
+    FileSystemKnowledgeRepository, list[Note], ResolutionReport, ValidationResult, PerfReport
+]:
+    """Discover, resolve, and validate with per-stage timing. Returns
+    (notes, resolution, validation, PerfReport)."""
+    perf = PerfReport()
+    repo = FileSystemKnowledgeRepository(config)
+    with measure(perf, "parse"):
+        notes = repo.discover()
+    perf.note_count = len(notes)
+    with measure(perf, "resolve"):
+        resolution = RelationshipResolver(notes).resolve_all()
+    with measure(perf, "validate"):
+        validation = validate_notes(notes)
+    return repo, notes, resolution, validation, perf
+
+
+def _cmd_vault_report(args: argparse.Namespace) -> int:
+    config = _build_config(args)
+    total = PerfReport()
+    with measure(total, "total"):
+        repo, notes, resolution, validation, perf = _run_pipeline_with_perf(config)
+    perf.record("total", total.durations["total"])
+    report = analyze_vault(
+        notes, repo.root, resolution=resolution, validation=validation,
+        perf=perf.to_dict() if args.timing else None,
+    )
+    if config.output_format is OutputFormat.JSON:
+        rendered = _dumps(report.to_dict())
+    else:
+        rendered = render_text(report)
+    print(rendered)
+    # File output is optional and disabled unless --output is given.
+    if args.output:
+        out_path = Path(args.output)
+        out_path.write_text(rendered + "\n", encoding="utf-8")
+        print(f"\n(report written to {out_path})", file=sys.stderr)
+    if report.errors:
+        return EXIT_FATAL
+    if report.warnings:
+        return EXIT_WARNINGS
+    return EXIT_OK
+
+
 # ------------------------------------------------------------------------------ main
 def _add_common(parser: argparse.ArgumentParser, *, with_path: bool) -> None:
     if with_path:
@@ -211,6 +263,25 @@ def build_parser() -> argparse.ArgumentParser:
                        help="Role alias (coding, research, fast, private, vision).")
     _add_common(p_sum, with_path=False)
     p_sum.set_defaults(func=_cmd_summarize_project)
+
+    p_report = sub.add_parser(
+        "vault-report",
+        help="Analyze a vault and print a human-readable health report.",
+    )
+    _add_common(p_report, with_path=True)
+    p_report.add_argument(
+        "--output", default=None,
+        help="Optional file to also write the report to (disabled by default).",
+    )
+    p_report.add_argument(
+        "--timing", dest="timing", action="store_true", default=True,
+        help="Include performance metrics (default on).",
+    )
+    p_report.add_argument(
+        "--no-timing", dest="timing", action="store_false",
+        help="Omit performance metrics.",
+    )
+    p_report.set_defaults(func=_cmd_vault_report)
 
     return parser
 

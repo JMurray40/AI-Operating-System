@@ -13,6 +13,30 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+### Added (v0.4 — Read-Only Conversational Intelligence, in review)
+
+- Conversation layer under `jarvis_core.conversation` (read-only, session-only; see
+  ADR-0013), composed over the v0.3 query engine with state isolated from retrieval:
+  `ConversationSession` (in-memory turns + entity memory + token budget),
+  `ReferenceResolver` (deterministic pronoun/ellipsis resolution), `explanation`
+  taxonomy, `ConversationAnswer` provenance, `StreamEvent`, `ConversationTrace`, and
+  `ConversationManager`.
+- Multi-turn follow-ups: pronouns ("it", "its", …) resolve to the in-focus entity; every
+  resolution is surfaced as a visible assumption; unrelated recent topics flag ambiguity.
+- Provenance on every answer: reasoning summary, confidence, an explicit
+  fact / inference / relationship / unknown / assumption basis, cited sources, and
+  conflicting-evidence detection.
+- Optional streaming via a `SupportsStreaming` provider capability (base `Provider`
+  contract unchanged); normalized events (started/delta/citation/usage/completed/failed);
+  graceful provider-failure handling.
+- New CLI command `jarvis chat` (scripted `--turns`, interactive stdin with
+  `:history`/`:reset`/`:trace`, plus `--trace` and `--stream`).
+- Conversation benchmark (`scripts/benchmark_conversation.py`) and scale tests at
+  100/500/1,000/5,000 notes; reference resolution is negligible/constant overhead.
+- 32 new tests (156 total): reference resolution, session/entity memory, taxonomy,
+  conflicting notes, provider failure, streaming, trace, CLI chat, and scale.
+- No persistent memory, no vault writes, no embeddings/vectors, no agents or MCP.
+
 ### Added (v0.3 — Intelligent Query Engine, in review)
 
 - Dedicated query layer under `jarvis_core.query`, composed of small, injectable

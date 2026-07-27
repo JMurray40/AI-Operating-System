@@ -72,6 +72,20 @@ flowchart TD
       the stable v0.2 `ask()` (`QueryResult`) for backwards compatibility and the v0.3
       `run()`/`search()`/`summarize()`/`explain()` surface returning cited
       `QueryAnswer`s. Providers are reached only through the `Provider` abstraction.
+- **conversation** (v0.4) — a read-only, **session-only** layer composed over the query
+  engine (see ADR-0013). State is isolated from retrieval:
+    - `session.ConversationSession` — in-memory turns + a most-recent-first entity stack
+      with token-budgeted history. Never persisted.
+    - `references.ReferenceResolver` — deterministic pronoun/ellipsis resolution to the
+      in-focus entity; every choice is recorded as a visible assumption.
+    - `explanation` — the fact / inference / relationship / unknown / assumption taxonomy.
+    - `results.ConversationAnswer` — answer text plus citations, confidence, reasoning
+      summary, tagged statements, and conflicting evidence; `StreamEvent` for streaming.
+    - `trace.ConversationTrace` — conversation state wrapped around the query `QueryTrace`.
+    - `manager.ConversationManager` — orchestrates a turn (resolve → engine → enrich →
+      record), handles provider failure gracefully, and exposes optional streaming. It
+      injects a `QueryEngine`; providers stay behind the `Provider`/`SupportsStreaming`
+      abstraction.
 
 ## Determinism
 

@@ -25,6 +25,7 @@
 | [0010](ADR-0010-AI-Providers-Are-Accessed-Through-A-Versioned-Abstraction.md) | AI providers use a versioned abstraction | Accepted |
 | [0011](ADR-0011-MCP-Is-Mediated-By-An-Isolated-Gateway.md) | MCP is mediated by an isolated gateway | Proposed |
 | [0012](ADR-0012-Query-Engine-Is-A-Layered-Deterministic-Pipeline.md) | The query engine is a layered, deterministic, citation-based pipeline | Accepted |
+| [0013](ADR-0013-Conversation-Is-A-Read-Only-Session-Only-Layer.md) | Conversation is a read-only, session-only layer over the query engine | Accepted |
 
 Accepted ADRs are not rewritten to reflect a later choice. A new ADR supersedes the earlier record.
 
@@ -32,6 +33,7 @@ Accepted ADRs are not rewritten to reflect a later choice. A new ADR supersedes 
 
 | Version | Date | Change |
 |---|---|---|
+| 0.4.0 | 2026-07-27 | Added ADR-0013 for the v0.4 conversation layer |
 | 0.3.0 | 2026-07-27 | Added ADR-0012 for the v0.3 query-engine architecture |
 | 0.2.0 | 2026-07-27 | Added ADR-0006 through ADR-0011 to the decision history |
 | 0.1.0 | 2026-07-27 | Initial ADR index |

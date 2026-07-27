@@ -15,8 +15,26 @@
 | `jarvis search "<terms>" [--path <dir>] [--limit N]` | Ranked lexical search with cited sources. |
 | `jarvis summarize "<name>" [--path <dir>]` | Summarize a project with cited sources. |
 | `jarvis explain "<A>" "<B>" [--path <dir>]` | Explain how two notes are related. |
+| `jarvis chat [--turns "<q>" …] [--trace] [--stream] [--path <dir>]` | Multi-turn read-only conversation (session-only). |
 
 `<name>` matches a project note's title, alias, id, or filename stem.
+
+## Conversation (`jarvis chat`, v0.4)
+
+`chat` holds a multi-turn conversation so you can ask follow-ups without repeating yourself.
+It is read-only and **session-only**: memory lives only for the running process — no disk
+writes, no logs, no vault changes. Every answer carries full provenance (reasoning summary,
+confidence, a fact/inference/relationship/unknown/assumption basis, cited sources, and any
+conflicting evidence). See [Conversation](CONVERSATION.md) for details.
+
+```bash
+# scripted, deterministic:
+jarvis chat --path /path/to/vault \
+  --turns "What is FileOrbit?" "Who is working on it?" "What are its biggest risks?"
+
+# interactive (stdin); in-session commands: :history  :reset  :trace  :help  :exit
+jarvis chat --path /path/to/vault --trace
+```
 
 ## Query commands (v0.3)
 
@@ -44,8 +62,11 @@ jarvis ask "What projects relate to bookkeeping?" --trace --path /path/to/vault
 - `--max-files N` — discovery cap (default 5000).
 - `--provider mock` — only the mock provider is available in this prototype.
 - `--model-role <role>` — role alias for `summarize-project` (default `fast`).
-- `--trace` — on `ask`, show intent, ranking, context, provider, timings, and tokens.
+- `--trace` — on `ask` and `chat`, show intent/ranking/context/provider/timings (and, for
+  chat, conversation state).
 - `--limit N` — on `search`, cap the number of ranked results (default 20).
+- `--turns "<q>" …` — on `chat`, run scripted turns in one session (deterministic).
+- `--stream` — on `chat`, stream the answer text (display only; content is deterministic).
 - `--timing / --no-timing` — include performance metrics in `vault-report` (default on).
 - `--output <file>` — also write the `vault-report` output to a file (opt-in; off by default).
 - `--memory` — capture peak memory in `vault-report` (opt-in; adds overhead).

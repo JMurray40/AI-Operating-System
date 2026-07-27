@@ -18,7 +18,7 @@ _UNIQUE = "zebrasecret"  # a term that appears ONLY in the restricted note
 def _engine(path: Path, scope) -> QueryEngine:
     build_trust_vault_no_dupes(path)
     notes = FileSystemKnowledgeRepository(Config(vault_path=path)).discover()
-    return QueryEngine(notes, scope=scope)
+    return QueryEngine(notes, scope=scope, source_root=path)
 
 
 def _internal_scope() -> AuthorizationScope:
@@ -72,7 +72,7 @@ def test_duplicate_explicit_id_fails_closed(tmp_path: Path):
     build_trust_vault(tmp_path)  # includes Dup1/Dup2 sharing 'dup-id'
     notes = FileSystemKnowledgeRepository(Config(vault_path=tmp_path)).discover()
     with pytest.raises(DuplicateIdentityError):
-        QueryEngine(notes, scope=local_allow_all("local"))
+        QueryEngine(notes, scope=local_allow_all("local"), source_root=tmp_path)
 
 
 def test_authorization_is_deterministic(tmp_path: Path):

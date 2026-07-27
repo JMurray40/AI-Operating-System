@@ -11,7 +11,7 @@ def test_cli_search_ok(tmp_path: Path, capsys):
     code = cli.main(["search", "quickbooks", "--path", str(tmp_path)])
     out = capsys.readouterr().out
     assert code == cli.EXIT_OK
-    assert "Sources:" in out
+    assert "Sources (supporting passages):" in out
     assert "relative relevance=" in out
 
 
@@ -34,7 +34,7 @@ def test_cli_summarize_cited(tmp_path: Path, capsys):
     out = capsys.readouterr().out
     assert code == cli.EXIT_OK
     assert "[mock:research]" in out
-    assert "Sources:" in out
+    assert "Sources (supporting passages):" in out
 
 
 def test_cli_explain(tmp_path: Path, capsys):

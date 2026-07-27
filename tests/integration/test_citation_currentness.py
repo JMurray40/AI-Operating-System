@@ -43,9 +43,40 @@ def test_missing_source_after_discovery_fails_closed(tmp_path: Path):
     assert all(c.relpath != "Bookkeeping App.md" for c in after.citations)
 
 
-def test_without_source_root_uses_discovery_snapshot(tmp_path: Path):
-    # No source_root: discovery-revision consistency; citations still emit and validate.
+def test_source_root_is_mandatory(tmp_path: Path):
+    # AC-03R3-01: a discovery snapshot alone must never back a 'supported' citation; the
+    # engine fails closed at construction when no source_root is supplied.
+    import pytest
+
+    from jarvis_core.policy import PolicyError
     build_query_vault(tmp_path)
     notes = FileSystemKnowledgeRepository(Config(vault_path=tmp_path)).discover()
-    eng = QueryEngine(notes, scope=local_allow_all("local"))
-    assert any(c.relpath == "Bookkeeping App.md" for c in eng.search("invoices").citations)
+    with pytest.raises(TypeError):
+        QueryEngine(notes, scope=local_allow_all("local"))          # source_root required
+    with pytest.raises(PolicyError):
+        QueryEngine(notes, scope=local_allow_all("local"), source_root=None)
+
+
+def test_symlink_escape_declines_citation(tmp_path: Path):
+    # A note that is a symlink resolving OUTSIDE the source root fails closed.
+    import os
+
+    outside = tmp_path.parent / "outside_secret.md"
+    outside.write_text(
+        "---\nid: n\ntype: concept\ntitle: \"Outside\"\nstatus: active\n"
+        "created: 2026-07-27\nupdated: 2026-07-27\nsensitivity: internal\n---\n\n"
+        "# Outside\n\nContains uniqueescterm content.\n",
+        encoding="utf-8",
+    )
+    vault = tmp_path / "vault"
+    vault.mkdir()
+    try:
+        os.symlink(outside, vault / "Link.md")
+    except (OSError, NotImplementedError):
+        import pytest
+        pytest.skip("symlinks not supported in this environment")
+    notes = FileSystemKnowledgeRepository(Config(vault_path=vault)).discover()
+    eng = QueryEngine(notes, scope=local_allow_all("local"), source_root=vault)
+    a = eng.search("uniqueescterm")
+    # The symlinked source resolves outside the root -> no supported citation is emitted.
+    assert all(c.relpath != "Link.md" for c in a.supported_citations())

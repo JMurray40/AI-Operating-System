@@ -19,7 +19,7 @@ from tests.support.synthetic_vault import build_synthetic_vault
 
 def _engine(path: Path) -> QueryEngine:
     notes = FileSystemKnowledgeRepository(Config(vault_path=path)).discover()
-    return QueryEngine(notes, scope=local_allow_all("local"))
+    return QueryEngine(notes, scope=local_allow_all("local"), source_root=path)
 
 
 @pytest.mark.parametrize("n", [100, 500, 1000])

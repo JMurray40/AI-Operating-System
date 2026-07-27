@@ -11,7 +11,7 @@ from tests.support.synthetic_vault import build_query_vault
 
 def _engine(path: Path) -> QueryEngine:
     return QueryEngine(FileSystemKnowledgeRepository(Config(vault_path=path)).discover(),
-                       scope=local_allow_all("local"))
+                       scope=local_allow_all("local"), source_root=path)
 
 
 def test_projects_mentioning_quickbooks(tmp_path: Path):

@@ -11,7 +11,7 @@ from jarvis_core.repositories import FileSystemKnowledgeRepository
 
 def _engine(path: Path) -> QueryEngine:
     notes = FileSystemKnowledgeRepository(Config(vault_path=path)).discover()
-    return QueryEngine(notes, scope=local_allow_all("local"))
+    return QueryEngine(notes, scope=local_allow_all("local"), source_root=path)
 
 
 def test_ranked_citation_resolves_to_exact_source(fileorbit_dir: Path):

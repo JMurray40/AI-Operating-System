@@ -12,7 +12,7 @@ from tests.support.synthetic_vault import build_feature_vault
 def _engine(path: Path) -> QueryEngine:
     build_feature_vault(path)
     notes = FileSystemKnowledgeRepository(Config(vault_path=path)).discover()
-    return QueryEngine(notes, scope=local_allow_all("local"))
+    return QueryEngine(notes, scope=local_allow_all("local"), source_root=path)
 
 
 # --- search -------------------------------------------------------------------

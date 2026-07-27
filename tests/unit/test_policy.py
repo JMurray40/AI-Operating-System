@@ -67,9 +67,11 @@ def test_engine_requires_explicit_scope(tmp_path):
     build_query_vault(tmp_path)
     notes = FileSystemKnowledgeRepository(Config(vault_path=tmp_path)).discover()
     with pytest.raises(TypeError):
-        QueryEngine(notes)                    # scope is required (keyword-only, no default)
+        QueryEngine(notes)                    # scope AND source_root required
     with pytest.raises(PolicyError):
-        QueryEngine(notes, scope=None)        # explicit None fails closed
+        QueryEngine(notes, scope=None, source_root=tmp_path)  # explicit None fails closed
+    with pytest.raises(PolicyError):
+        QueryEngine(notes, scope=local_allow_all("local"), source_root=None)  # AC-03R3-01
 
 
 def _permit(scope, relpath):

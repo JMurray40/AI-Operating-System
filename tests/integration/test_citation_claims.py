@@ -28,6 +28,19 @@ def _build(root: Path) -> None:
         "# Helper\n\nUnrelated opening line about cooking.\n\nSupports [[Zeta]] directly.\n",
         encoding="utf-8",
     )
+    # A resource linked FROM the project whose own text never names the project -> a source
+    # reference with no claim-supporting passage (coverage=incomplete).
+    (root / "Widget.md").write_text(
+        "---\nid: resource-widget\ntype: resource\ntitle: \"Widget\"\nresource_type: doc\n"
+        f"source_of_truth: local\nstatus: active\ncreated: {_DATE}\nupdated: {_DATE}\n"
+        "sensitivity: internal\n---\n\n# Widget\n\nStandalone widget notes, unrelated text.\n",
+        encoding="utf-8",
+    )
+    # Link the resource from the project so it enters the summary context.
+    zeta = root / "Zeta.md"
+    zeta.write_text(zeta.read_text(encoding="utf-8").replace(
+        "Related work: [[Helper]].", "Related work: [[Helper]] and [[Widget]]."),
+        encoding="utf-8")
 
 
 def _engine(path: Path) -> QueryEngine:
@@ -68,3 +81,20 @@ def test_incomplete_coverage_has_no_arbitrary_excerpt(tmp_path: Path):
         if c.coverage == "incomplete":
             assert c.excerpt == ""
             assert c.locator.line_start == 0 and c.locator.line_end == 0
+
+
+def test_summarize_produces_a_visible_incomplete_reference(tmp_path: Path):
+    a = _engine(tmp_path).summarize("Zeta")
+    by = {c.relpath: c for c in a.citations}
+    # Widget is in the project context but never names the project -> incomplete reference.
+    assert "Widget.md" in by
+    assert by["Widget.md"].coverage == "incomplete"
+    assert by["Widget.md"].excerpt == ""
+    assert by["Widget.md"].locator.line_start == 0
+    # Answer-level coverage signal reflects the mix.
+    cov = a.citation_coverage()
+    assert cov["label"] == "partial"
+    assert cov["supported"] >= 1 and cov["incomplete"] >= 1
+    # Incomplete references are not counted as supported (material) citations.
+    assert all(c.coverage == "supported" for c in a.supported_citations())
+    assert "Widget.md" not in {c.relpath for c in a.supported_citations()}

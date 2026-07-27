@@ -14,7 +14,8 @@ from tests.support.synthetic_vault import build_trust_vault_no_dupes
 def _engine(path: Path) -> QueryEngine:
     build_trust_vault_no_dupes(path)
     notes = FileSystemKnowledgeRepository(Config(vault_path=path)).discover()
-    return QueryEngine(notes, scope=local_allow_all("local", max_sensitivity="restricted"))
+    return QueryEngine(notes, scope=local_allow_all("local", max_sensitivity="restricted"),
+                       source_root=path)
 
 
 def test_answer_carries_contract_version_and_no_confidence(tmp_path: Path):

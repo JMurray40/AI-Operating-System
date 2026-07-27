@@ -39,7 +39,7 @@ def test_full_query_path_does_not_modify_vault():
 
     # Engine surface under an explicit scope + citation validation (re-reads bytes).
     notes = FileSystemKnowledgeRepository(Config(vault_path=vault)).discover()
-    eng = QueryEngine(notes, scope=local_allow_all("local"))
+    eng = QueryEngine(notes, scope=local_allow_all("local"), source_root=vault)
     ans = eng.search("deduplication")
     for c in ans.citations:
         note = eng.note_by_relpath(c.relpath)

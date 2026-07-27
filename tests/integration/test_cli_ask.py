@@ -12,7 +12,7 @@ def test_cli_ask_projects_mentioning(tmp_path: Path, capsys):
     out = capsys.readouterr().out
     assert code == cli.EXIT_OK
     assert "Bookkeeping App" in out
-    assert "Sources:" in out
+    assert "Sources (supporting passages):" in out
 
 
 def test_cli_ask_json(tmp_path: Path, capsys):

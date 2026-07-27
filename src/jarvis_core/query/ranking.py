@@ -101,11 +101,16 @@ class RankingExplanation:
 
 @dataclass(frozen=True)
 class ScoredNote:
-    """A note with its score, confidence (0-1, relative to the top hit), and explanation."""
+    """A note with its score, relative relevance, and explanation.
+
+    ``relative_relevance`` is a deterministic ranking normalization within one result set
+    (0-1, relative to the top hit). It is NOT answer confidence or a correctness claim
+    (ADR-0014); it must not be compared across queries or presented as confidence.
+    """
 
     note: Note
     score: float
-    confidence: float
+    relative_relevance: float
     explanation: RankingExplanation
 
     @property
@@ -187,6 +192,6 @@ class Ranker:
         top = scored[0][0] if scored else 0.0
         results: list[ScoredNote] = []
         for score, _relpath, explanation, note in scored:
-            confidence = round(score / top, 3) if top > 0 else 0.0
-            results.append(ScoredNote(note, score, confidence, explanation))
+            relative_relevance = round(score / top, 3) if top > 0 else 0.0
+            results.append(ScoredNote(note, score, relative_relevance, explanation))
         return results

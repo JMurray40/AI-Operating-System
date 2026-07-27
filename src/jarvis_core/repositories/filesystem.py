@@ -1,9 +1,11 @@
 """Filesystem-backed, strictly read-only knowledge repository."""
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 from jarvis_core.config import Config
+from jarvis_core.identity import fingerprint_bytes
 from jarvis_core.logging_setup import get_logger
 from jarvis_core.metrics import PerfReport, measure
 from jarvis_core.models.note import Note
@@ -66,17 +68,29 @@ class FileSystemKnowledgeRepository:
             try:
                 if perf is not None:
                     with measure(perf, "disk_read"):
-                        text = path.read_text(encoding="utf-8", errors="replace")
+                        raw = path.read_bytes()
                 else:
-                    text = path.read_text(encoding="utf-8", errors="replace")
+                    raw = path.read_bytes()
             except OSError as exc:
                 logger.error("Could not read %s: %s", relpath, exc)
                 continue
-            total_bytes += len(text.encode("utf-8", errors="replace"))
+            # Fingerprint the EXACT bytes (CRLF/LF included); decode for parsing (ADR-0016).
+            fingerprint = fingerprint_bytes(raw)
+            text = raw.decode("utf-8", errors="replace")
+            total_bytes += len(raw)
             if perf is not None:
-                notes.append(parse_note_timed(path, relpath, text, perf))
+                note = parse_note_timed(path, relpath, text, perf)
             else:
-                notes.append(parse_note(path, relpath, text))
+                note = parse_note(path, relpath, text)
+            body_start_line = text[: len(text) - len(note.body)].count("\n") + 1
+            notes.append(
+                replace(
+                    note,
+                    source_text=text,
+                    source_fingerprint=fingerprint,
+                    body_start_line=body_start_line,
+                )
+            )
         notes.sort(key=lambda n: n.relpath)
         self._cache = notes
         self._total_bytes = total_bytes

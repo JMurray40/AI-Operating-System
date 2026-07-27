@@ -33,6 +33,7 @@ from jarvis_core.metrics import PerfReport, measure, track_memory
 from jarvis_core.models.context import ContextPackage
 from jarvis_core.models.note import Note
 from jarvis_core.models.validation import ValidationResult
+from jarvis_core.policy import local_allow_all
 from jarvis_core.providers import get_provider
 from jarvis_core.query import Intent, QueryAnswer, QueryEngine, QueryTrace
 from jarvis_core.relationships import RelationshipResolver
@@ -241,7 +242,9 @@ def _cmd_vault_report(args: argparse.Namespace) -> int:
 def _engine(args: argparse.Namespace) -> QueryEngine:
     config = _build_config(args)
     repo = FileSystemKnowledgeRepository(config)
-    return QueryEngine(repo.discover())
+    # Existing CLI behavior runs under an explicit local allow-all scope (never an implicit
+    # unrestricted bypass); notes with unknown sensitivity still fail closed (ADR-0015).
+    return QueryEngine(repo.discover(), scope=local_allow_all(workspace_id="local"))
 
 
 def _print_answer(answer: QueryAnswer, trace: QueryTrace | None, fmt: OutputFormat) -> None:
@@ -255,7 +258,17 @@ def _print_answer(answer: QueryAnswer, trace: QueryTrace | None, fmt: OutputForm
     if answer.citations:
         print("\nSources:")
         for c in answer.citations:
-            print(f"  - {c.title} ({c.relpath})  [conf={c.confidence:g}] {c.reason}")
+            rel = (
+                f"relative relevance={c.relative_relevance:g}"
+                if c.relative_relevance is not None else "relative relevance=n/a"
+            )
+            loc = c.locator
+            print(
+                f"  - {c.title} ({c.relpath}:{loc.line_start}-{loc.line_end})  "
+                f"[{rel}] {c.reason}"
+            )
+    if answer.excluded_count:
+        print(f"\n({answer.excluded_count} source(s) excluded by policy)")
     if trace is not None:
         print()
         print(trace.render_text())

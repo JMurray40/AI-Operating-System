@@ -5,11 +5,16 @@ Commands:
     jarvis validate <path>              Validate notes across the five schema stages.
     jarvis load-project "<name>"        Assemble and print a project context package.
     jarvis summarize-project "<name>"   Send the package to a provider (mock) and print.
+    jarvis vault-report <path>          Analyze a vault and print a health report.
+    jarvis ask "<question>"             Answer a question (offline, deterministic).
+    jarvis search "<terms>"             Ranked lexical search with citations.
+    jarvis summarize "<name>"           Summarize a project with cited sources.
+    jarvis explain "<A>" "<B>"          Explain how two notes are related.
 
 Exit codes:
-    0  success / validation OK
+    0  success / validation OK / answer produced
     1  fatal error (bad path, project not found, validation errors)
-    2  completed with validation warnings (non-fatal)
+    2  completed with warnings, or a query returned no matches
 """
 from __future__ import annotations
 
@@ -29,7 +34,7 @@ from jarvis_core.models.context import ContextPackage
 from jarvis_core.models.note import Note
 from jarvis_core.models.validation import ValidationResult
 from jarvis_core.providers import get_provider
-from jarvis_core.query import QueryEngine
+from jarvis_core.query import Intent, QueryAnswer, QueryEngine, QueryTrace
 from jarvis_core.relationships import RelationshipResolver
 from jarvis_core.relationships.resolver import ResolutionReport
 from jarvis_core.repositories import FileSystemKnowledgeRepository
@@ -232,22 +237,61 @@ def _cmd_vault_report(args: argparse.Namespace) -> int:
     return EXIT_OK
 
 
-# ----------------------------------------------------------------------------- ask
-def _cmd_ask(args: argparse.Namespace) -> int:
+# ---------------------------------------------------------------- query commands
+def _engine(args: argparse.Namespace) -> QueryEngine:
     config = _build_config(args)
     repo = FileSystemKnowledgeRepository(config)
-    notes = repo.discover()
-    result = QueryEngine(notes).ask(args.question)
-    if config.output_format is OutputFormat.JSON:
-        print(_dumps(result.to_dict()))
-    else:
-        print(result.answer)
-        if result.matches:
-            print("\nSources:")
-            for m in result.matches:
-                print(f"  - {m.title} ({m.relpath})")
-    answered = bool(result.matches) or result.intent.value == "summarize_project"
+    return QueryEngine(repo.discover())
+
+
+def _print_answer(answer: QueryAnswer, trace: QueryTrace | None, fmt: OutputFormat) -> None:
+    if fmt is OutputFormat.JSON:
+        payload = answer.to_dict()
+        if trace is not None:
+            payload["trace"] = trace.to_dict()
+        print(_dumps(payload))
+        return
+    print(answer.answer)
+    if answer.citations:
+        print("\nSources:")
+        for c in answer.citations:
+            print(f"  - {c.title} ({c.relpath})  [conf={c.confidence:g}] {c.reason}")
+    if trace is not None:
+        print()
+        print(trace.render_text())
+
+
+def _answered_exit(answer: QueryAnswer) -> int:
+    answered = bool(answer.citations) or answer.intent is Intent.SUMMARIZE_PROJECT
     return EXIT_OK if answered else EXIT_WARNINGS
+
+
+def _cmd_ask(args: argparse.Namespace) -> int:
+    config = _build_config(args)
+    answer, trace = _engine(args).run(args.question, want_trace=args.trace)
+    _print_answer(answer, trace, config.output_format)
+    return _answered_exit(answer)
+
+
+def _cmd_search(args: argparse.Namespace) -> int:
+    config = _build_config(args)
+    answer = _engine(args).search(args.query, limit=args.limit)
+    _print_answer(answer, None, config.output_format)
+    return EXIT_OK if answer.citations else EXIT_WARNINGS
+
+
+def _cmd_summarize(args: argparse.Namespace) -> int:
+    config = _build_config(args)
+    answer = _engine(args).summarize(args.name)
+    _print_answer(answer, None, config.output_format)
+    return EXIT_OK if answer.citations else EXIT_WARNINGS
+
+
+def _cmd_explain(args: argparse.Namespace) -> int:
+    config = _build_config(args)
+    answer = _engine(args).explain(args.left, args.right)
+    _print_answer(answer, None, config.output_format)
+    return EXIT_OK if answer.citations else EXIT_WARNINGS
 
 
 # ------------------------------------------------------------------------------ main
@@ -327,8 +371,32 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_ask.add_argument("question", help="A natural-language question about the vault.")
     p_ask.add_argument("--path", default=None, help="Vault/fixture directory.")
+    p_ask.add_argument(
+        "--trace", dest="trace", action="store_true", default=False,
+        help="Show how the answer was produced (intent, ranking, context, timing).",
+    )
     _add_common(p_ask, with_path=False)
     p_ask.set_defaults(func=_cmd_ask)
+
+    p_search = sub.add_parser("search", help="Ranked lexical search across all notes.")
+    p_search.add_argument("query", help="Search terms.")
+    p_search.add_argument("--path", default=None, help="Vault/fixture directory.")
+    p_search.add_argument("--limit", type=int, default=20, help="Max results (default 20).")
+    _add_common(p_search, with_path=False)
+    p_search.set_defaults(func=_cmd_search)
+
+    p_summarize = sub.add_parser("summarize", help="Summarize a project with cited sources.")
+    p_summarize.add_argument("name", help="Project name, title, alias, or id.")
+    p_summarize.add_argument("--path", default=None, help="Vault/fixture directory.")
+    _add_common(p_summarize, with_path=False)
+    p_summarize.set_defaults(func=_cmd_summarize)
+
+    p_explain = sub.add_parser("explain", help="Explain how two notes are related.")
+    p_explain.add_argument("left", help="First note name/title/alias/id.")
+    p_explain.add_argument("right", help="Second note name/title/alias/id.")
+    p_explain.add_argument("--path", default=None, help="Vault/fixture directory.")
+    _add_common(p_explain, with_path=False)
+    p_explain.set_defaults(func=_cmd_explain)
 
     return parser
 

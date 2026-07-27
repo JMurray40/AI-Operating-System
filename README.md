@@ -131,7 +131,7 @@ All human and AI contributions follow [CONTRIBUTING.md](CONTRIBUTING.md) and the
 
 ## Current status
 
-Version `0.1.0` established the read-only Jarvis Core foundation. Phase 2 adds real-vault health reporting, deterministic offline querying, metrics, and implementation-ready product architecture while preserving read-only operation.
+Version `0.1.0` established the read-only Jarvis Core foundation. Phase 2 adds real-vault health reporting, deterministic offline querying, metrics, and implementation-ready product architecture while preserving read-only operation. Version `0.3` (in review) turns the query prototype into an intelligent read-only query engine: a dedicated lexical index, deterministic and explainable ranking, source citations, a token-budgeted context builder, trace mode, and the `search` / `summarize` / `explain` commands — with no write capability introduced. See the [Querying guide](docs/software/QUERYING.md), [ADR-0012](docs/adr/ADR-0012-Query-Engine-Is-A-Layered-Deterministic-Pipeline.md), and the [v0.3 Implementation Report](docs/software/V0.3_IMPLEMENTATION_REPORT.md).
 
 ## Related documents
 

@@ -5,8 +5,9 @@ from pathlib import Path
 
 from jarvis_core.config import Config
 from jarvis_core.logging_setup import get_logger
+from jarvis_core.metrics import PerfReport, measure
 from jarvis_core.models.note import Note
-from jarvis_core.parsing import parse_note
+from jarvis_core.parsing import parse_note, parse_note_timed
 
 logger = get_logger()
 
@@ -22,10 +23,16 @@ class FileSystemKnowledgeRepository:
         self._config = config
         self._root = Path(config.vault_path).resolve()
         self._cache: list[Note] | None = None
+        self._total_bytes: int = 0
 
     @property
     def root(self) -> Path:
         return self._root
+
+    @property
+    def total_bytes(self) -> int:
+        """Total UTF-8 bytes read during the last discovery (note cache size)."""
+        return self._total_bytes
 
     def _iter_markdown_paths(self) -> list[Path]:
         if not self._root.exists():
@@ -45,19 +52,34 @@ class FileSystemKnowledgeRepository:
                 break
         return results
 
-    def discover(self) -> list[Note]:
-        """Parse every in-scope Markdown file into a Note (deterministic order)."""
+    def discover(self, perf: PerfReport | None = None) -> list[Note]:
+        """Parse every in-scope Markdown file into a Note (deterministic order).
+
+        When ``perf`` is supplied, disk reads (``disk_read``) are timed separately from
+        parsing (``metadata_parse`` + ``markdown_parse``), so optimization effort can be
+        directed precisely. Behaviour is otherwise identical.
+        """
         notes: list[Note] = []
+        total_bytes = 0
         for path in self._iter_markdown_paths():
             relpath = path.relative_to(self._root).as_posix()
             try:
-                text = path.read_text(encoding="utf-8", errors="replace")
+                if perf is not None:
+                    with measure(perf, "disk_read"):
+                        text = path.read_text(encoding="utf-8", errors="replace")
+                else:
+                    text = path.read_text(encoding="utf-8", errors="replace")
             except OSError as exc:
                 logger.error("Could not read %s: %s", relpath, exc)
                 continue
-            notes.append(parse_note(path, relpath, text))
+            total_bytes += len(text.encode("utf-8", errors="replace"))
+            if perf is not None:
+                notes.append(parse_note_timed(path, relpath, text, perf))
+            else:
+                notes.append(parse_note(path, relpath, text))
         notes.sort(key=lambda n: n.relpath)
         self._cache = notes
+        self._total_bytes = total_bytes
         return notes
 
     def all_notes(self) -> list[Note]:

@@ -59,7 +59,7 @@ def bench(n: int, runs: int, scope: AuthorizationScope) -> dict[str, dict[str, f
             k: [] for k in ("authorized_view", "retrieval", "ranking", "context",
                             "citation", "total")
         }
-        QueryEngine(notes, scope=scope).search(" ".join(_TERM))  # warm-up (unmeasured)
+        QueryEngine(notes, scope=scope, source_root=root).search(" ".join(_TERM))  # warm-up
         for _ in range(runs):
             t0 = time.perf_counter()
             view = build_authorized_view(notes, scope)
@@ -115,7 +115,7 @@ def main() -> None:
             Config(vault_path=root, max_files=20000)
         ).discover()
         tracemalloc.start()
-        QueryEngine(notes, scope=scope).search(" ".join(_TERM))
+        QueryEngine(notes, scope=scope, source_root=root).search(" ".join(_TERM))
         _, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
         print(f"Peak memory @ 1000 notes: {round(peak / (1024 * 1024), 3)} MB")

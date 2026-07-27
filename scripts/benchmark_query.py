@@ -5,29 +5,38 @@ graph/context expansion, citation construction+validation, and total query, at i
 vault sizes. Also reports peak memory at 1,000 notes and an authorization stress case where
 half the notes are excluded. Deterministic content; timing only is nondeterministic.
 
-Usage: python scripts/benchmark_query.py [--sizes 100,500,1000] [--runs 10]
+Runs directly from the repository root with no PYTHONPATH override:
+    python scripts/benchmark_query.py [--sizes 100,500,1000] [--runs 10]
 """
 from __future__ import annotations
 
 import argparse
+import sys
 import time
 import tracemalloc
 from pathlib import Path
 from statistics import median
 from tempfile import TemporaryDirectory
 
-from tests.support.synthetic_vault import build_synthetic_vault
+# Runnable directly from the repository root: add the repo root (for tests.support) and src/
+# (for jarvis_core) to sys.path so no PYTHONPATH override is required (QR-031-01).
+_ROOT = Path(__file__).resolve().parents[1]
+for _p in (str(_ROOT), str(_ROOT / "src")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-from jarvis_core.config import Config
-from jarvis_core.policy import AuthorizationScope, local_allow_all
-from jarvis_core.query.authorized import build_authorized_view
-from jarvis_core.query.context_builder import QueryContextBuilder
-from jarvis_core.query.engine import QueryEngine
-from jarvis_core.query.index import LexicalIndex
-from jarvis_core.query.passages import locate, validate
-from jarvis_core.query.ranking import Ranker
-from jarvis_core.relationships import RelationshipResolver
-from jarvis_core.repositories import FileSystemKnowledgeRepository
+from tests.support.synthetic_vault import build_synthetic_vault  # noqa: E402
+
+from jarvis_core.config import Config  # noqa: E402
+from jarvis_core.policy import AuthorizationScope, local_allow_all  # noqa: E402
+from jarvis_core.query.authorized import build_authorized_view  # noqa: E402
+from jarvis_core.query.context_builder import QueryContextBuilder  # noqa: E402
+from jarvis_core.query.engine import QueryEngine  # noqa: E402
+from jarvis_core.query.index import LexicalIndex  # noqa: E402
+from jarvis_core.query.passages import locate, validate  # noqa: E402
+from jarvis_core.query.ranking import Ranker  # noqa: E402
+from jarvis_core.relationships import RelationshipResolver  # noqa: E402
+from jarvis_core.repositories import FileSystemKnowledgeRepository  # noqa: E402
 
 _TERM = ["links"]
 

@@ -5,25 +5,36 @@ happen in ``QueryEngine.__init__``. So the release gate times, per sample, engin
 CONSTRUCTION plus one public query over the same pre-parsed note set. The prebuilt-engine
 ``run()`` latency is reported separately as a steady-state diagnostic only.
 
-The same script runs against either version by pointing PYTHONPATH at that version's ``src``
-(plus the repo root for ``tests.support``): the candidate requires an explicit scope (and
-accepts a source root); the v0.3 baseline accepts neither. Notes are parsed once and reused
-for every sample, so only engine construction + query are measured.
+Runs directly from a version's repository root with no PYTHONPATH override: the script adds
+its own root and ``src`` to ``sys.path``. Against the current tree it measures the v0.3.1
+candidate; run from a checked-out v0.3 baseline tree it measures the baseline (which accepts
+neither an explicit scope nor a source root). Notes are parsed once and reused for every
+sample, so only engine construction + query are measured. Candidate/baseline isolation is
+preserved by running each version from its own tree.
 
 Usage: python scripts/benchmark_regression.py [--notes 1000] [--runs 50] [--query links]
+       [--json]   # emit a machine-readable JSON summary incl. raw samples
 """
 from __future__ import annotations
 
 import argparse
+import json
+import sys
 import time
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from tests.support.synthetic_vault import build_synthetic_vault
+# Runnable directly from the repository root (QR-031-01): add repo root + src to sys.path.
+_ROOT = Path(__file__).resolve().parents[1]
+for _p in (str(_ROOT), str(_ROOT / "src")):
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
-from jarvis_core.config import Config
-from jarvis_core.query.engine import QueryEngine
-from jarvis_core.repositories import FileSystemKnowledgeRepository
+from tests.support.synthetic_vault import build_synthetic_vault  # noqa: E402
+
+from jarvis_core.config import Config  # noqa: E402
+from jarvis_core.query.engine import QueryEngine  # noqa: E402
+from jarvis_core.repositories import FileSystemKnowledgeRepository  # noqa: E402
 
 try:  # candidate requires an explicit scope; baseline accepts neither scope nor source root
     from jarvis_core.policy import local_allow_all
@@ -64,6 +75,7 @@ def main() -> None:
     ap.add_argument("--runs", type=int, default=50)
     ap.add_argument("--query", default="links")
     ap.add_argument("--warmups", type=int, default=3)
+    ap.add_argument("--json", action="store_true", help="emit a JSON summary incl. raw samples")
     args = ap.parse_args()
 
     with TemporaryDirectory() as d:
@@ -92,6 +104,20 @@ def main() -> None:
             engine.run(args.query)
             steady.append(time.perf_counter() - t0)
 
+    if args.json:
+        print(json.dumps({
+            "notes": args.notes, "runs": args.runs, "query": args.query,
+            "warmups": args.warmups,
+            "total_pipeline": {
+                "raw_ms": [round(x * 1000, 4) for x in total],
+                "p50": _pct(total, 0.5), "p95": _pct(total, 0.95), "p99": _pct(total, 0.99),
+            },
+            "steady_state": {
+                "raw_ms": [round(x * 1000, 4) for x in steady],
+                "p50": _pct(steady, 0.5), "p95": _pct(steady, 0.95), "p99": _pct(steady, 0.99),
+            },
+        }))
+        return
     print(f"# QueryEngine total pipeline — notes={args.notes} runs={args.runs} "
           f"query={args.query!r} warmups={args.warmups}\n")
     _summary("total_pipeline (construction + query) — RELEASE GATE", total)

@@ -355,3 +355,296 @@ view plus layered trust collaborators are the correct direction. Commit
 `62f2269245890b3f55925056c93e156c179d4b5b` is returned to engineering for AC-01 through
 AC-04 and corrected performance evidence. Quality & Release is not authorized to begin
 until a superseding CTO architecture-conformance review clears the correction package.
+
+---
+
+# SUPERSEDING CTO REVISION — Rev 2
+
+| Field | Value |
+|---|---|
+| Revision | 2 — supersedes the disposition above for the remediated candidate |
+| Review date | 2026-07-27 |
+| Reviewed branch | `feature/v0.3.1-query-trust-contracts` |
+| Reviewed HEAD | `91636228e72f14c15fbc07c1733da00b8647f27f` |
+| Prior reviewed implementation | `62f2269245890b3f55925056c93e156c179d4b5b` |
+| CTO return commit | `4285e28ff356529404bfab8e20ceb097a8e6aadf` |
+| Remediation diff | `62f2269245890b3f55925056c93e156c179d4b5b..91636228e72f14c15fbc07c1733da00b8647f27f` |
+| Initial worktree state | Clean |
+| Superseding architecture disposition | **Refactor first** |
+| QA authorization | Withheld; Quality & Release must not start |
+
+## R2.1 Executive disposition
+
+**Architecture disposition: Refactor first.**
+
+The remediation is materially improved and remains within the approved v0.3.1 scope.
+AC-01 and AC-02 are closed. AC-03 and AC-04 are only partially closed, and AE-01 remains
+unproven against the accepted total-pipeline definition.
+
+Quality & Release is not authorized to review commit
+`91636228e72f14c15fbc07c1733da00b8647f27f`. The remaining defects are at the citation,
+compatibility, and release-evidence boundaries and must be corrected before QA.
+
+## R2.2 State and scope verification
+
+The superseding review verified:
+
+- branch `feature/v0.3.1-query-trust-contracts`;
+- HEAD `91636228e72f14c15fbc07c1733da00b8647f27f`;
+- initially clean worktree;
+- `62f2269245890b3f55925056c93e156c179d4b5b` is an ancestor of HEAD;
+- `4285e28ff356529404bfab8e20ceb097a8e6aadf` is an ancestor of HEAD;
+- remediation commits are limited to the CTO findings, tests, benchmark evidence,
+  documentation, and handoffs;
+- no chat, conversation, streaming, real-provider, embedding, persistence, write, plugin,
+  MCP, agent, automation, background-service, or Project Resume implementation was added.
+
+The review inspected the Rev 2 Engineering Review, the complete remediation diff, current
+implementation and tests, and ADR-0012 plus ADR-0014 through ADR-0017.
+
+As in Rev 1, the Windows review environment did not expose a callable Python runtime, so
+the reported `180 passed`, Ruff, mypy, and benchmark executions were reviewed as evidence
+but not independently rerun. Quality must rerun all checks after architecture clearance.
+
+## R2.3 Finding status
+
+| Finding | Superseding assessment | Status |
+|---|---|---|
+| AC-01 — explicit scope | `QueryEngine` now requires keyword-only `scope`; omitted scope raises `TypeError`; explicit `None` raises `PolicyError`; supported callers pass an explicit scope | **Closed** |
+| AC-02 — safe path prefixes | Prefixes are canonicalized, absolute/empty/traversal inputs rejected, case/slashes normalized, and exact/descendant segment boundaries enforced | **Closed** |
+| AC-03 — citation binding | Full heading hierarchy and non-empty excerpts are checked; metadata evidence can be located; however exact-byte pre-emission validation and claim-specific unranked citations remain incomplete | **Open — blocking** |
+| AC-04 — bounded reader | Old-key removal, conflict detection, numeric/range checks, and nested-list validation were added; arbitrary mappings and non-legacy shapes remain accepted | **Open — blocking** |
+| AE-01 — p95 gate | p95 is now compared with p95 using the same `run()` harness, but the harness excludes construction explicitly required by the accepted total query pipeline | **Open — blocking evidence** |
+| Duplicate-ID clarification | Whole-vault validation and request-authorized duplicate detection are separated without exposing excluded identities | **Closed** |
+
+## R2.4 Closed findings
+
+### AC-01 — Explicit authorization scope
+
+The constructor no longer defaults to `local_allow_all`. An omitted keyword fails at the
+Python boundary and explicit `None` fails with `PolicyError`. The CLI and supported
+candidate callers construct an explicit scope.
+
+The adaptive regression benchmark contains a no-scope baseline branch solely so the same
+script can run against historical v0.3 code. In the v0.3.1 environment it supplies the
+explicit scope. This does not create a candidate runtime bypass.
+
+**Assessment:** conforms to ADR-0015 and the implementation brief.
+
+### AC-02 — Path-prefix authorization
+
+The remediation:
+
+- normalizes case and slash direction;
+- rejects absolute, drive-qualified, blank, empty, and `..` traversal prefixes;
+- compares either exact normalized path or `prefix + "/"` descendants;
+- prevents sibling and near-match grants.
+
+The case-insensitive behavior is consistent with the existing path-derived identity
+normalization. Remaining redundant-separator or `.` inputs fail restrictive rather than
+broadening access.
+
+**Assessment:** the authorization boundary is fail-closed and architecture-conformant.
+
+### Duplicate-ID clarification
+
+The documented split is acceptable:
+
+- owner-level vault validation reports duplicates across the complete vault;
+- request execution checks only the authorized view before index/graph creation;
+- excluded duplicates cannot affect request-visible errors, traces, or counts.
+
+This reconciles ADR-0017 data integrity with ADR-0015 non-disclosure without merging the
+two trust contexts.
+
+## R2.5 Remaining blocking findings
+
+### AC-03R2 — Pre-emission validation does not bind the fingerprint to current bytes
+
+`QueryEngine._cite_scored` and `_cite_note` call `validate_against_text(...)`. That helper
+checks cached text structure, locator range, heading hierarchy, and excerpt. It does not
+check `source_fingerprint` against current exact source bytes.
+
+The full `validate(...)` function performs the fingerprint check, but it is not called by
+the engine before emission. If a source changes after repository discovery and before the
+query result is constructed, the engine can emit a citation carrying the stale discovery
+fingerprint and cached passage. External validation can later reject it, but the mandatory
+pre-emission boundary did not.
+
+This does not satisfy the Rev 1 correction:
+
+> validate constructed citations at the result boundary before emission
+
+or ADR-0016's requirement that stale citations fail validation.
+
+**Required correction:**
+
+1. At citation emission, validate exact current bytes against the stored fingerprint plus
+   locator, hierarchy, and excerpt.
+2. Keep the operation read-only and prevent relative-path escape from the configured
+   source root.
+3. If retaining exact bytes in the parsed source object is chosen instead of rereading,
+   document that this proves discovery-revision consistency but does not detect a
+   post-discovery file change; the emitted citation must then be explicitly revision-bound
+   and checked for currentness before being described as current.
+4. Add an integration test that discovers notes, mutates the source, then queries and proves
+   that no stale citation is emitted as valid.
+5. Preserve CRLF/LF exact-byte behavior and add a non-normalized byte-change case.
+
+### AC-03R2 — Unranked citations are not claim-specific
+
+Ranked citations now search the complete source for a query term, including frontmatter.
+This closes the metadata-only retrieval case.
+
+However `_cite_note(..., evidence=frozenset())` remains used by project summarization and
+relationship explanation. With no evidence terms, `locate` selects the first non-empty
+content. That passage is structurally valid but may not support:
+
+- the project status, priority, resume, or other summarized values; or
+- the direct/shared relationship claimed by `explain`.
+
+Dropping an unsupported graph-only project citation is correct, but the same
+claim-support rule must apply to these unranked/material paths.
+
+**Required correction:**
+
+1. Supply claim-specific evidence/locators for relationship and summarization citations,
+   including frontmatter fields and actual link passages.
+2. Alternatively, omit the material claim or mark its citation coverage incomplete; do
+   not attach arbitrary first content as support.
+3. Add tests where the first body section is unrelated and the actual status/link evidence
+   appears later or only in frontmatter.
+4. Prove every emitted material citation supports the adjacent deterministic claim. Full
+   semantic entailment for future generated answers remains out of scope.
+
+### AC-04R2 — Legacy shape validation remains too permissive
+
+The reader now correctly removes `confidence`, rejects conflicting old/new values, rejects
+boolean/wrong-type/out-of-range ranking values, and validates that nested citations form a
+list.
+
+It still accepts arbitrary mappings as valid legacy results or citations. Examples that
+currently pass through include:
+
+```python
+read_legacy_citation({"unrelated": "value"})
+read_legacy_result({"relative_relevance": "not validated"})
+```
+
+The implementation does not require the documented legacy keys, reject unknown keys,
+distinguish legacy result from citation shape, or validate `relative_relevance` when the
+old key is absent. A function described as the narrowly bounded one-release legacy reader
+must not become a generic dictionary normalizer.
+
+**Required correction:**
+
+1. Define exact allowed and required key sets for the v0.3 result and citation payloads.
+2. Reject unknown keys and missing required identity/result fields.
+3. Reject new-only payloads at the legacy boundary, or route them through a separately
+   versioned current reader.
+4. Validate `relative_relevance` whenever present, including new-only and both-key cases.
+5. Validate every nested citation against the citation shape.
+6. Add unknown-key, missing-key, wrong-shape, new-only wrong-type/range, and result-as-
+   citation/citation-as-result tests.
+
+The one-release removal target remains acceptable.
+
+### AE-01R2 — Equivalent total-pipeline p95 is still not demonstrated
+
+The new benchmark fixes the percentile mismatch: it compares p95 with p95 over identical
+fixtures, query, warm-ups, run count, and percentile method.
+
+It explicitly constructs the engine before timing and measures only:
+
+```python
+engine.run(query)
+```
+
+The accepted implementation brief defines the measured pipeline to include:
+
+- authorized index/view construction;
+- candidate retrieval;
+- ranking;
+- graph/context expansion;
+- citation construction and validation;
+- total query pipeline.
+
+Authorization, index construction, and relationship-graph construction occur in
+`QueryEngine.__init__`, not `run()`. Excluding construction therefore removes the
+per-scope authorized-view cost whose coupling and performance the gate was intended to
+assess. The candidate and baseline `run()` measurements are mutually comparable, but they
+do not measure the accepted total pipeline.
+
+**Required correction:**
+
+1. Use the same synthetic vault and pre-parsed note set for both versions.
+2. For each measured sample, time equivalent engine construction plus one public query,
+   or otherwise include authorized-view/index/graph construction in a clearly equivalent
+   total.
+3. Use identical query, run count, warm-up policy, percentile estimator, hardware, Python,
+   and fixture implementation.
+4. Report v0.3 and v0.3.1 p50/p95/p99, raw samples or reproducible summary, and the exact
+   p95 regression calculation.
+5. Retain the current prebuilt-engine result as a useful steady-state diagnostic, not the
+   release gate.
+6. Demonstrate the candidate total-pipeline p95 is no more than 20% above the equivalent
+   v0.3 p95.
+
+Performance remains **not demonstrated**, not failed.
+
+## R2.6 Architecture, security, and debt assessment
+
+No new unapproved scope or architectural regression was found in the remediation.
+
+- ADR-0012 layering remains intact: policy, authorized view, passages, compatibility,
+  ranking, context, results, trace, and orchestration retain separate responsibilities.
+- Authorization still occurs before request-visible index and graph construction.
+- Excluded sources remain absent from candidates, graph expansion, results, conflicts,
+  context, citations, and trace except for the approved aggregate count.
+- Exact-byte SHA-256 fingerprints and additive source provenance remain intact.
+- Retrieval relevance remains separate from answer confidence.
+- Context budgeting and versioning were not weakened.
+- The per-scope authorized view remains acceptable at the 1,000-note target, subject to
+  corrected total-pipeline evidence.
+
+Existing technical debt from Rev 1 remains accepted and unchanged. The remediation adds no
+reason to introduce persistence, a shared index, provider-specific tokens, or a broader
+compatibility framework.
+
+## R2.7 Required engineering return
+
+Return a Rev 3 correction package containing:
+
+1. AC-03R2 exact-byte/current-revision validation before citation emission;
+2. claim-specific relationship and summarization citation behavior;
+3. AC-04R2 exact legacy shape validation;
+4. AE-01R2 equivalent total-pipeline p95 evidence;
+5. exact tests mapped to each item;
+6. full test, Ruff, mypy, `git diff --check`, unchanged-vault, and benchmark results;
+7. exact correction branch, new HEAD, and diff range from
+   `91636228e72f14c15fbc07c1733da00b8647f27f`;
+8. confirmation that the candidate remains unmerged, unpushed, and within v0.3.1 scope.
+
+The CTO must perform another superseding conformance review. Do not route directly to QA.
+
+## R2.8 QA status and prospective scope
+
+**Quality & Release is not authorized to begin.** There is therefore no active QA review
+scope or QA output assignment for this commit.
+
+If a later CTO revision clears the remaining blockers, it must explicitly name:
+
+- branch and exact cleared HEAD;
+- complete evidence package and corrected benchmark;
+- active QA review matrix;
+- required output
+  `docs/handovers/v0.3.1/05-quality-to-product-owner-release-review.md`.
+
+Until then, that output must not be produced.
+
+## R2.9 Exit statement
+
+**Refactor first.** AC-01, AC-02, and the duplicate-ID design are cleared. AC-03 and AC-04
+remain partially open, and AE-01 remains unproven under the accepted total-pipeline
+definition. Commit `91636228e72f14c15fbc07c1733da00b8647f27f` is returned to engineering.
+Quality & Release is not authorized to begin.

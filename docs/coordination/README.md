@@ -41,7 +41,7 @@ governance document, follow the order of precedence in
 | Engineer prompt package | [Chief of Staff validation and prompt](../handovers/v0.3.1/02-chief-of-staff-to-principal-engineer-validated-prompt.md) |
 | Principal Engineer work | Returned for bounded remediation after CTO disposition **Refactor first** |
 | CTO disposition | [Refactor first](../handovers/v0.3.1/04-cto-to-quality-architecture-disposition.md) |
-| Remediation prompt | [Chief of Staff remediation package](../handovers/v0.3.1/04-chief-of-staff-to-principal-engineer-remediation-prompt.md) |
+| Remediation prompt | [Chief of Staff Rev 2 remediation package](../handovers/v0.3.1/04-chief-of-staff-to-principal-engineer-remediation-prompt-rev2.md) |
 | QA review | Blocked pending corrected engineering evidence and superseding CTO clearance |
 | Librarian pass | Not started |
 | Primary gate | Close ARB conditions C1–C5 before conversational/generated-answer release |
@@ -50,10 +50,11 @@ governance document, follow the order of precedence in
 
 **Required next actions:**
 
-1. Correct AC-01 through AC-04 without expanding scope.
-2. Produce equivalent p95-to-p95 performance evidence for AE-01.
-3. Revise the Engineering Review with the exact correction diff and evidence.
-4. Return to CTO for a superseding architecture-conformance review.
+1. Correct only AC-03R2 current-byte and claim-specific citation behavior.
+2. Correct AC-04R2 with exact legacy payload shapes.
+3. Prove AE-01R2 using equivalent construction-plus-query total-pipeline p95.
+4. Append Rev 3 to the Engineering Review with the exact correction diff and evidence.
+5. Return to CTO for another superseding architecture-conformance review.
 
 ### Parked candidate: conversational implementation currently named v0.4
 

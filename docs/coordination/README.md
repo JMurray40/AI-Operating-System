@@ -39,19 +39,21 @@ governance document, follow the order of precedence in
 | Product Owner decision | [Architecture approval](../handovers/v0.3.1/01-product-owner-to-cto-architecture-approval.md) |
 | Implementation brief | [CTO implementation brief](../handovers/v0.3.1/02-cto-to-principal-engineer-implementation-brief.md) — validated |
 | Engineer prompt package | [Chief of Staff validation and prompt](../handovers/v0.3.1/02-chief-of-staff-to-principal-engineer-validated-prompt.md) |
-| Principal Engineer work | Authorized once launched on the exact clean governance commit containing the accepted package |
-| QA review | Not started |
+| Principal Engineer work | Returned for bounded remediation after CTO disposition **Refactor first** |
+| CTO disposition | [Refactor first](../handovers/v0.3.1/04-cto-to-quality-architecture-disposition.md) |
+| Remediation prompt | [Chief of Staff remediation package](../handovers/v0.3.1/04-chief-of-staff-to-principal-engineer-remediation-prompt.md) |
+| QA review | Blocked pending corrected engineering evidence and superseding CTO clearance |
 | Librarian pass | Not started |
 | Primary gate | Close ARB conditions C1–C5 before conversational/generated-answer release |
 
-**Next responsible role:** Principal Engineer / Claude
+**Next responsible role:** Principal Engineer / Claude — remediation
 
 **Required next actions:**
 
-1. Create `feature/v0.3.1-query-trust-contracts` from the exact clean governance commit
-   supplied by the Chief of Staff.
-2. Principal Engineer executes the validated brief without importing conversation work.
-3. Principal Engineer writes the required Engineering Review and handoff.
+1. Correct AC-01 through AC-04 without expanding scope.
+2. Produce equivalent p95-to-p95 performance evidence for AE-01.
+3. Revise the Engineering Review with the exact correction diff and evidence.
+4. Return to CTO for a superseding architecture-conformance review.
 
 ### Parked candidate: conversational implementation currently named v0.4
 

@@ -150,3 +150,58 @@ def build_query_vault(root: Path) -> None:
         _concept("concept-home-automation", "Home Automation",
                  "Controlling lights and devices at home. Links [[Smart Home]]."),
         encoding="utf-8")
+
+
+def build_feature_vault(root: Path) -> None:
+    """A vault exercising v0.3 ranking signals and edge cases.
+
+    Includes: an alias-only match, a tag-only match, duplicate titles, a broken wikilink,
+    a missing-frontmatter note, and a project whose term appears only via a linked note.
+    Deterministic content.
+    """
+    root.mkdir(parents=True, exist_ok=True)
+
+    # Project 'Invoicing' (alias 'Billing', tags finance/accounting), broken link to Ghost.
+    (root / "Invoicing.md").write_text(
+        "---\nid: project-invoicing\ntype: project\ntitle: \"Invoicing\"\n"
+        "aliases: [Billing]\ntags: [finance, accounting]\nstatus: active\n"
+        f"created: {_DATE}\nupdated: {_DATE}\ngoal: \"Automate invoicing\"\npriority: high\n"
+        "sensitivity: internal\n---\n\n# Invoicing\n\n"
+        "Syncs invoices with QuickBooks. Links [[Ledger]] and [[Ghost Note]].\n",
+        encoding="utf-8",
+    )
+    # Concept 'Ledger' (tag accounting), no term 'quickbooks' in body.
+    (root / "Ledger.md").write_text(
+        "---\nid: concept-ledger\ntype: concept\ntitle: \"Ledger\"\ntags: [accounting]\n"
+        f"status: active\ncreated: {_DATE}\nupdated: {_DATE}\nsensitivity: internal\n---\n\n"
+        "# Ledger\n\nDouble-entry bookkeeping records. Links [[Invoicing]].\n",
+        encoding="utf-8",
+    )
+    # Project 'Storefront' mentions quickbooks ONLY via linked note 'Payments'.
+    (root / "Storefront.md").write_text(
+        "---\nid: project-storefront\ntype: project\ntitle: \"Storefront\"\nstatus: active\n"
+        f"created: {_DATE}\nupdated: {_DATE}\ngoal: \"Sell online\"\npriority: medium\n"
+        "sensitivity: internal\n---\n\n# Storefront\n\nOnline shop. Links [[Payments]].\n",
+        encoding="utf-8",
+    )
+    (root / "Payments.md").write_text(
+        _concept("concept-payments", "Payments",
+                 "Processes card payments via QuickBooks Payments. Links [[Storefront]]."),
+        encoding="utf-8",
+    )
+    # Duplicate titles: two different notes both titled 'Report'.
+    (root / "Report A.md").write_text(
+        "---\nid: report-a\ntype: reference\ntitle: \"Report\"\nresource_type: doc\n"
+        f"source_of_truth: local\nstatus: active\ncreated: {_DATE}\nupdated: {_DATE}\n"
+        "sensitivity: internal\n---\n\n# Report\n\nQuarterly report alpha.\n",
+        encoding="utf-8",
+    )
+    (root / "Report B.md").write_text(
+        "---\nid: report-b\ntype: reference\ntitle: \"Report\"\nresource_type: doc\n"
+        f"source_of_truth: local\nstatus: active\ncreated: {_DATE}\nupdated: {_DATE}\n"
+        "sensitivity: internal\n---\n\n# Report\n\nQuarterly report beta.\n",
+        encoding="utf-8",
+    )
+    # Missing-frontmatter note that still mentions a term.
+    (root / "Scratch.md").write_text("# Scratch\n\nNotes about QuickBooks exports.\n",
+                                     encoding="utf-8")

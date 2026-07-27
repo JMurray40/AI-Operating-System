@@ -13,6 +13,33 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+### Added (v0.3.1 — Query Trust Contracts, in review)
+
+- Authorization before retrieval (ADR-0015): immutable `AuthorizationScope` on every query
+  entry point; sensitivity/allowlist filtering applied before the request-visible index and
+  graph are built; fail-closed on unknown policy/sensitivity; only an aggregate
+  `excluded_count` is disclosed. `jarvis_core.policy` package.
+- Retrieval relevance renamed to `relative_relevance` (ADR-0014); no numeric answer
+  confidence is emitted (`answer_confidence` reserved/null).
+- Passage-and-revision citations (ADR-0016): stable `source_id`, `source_fingerprint`
+  (SHA-256 of exact bytes), deterministic heading-path + line-range locator, bounded
+  excerpt, and citation validation (stale/out-of-range/excerpt-mismatch). Parser retains
+  exact-source provenance additively.
+- Stable source identity separate from location and revision (ADR-0017); duplicate explicit
+  IDs fail closed.
+- Hard context-budget invariant `0 <= total_tokens <= token_budget` with deterministic
+  separator accounting and typed truncation/omission reasons.
+- Versioned results/citations/context/trace (`contract_version: jarvis.query.v0.3.1`,
+  distinct `index_version`); single-release legacy `confidence` compatibility reader.
+- CLI runs under an explicit local allow-all scope; text/JSON use relevance terminology and
+  passage citations; trace adds request id, workspace fingerprint, index/contract version,
+  and a safe authorization summary.
+- Benchmark reports p50/p95/p99 per stage plus peak memory and an authorization-stress case;
+  1,000-note total p95 within 20% of the v0.3 baseline (measured ~flat).
+- 39 new tests (163 total): policy, identity, passages, context-budget, authorization/
+  non-disclosure, citation resolution/staleness, versioned contract, compatibility, and
+  unchanged-vault read-only evidence. No chat/streaming/provider/write code introduced.
+
 ### Added (v0.3 — Intelligent Query Engine, in review)
 
 - Dedicated query layer under `jarvis_core.query`, composed of small, injectable

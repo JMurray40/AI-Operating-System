@@ -26,6 +26,11 @@
 | [0011](ADR-0011-MCP-Is-Mediated-By-An-Isolated-Gateway.md) | MCP is mediated by an isolated gateway | Proposed |
 | [0012](ADR-0012-Query-Engine-Is-A-Layered-Deterministic-Pipeline.md) | The query engine is a layered, deterministic, citation-based pipeline | Accepted |
 
+| [0014](ADR-0014-Retrieval-Relevance-Is-Separate-From-Answer-Confidence.md) | Retrieval relevance is separate from answer confidence | Accepted |
+| [0015](ADR-0015-Authorization-Precedes-Retrieval-And-Graph-Expansion.md) | Authorization precedes retrieval and graph expansion | Accepted |
+| [0016](ADR-0016-Citations-Bind-Passages-To-Source-Revisions.md) | Citations bind supporting passages to source revisions | Accepted |
+| [0017](ADR-0017-Stable-Source-Identity-Is-Separate-From-Location.md) | Stable source identity is separate from location | Accepted |
+
 Accepted ADRs are not rewritten to reflect a later choice. A new ADR supersedes the earlier record.
 
 ## Revision history

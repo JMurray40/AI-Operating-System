@@ -16,18 +16,20 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from jarvis_core.config import Config, LogLevel, OutputFormat, default_fixture_path
 from jarvis_core.context.loader import ProjectContextLoader, ProjectNotFoundError
 from jarvis_core.context.validator import validate_notes
-from jarvis_core.health import analyze_vault, render_text
+from jarvis_core.health import analyze_vault, compute_vault_fingerprint, render_text
 from jarvis_core.logging_setup import configure_logging
-from jarvis_core.metrics import PerfReport, measure
+from jarvis_core.metrics import PerfReport, measure, track_memory
 from jarvis_core.models.context import ContextPackage
 from jarvis_core.models.note import Note
 from jarvis_core.models.validation import ValidationResult
 from jarvis_core.providers import get_provider
+from jarvis_core.query import QueryEngine
 from jarvis_core.relationships import RelationshipResolver
 from jarvis_core.relationships.resolver import ResolutionReport
 from jarvis_core.repositories import FileSystemKnowledgeRepository
@@ -183,11 +185,14 @@ def _run_pipeline_with_perf(
     (notes, resolution, validation, PerfReport)."""
     perf = PerfReport()
     repo = FileSystemKnowledgeRepository(config)
-    with measure(perf, "parse"):
-        notes = repo.discover()
+    # Timed discovery splits disk_read / metadata_parse / markdown_parse.
+    notes = repo.discover(perf)
     perf.note_count = len(notes)
-    with measure(perf, "resolve"):
+    perf.cache_bytes = repo.total_bytes
+    with measure(perf, "graph"):
         resolution = RelationshipResolver(notes).resolve_all()
+    perf.graph_nodes = len(notes)
+    perf.graph_edges = len(resolution.edges)
     with measure(perf, "validate"):
         validation = validate_notes(notes)
     return repo, notes, resolution, validation, perf
@@ -196,12 +201,19 @@ def _run_pipeline_with_perf(
 def _cmd_vault_report(args: argparse.Namespace) -> int:
     config = _build_config(args)
     total = PerfReport()
-    with measure(total, "total"):
+    with track_memory(total, enabled=args.memory), measure(total, "total"):
         repo, notes, resolution, validation, perf = _run_pipeline_with_perf(config)
     perf.record("total", total.durations["total"])
+    perf.peak_memory_bytes = total.peak_memory_bytes
+    perf.current_memory_bytes = total.current_memory_bytes
+    generated_at = None if args.deterministic else (
+        datetime.now(timezone.utc).isoformat(timespec="seconds")
+    )
     report = analyze_vault(
         notes, repo.root, resolution=resolution, validation=validation,
         perf=perf.to_dict() if args.timing else None,
+        generated_at=generated_at,
+        vault_version=compute_vault_fingerprint(notes),
     )
     if config.output_format is OutputFormat.JSON:
         rendered = _dumps(report.to_dict())
@@ -218,6 +230,24 @@ def _cmd_vault_report(args: argparse.Namespace) -> int:
     if report.warnings:
         return EXIT_WARNINGS
     return EXIT_OK
+
+
+# ----------------------------------------------------------------------------- ask
+def _cmd_ask(args: argparse.Namespace) -> int:
+    config = _build_config(args)
+    repo = FileSystemKnowledgeRepository(config)
+    notes = repo.discover()
+    result = QueryEngine(notes).ask(args.question)
+    if config.output_format is OutputFormat.JSON:
+        print(_dumps(result.to_dict()))
+    else:
+        print(result.answer)
+        if result.matches:
+            print("\nSources:")
+            for m in result.matches:
+                print(f"  - {m.title} ({m.relpath})")
+    answered = bool(result.matches) or result.intent.value == "summarize_project"
+    return EXIT_OK if answered else EXIT_WARNINGS
 
 
 # ------------------------------------------------------------------------------ main
@@ -281,7 +311,24 @@ def build_parser() -> argparse.ArgumentParser:
         "--no-timing", dest="timing", action="store_false",
         help="Omit performance metrics.",
     )
+    p_report.add_argument(
+        "--memory", dest="memory", action="store_true", default=False,
+        help="Track peak memory via tracemalloc (adds overhead; off by default).",
+    )
+    p_report.add_argument(
+        "--deterministic", dest="deterministic", action="store_true", default=False,
+        help="Omit the wall-clock timestamp for reproducible snapshots.",
+    )
     p_report.set_defaults(func=_cmd_vault_report)
+
+    p_ask = sub.add_parser(
+        "ask",
+        help="Answer a question from the vault (offline, deterministic; no AI provider).",
+    )
+    p_ask.add_argument("question", help="A natural-language question about the vault.")
+    p_ask.add_argument("--path", default=None, help="Vault/fixture directory.")
+    _add_common(p_ask, with_path=False)
+    p_ask.set_defaults(func=_cmd_ask)
 
     return parser
 

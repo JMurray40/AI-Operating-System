@@ -118,3 +118,35 @@ def build_defect_vault(root: Path) -> ExpectedDefects:
         missing_alias=1,         # Alias.md
         circular_reference=1,    # {Alpha, Bravo}
     )
+
+
+def build_query_vault(root: Path) -> None:
+    """A small vault for query-engine tests (projects, mentions, related notes)."""
+    root.mkdir(parents=True, exist_ok=True)
+
+    def project(slug: str, title: str, body: str) -> str:
+        return (
+            f"---\nid: project-{slug}\ntype: project\ntitle: \"{title}\"\nstatus: active\n"
+            f"created: {_DATE}\nupdated: {_DATE}\ngoal: \"{title} goal\"\npriority: medium\n"
+            f"sensitivity: internal\n---\n\n# {title}\n\n{body}\n"
+        )
+
+    (root / "Bookkeeping App.md").write_text(
+        project("bookkeeping", "Bookkeeping App",
+                "Integrates with QuickBooks to sync invoices. Links [[QuickBooks]]."),
+        encoding="utf-8")
+    (root / "Marketing Site.md").write_text(
+        project("marketing", "Marketing Site", "A static marketing website. No accounting."),
+        encoding="utf-8")
+    (root / "QuickBooks.md").write_text(
+        _concept("concept-quickbooks", "QuickBooks",
+                 "Accounting software used for bookkeeping. Links [[Bookkeeping App]]."),
+        encoding="utf-8")
+    (root / "Smart Home.md").write_text(
+        project("smart-home", "Smart Home",
+                "Home Automation project. Links [[Home Automation]]."),
+        encoding="utf-8")
+    (root / "Home Automation.md").write_text(
+        _concept("concept-home-automation", "Home Automation",
+                 "Controlling lights and devices at home. Links [[Smart Home]]."),
+        encoding="utf-8")

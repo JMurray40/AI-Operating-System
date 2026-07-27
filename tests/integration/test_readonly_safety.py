@@ -32,6 +32,8 @@ def test_full_run_does_not_modify_fixtures():
     cli.main(["vault-report", str(FIXTURES / "edge-cases"), "--format", "json"])
     cli.main(["ask", "Summarize the FileOrbit project.", "--path", str(FIXTURES / "fileorbit")])
     cli.main(["ask", "notes related to Markdown", "--path", str(FIXTURES / "ai-operating-system")])
+    cli.main(["chat", "--path", str(FIXTURES / "fileorbit"),
+              "--turns", "What is FileOrbit?", "Who is working on it?"])
     after = _snapshot(FIXTURES)
     assert before == after, "fixture files changed during a run (read-only violation)"
     # no files added or removed

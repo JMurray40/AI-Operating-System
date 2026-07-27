@@ -30,7 +30,7 @@ def bench(n: int, runs: int) -> dict[str, float]:
     with tempfile.TemporaryDirectory() as d:
         root = Path(d)
         build_synthetic_vault(root, n)
-        notes = FileSystemKnowledgeRepository(Config(vault_path=root)).discover()
+        notes = FileSystemKnowledgeRepository(Config(vault_path=root, max_files=20000)).discover()
 
         index_t, retrieval_t, ranking_t, context_t, total_t = [], [], [], [], []
         for _ in range(runs):

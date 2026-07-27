@@ -16,15 +16,22 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from jarvis_core.config import Config, LogLevel, OutputFormat, default_fixture_path
 from jarvis_core.context.loader import ProjectContextLoader, ProjectNotFoundError
 from jarvis_core.context.validator import validate_notes
+from jarvis_core.health import analyze_vault, compute_vault_fingerprint, render_text
 from jarvis_core.logging_setup import configure_logging
+from jarvis_core.metrics import PerfReport, measure, track_memory
 from jarvis_core.models.context import ContextPackage
+from jarvis_core.models.note import Note
 from jarvis_core.models.validation import ValidationResult
 from jarvis_core.providers import get_provider
+from jarvis_core.query import QueryEngine
+from jarvis_core.relationships import RelationshipResolver
+from jarvis_core.relationships.resolver import ResolutionReport
 from jarvis_core.repositories import FileSystemKnowledgeRepository
 
 EXIT_OK = 0
@@ -168,6 +175,81 @@ def _cmd_summarize_project(args: argparse.Namespace) -> int:
     return EXIT_WARNINGS if (package.warnings or package.unresolved_references) else EXIT_OK
 
 
+# -------------------------------------------------------------------- vault-report
+def _run_pipeline_with_perf(
+    config: Config,
+) -> tuple[
+    FileSystemKnowledgeRepository, list[Note], ResolutionReport, ValidationResult, PerfReport
+]:
+    """Discover, resolve, and validate with per-stage timing. Returns
+    (notes, resolution, validation, PerfReport)."""
+    perf = PerfReport()
+    repo = FileSystemKnowledgeRepository(config)
+    # Timed discovery splits disk_read / metadata_parse / markdown_parse.
+    notes = repo.discover(perf)
+    perf.note_count = len(notes)
+    perf.cache_bytes = repo.total_bytes
+    with measure(perf, "graph"):
+        resolution = RelationshipResolver(notes).resolve_all()
+    perf.graph_nodes = len(notes)
+    perf.graph_edges = len(resolution.edges)
+    with measure(perf, "validate"):
+        validation = validate_notes(notes)
+    return repo, notes, resolution, validation, perf
+
+
+def _cmd_vault_report(args: argparse.Namespace) -> int:
+    config = _build_config(args)
+    total = PerfReport()
+    with track_memory(total, enabled=args.memory), measure(total, "total"):
+        repo, notes, resolution, validation, perf = _run_pipeline_with_perf(config)
+    perf.record("total", total.durations["total"])
+    perf.peak_memory_bytes = total.peak_memory_bytes
+    perf.current_memory_bytes = total.current_memory_bytes
+    generated_at = None if args.deterministic else (
+        datetime.now(timezone.utc).isoformat(timespec="seconds")
+    )
+    report = analyze_vault(
+        notes, repo.root, resolution=resolution, validation=validation,
+        perf=perf.to_dict() if args.timing else None,
+        generated_at=generated_at,
+        vault_version=compute_vault_fingerprint(notes),
+    )
+    if config.output_format is OutputFormat.JSON:
+        rendered = _dumps(report.to_dict())
+    else:
+        rendered = render_text(report)
+    print(rendered)
+    # File output is optional and disabled unless --output is given.
+    if args.output:
+        out_path = Path(args.output)
+        out_path.write_text(rendered + "\n", encoding="utf-8")
+        print(f"\n(report written to {out_path})", file=sys.stderr)
+    if report.errors:
+        return EXIT_FATAL
+    if report.warnings:
+        return EXIT_WARNINGS
+    return EXIT_OK
+
+
+# ----------------------------------------------------------------------------- ask
+def _cmd_ask(args: argparse.Namespace) -> int:
+    config = _build_config(args)
+    repo = FileSystemKnowledgeRepository(config)
+    notes = repo.discover()
+    result = QueryEngine(notes).ask(args.question)
+    if config.output_format is OutputFormat.JSON:
+        print(_dumps(result.to_dict()))
+    else:
+        print(result.answer)
+        if result.matches:
+            print("\nSources:")
+            for m in result.matches:
+                print(f"  - {m.title} ({m.relpath})")
+    answered = bool(result.matches) or result.intent.value == "summarize_project"
+    return EXIT_OK if answered else EXIT_WARNINGS
+
+
 # ------------------------------------------------------------------------------ main
 def _add_common(parser: argparse.ArgumentParser, *, with_path: bool) -> None:
     if with_path:
@@ -211,6 +293,42 @@ def build_parser() -> argparse.ArgumentParser:
                        help="Role alias (coding, research, fast, private, vision).")
     _add_common(p_sum, with_path=False)
     p_sum.set_defaults(func=_cmd_summarize_project)
+
+    p_report = sub.add_parser(
+        "vault-report",
+        help="Analyze a vault and print a human-readable health report.",
+    )
+    _add_common(p_report, with_path=True)
+    p_report.add_argument(
+        "--output", default=None,
+        help="Optional file to also write the report to (disabled by default).",
+    )
+    p_report.add_argument(
+        "--timing", dest="timing", action="store_true", default=True,
+        help="Include performance metrics (default on).",
+    )
+    p_report.add_argument(
+        "--no-timing", dest="timing", action="store_false",
+        help="Omit performance metrics.",
+    )
+    p_report.add_argument(
+        "--memory", dest="memory", action="store_true", default=False,
+        help="Track peak memory via tracemalloc (adds overhead; off by default).",
+    )
+    p_report.add_argument(
+        "--deterministic", dest="deterministic", action="store_true", default=False,
+        help="Omit the wall-clock timestamp for reproducible snapshots.",
+    )
+    p_report.set_defaults(func=_cmd_vault_report)
+
+    p_ask = sub.add_parser(
+        "ask",
+        help="Answer a question from the vault (offline, deterministic; no AI provider).",
+    )
+    p_ask.add_argument("question", help="A natural-language question about the vault.")
+    p_ask.add_argument("--path", default=None, help="Vault/fixture directory.")
+    _add_common(p_ask, with_path=False)
+    p_ask.set_defaults(func=_cmd_ask)
 
     return parser
 

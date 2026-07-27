@@ -45,6 +45,11 @@ flowchart TD
 - **providers** — `Provider` contract, `MockProvider` (deterministic), and
   documentation-only placeholder adapters that raise `NotImplementedError`.
 - **cli** — argparse front door with documented exit codes.
+- **metrics** — `PerfReport` + `measure()` context manager for per-stage wall-clock
+  timing (parse/resolve/validate/total). No global state.
+- **health** — `analyze_vault()` runs seven read-only checks (missing frontmatter,
+  duplicate IDs, orphans, broken wikilinks, invalid schemas, missing aliases, circular
+  references via Tarjan SCC) into a `VaultHealthReport`, rendered as text or JSON.
 
 ## Determinism
 

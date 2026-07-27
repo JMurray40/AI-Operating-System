@@ -13,8 +13,10 @@ import hashlib
 import time
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 from jarvis_core.context.loader import ProjectContextLoader, ProjectNotFoundError
+from jarvis_core.identity import fingerprint_bytes
 from jarvis_core.models.base import NoteType
 from jarvis_core.models.context import SourceRef
 from jarvis_core.models.note import Note
@@ -31,10 +33,10 @@ from jarvis_core.query.context_builder import (
 from jarvis_core.query.contract import CONTRACT_VERSION, INDEX_VERSION
 from jarvis_core.query.index import LexicalIndex
 from jarvis_core.query.intent import Intent, IntentParser, ParsedQuery
-from jarvis_core.query.passages import locate, validate_against_text
+from jarvis_core.query.passages import Locator, locate, validate_against_text
 from jarvis_core.query.ranking import Ranker, RankingWeights, ScoredNote
 from jarvis_core.query.results import Citation, QueryAnswer, citation_from_scored
-from jarvis_core.query.tokenizer import normalize
+from jarvis_core.query.tokenizer import normalize, token_set
 from jarvis_core.query.trace import QueryTrace
 from jarvis_core.relationships.resolver import RelationshipResolver, ResolutionReport
 
@@ -72,6 +74,7 @@ class QueryEngine:
         weights: RankingWeights | None = None,
         token_budget: int = DEFAULT_TOKEN_BUDGET,
         provider: Provider | None = None,
+        source_root: Path | None = None,
     ) -> None:
         # An explicit AuthorizationScope is REQUIRED at the query boundary (AC-01, ADR-0015).
         # A missing/None scope fails closed rather than silently broadening to allow-all; use
@@ -82,6 +85,9 @@ class QueryEngine:
                 "use jarvis_core.policy.local_allow_all() for local workflows"
             )
         self._scope = scope
+        # When provided, current source bytes are re-read from this root (confined to it)
+        # at citation emission so a post-discovery change makes the citation stale (AC-03R2).
+        self._source_root = source_root.resolve() if source_root is not None else None
         view = build_authorized_view(notes, self._scope)
         self._notes = view.notes
         self._identities = view.identities
@@ -268,8 +274,14 @@ class QueryEngine:
         t0 = time.perf_counter()
         response = self._provider.summarize(package, model_role="research")
         t1 = time.perf_counter()
+        # Claim-specific evidence: each source is cited where it references the project
+        # (a supporting passage), not arbitrary first content (AC-03R2).
+        proj_terms = self._claim_terms(package.project_title)
         citations = self._drop_none(
-            self._cite_note(self._by_relpath[s.relpath], frozenset(), relevance=None)
+            self._make_citation(
+                self._by_relpath[s.relpath], proj_terms, relevance=None,
+                reason="supports project context", material=False,
+            )
             for s in package.sources if s.relpath in self._by_relpath
         )
         if trace is not None:
@@ -305,8 +317,17 @@ class QueryEngine:
         if not parts:
             parts.append(f"No direct link or shared neighbour connects '{lt}' and '{rt}'.")
         cited_notes = [left, right, *(self._by_relpath[s] for s in shared)]
+        _titles = {n.relpath: (n.title or n.path.stem) for n in cited_notes}
+
+        def _rel_evidence(n: Note) -> frozenset[str]:
+            # Cite the passage in n that links the other endpoint(s)/shared note(s).
+            others = [_titles[m.relpath] for m in cited_notes if m.relpath != n.relpath]
+            return self._claim_terms(*others)
+
         citations = self._drop_none(
-            self._cite_note(n, frozenset(), relevance=None) for n in cited_notes
+            self._make_citation(n, _rel_evidence(n), relevance=None,
+                                reason="relationship evidence", material=False)
+            for n in cited_notes
         )
         if trace is not None:
             context = self._context.build([lp, rp, *shared])
@@ -322,31 +343,78 @@ class QueryEngine:
     ) -> QueryAnswer:
         return QueryAnswer(intent, question, text, citations, excluded_count=self._excluded_count)
 
-    def _cite_scored(self, scored: ScoredNote, evidence: frozenset[str]) -> Citation | None:
-        """Build a validated passage citation, or None if no supporting passage exists."""
-        note = scored.note
-        ident = self._identities[note.relpath]
-        locator, excerpt = locate(note, evidence)
-        if not validate_against_text(locator, excerpt, note.source_text).ok:
-            return None  # decline a material citation with no valid supporting passage (AC-03)
-        return citation_from_scored(
-            scored, source_id=ident.source_id, source_identity_kind=ident.kind,
-            source_fingerprint=note.source_fingerprint, locator=locator, excerpt=excerpt,
-        )
+    def _current_bytes(self, note: Note) -> bytes:
+        """Exact current source bytes for ``note``, confined to the configured root.
 
-    def _cite_note(
-        self, note: Note, evidence: frozenset[str], *, relevance: float | None
+        With a source root, the file is re-read (path-escape and missing files fail closed
+        by returning empty bytes, which then fail the fingerprint check). Without a root, the
+        discovery-time bytes are used (this proves discovery-revision consistency only, not a
+        post-discovery on-disk change).
+        """
+        if self._source_root is not None:
+            try:
+                cand = (self._source_root / note.relpath).resolve()
+                if cand.is_relative_to(self._source_root) and cand.is_file():
+                    return cand.read_bytes()
+            except OSError:
+                pass
+            return b""  # missing / escaped / unreadable under a known root -> fail closed
+        return note.source_bytes
+
+    def _make_citation(
+        self,
+        note: Note,
+        evidence: frozenset[str],
+        *,
+        relevance: float | None,
+        reason: str,
+        material: bool,
+        scored: ScoredNote | None = None,
     ) -> Citation | None:
+        """Emit a validated citation, or None. Validates the stored fingerprint against the
+        CURRENT source bytes plus locator/hierarchy/excerpt before emission (AC-03R2)."""
         ident = self._identities[note.relpath]
+        current = self._current_bytes(note)
+        if fingerprint_bytes(current) != note.source_fingerprint:
+            return None  # stale: source changed since discovery -> never emitted as valid
+        current_text = current.decode("utf-8", errors="replace")
         locator, excerpt = locate(note, evidence)
-        if not validate_against_text(locator, excerpt, note.source_text).ok:
-            return None
+        if excerpt and validate_against_text(locator, excerpt, current_text).ok:
+            if scored is not None:
+                return citation_from_scored(
+                    scored, source_id=ident.source_id, source_identity_kind=ident.kind,
+                    source_fingerprint=note.source_fingerprint, locator=locator, excerpt=excerpt,
+                )
+            return Citation(
+                source_id=ident.source_id, source_identity_kind=ident.kind,
+                title=note.title or note.path.stem, relpath=note.relpath,
+                source_fingerprint=note.source_fingerprint, locator=locator, excerpt=excerpt,
+                reason=reason, relative_relevance=relevance, coverage="supported",
+            )
+        # No claim-specific supporting passage.
+        if material:
+            return None  # decline a ranked material citation with no supporting passage
+        # Unranked reference: emit an explicit coverage-incomplete citation (never arbitrary
+        # first content) — identity + revision only, no passage claim.
         return Citation(
             source_id=ident.source_id, source_identity_kind=ident.kind,
             title=note.title or note.path.stem, relpath=note.relpath,
-            source_fingerprint=note.source_fingerprint, locator=locator, excerpt=excerpt,
-            reason="in assembled context", relative_relevance=relevance,
+            source_fingerprint=note.source_fingerprint, locator=Locator((), 0, 0), excerpt="",
+            reason=reason, relative_relevance=relevance, coverage="incomplete",
         )
+
+    def _cite_scored(self, scored: ScoredNote, evidence: frozenset[str]) -> Citation | None:
+        return self._make_citation(
+            scored.note, evidence, relevance=scored.relative_relevance,
+            reason="retrieval match", material=True, scored=scored,
+        )
+
+    @staticmethod
+    def _claim_terms(*titles: str) -> frozenset[str]:
+        terms: set[str] = set()
+        for t in titles:
+            terms |= token_set(t)
+        return frozenset(terms)
 
     @staticmethod
     def _drop_none(cits: Iterable[Citation | None]) -> tuple[Citation, ...]:

@@ -28,6 +28,9 @@ class Citation:
     excerpt: str
     reason: str
     relative_relevance: float | None = None  # query-local ranking value; None if unranked
+    # 'supported' = bound to a validated claim-specific passage; 'incomplete' = an
+    # identity+revision reference with no specific supporting passage (never arbitrary text).
+    coverage: str = "supported"
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -41,6 +44,7 @@ class Citation:
             "excerpt": self.excerpt,
             "relative_relevance": self.relative_relevance,
             "reason": self.reason,
+            "coverage": self.coverage,
         }
 
 

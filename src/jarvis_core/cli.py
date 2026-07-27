@@ -244,7 +244,10 @@ def _engine(args: argparse.Namespace) -> QueryEngine:
     repo = FileSystemKnowledgeRepository(config)
     # Existing CLI behavior runs under an explicit local allow-all scope (never an implicit
     # unrestricted bypass); notes with unknown sensitivity still fail closed (ADR-0015).
-    return QueryEngine(repo.discover(), scope=local_allow_all(workspace_id="local"))
+    # source_root enables current-bytes citation validation at emission (AC-03R2).
+    return QueryEngine(
+        repo.discover(), scope=local_allow_all(workspace_id="local"), source_root=repo.root
+    )
 
 
 def _print_answer(answer: QueryAnswer, trace: QueryTrace | None, fmt: OutputFormat) -> None:

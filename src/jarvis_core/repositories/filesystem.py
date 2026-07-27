@@ -89,6 +89,7 @@ class FileSystemKnowledgeRepository:
                     source_text=text,
                     source_fingerprint=fingerprint,
                     body_start_line=body_start_line,
+                    source_bytes=raw,
                 )
             )
         notes.sort(key=lambda n: n.relpath)

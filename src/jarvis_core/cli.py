@@ -27,6 +27,7 @@ from pathlib import Path
 from jarvis_core.config import Config, LogLevel, OutputFormat, default_fixture_path
 from jarvis_core.context.loader import ProjectContextLoader, ProjectNotFoundError
 from jarvis_core.context.validator import validate_notes
+from jarvis_core.conversation import ConversationAnswer, ConversationManager
 from jarvis_core.health import analyze_vault, compute_vault_fingerprint, render_text
 from jarvis_core.logging_setup import configure_logging
 from jarvis_core.metrics import PerfReport, measure, track_memory
@@ -294,6 +295,109 @@ def _cmd_explain(args: argparse.Namespace) -> int:
     return EXIT_OK if answer.citations else EXIT_WARNINGS
 
 
+# ---------------------------------------------------------------- chat (v0.4)
+_CHAT_HELP = (
+    "Commands: :history  :reset  :trace  :help  :exit   (anything else is a question)"
+)
+
+
+def _print_provenance(answer: ConversationAnswer, trace: object) -> None:
+    """Print the provenance block (everything except the leading answer text)."""
+    print(f"\nWhy: {answer.reasoning_summary}")
+    print(f"Confidence: {answer.confidence:g}")
+    if answer.statements:
+        print("Basis:")
+        for s in answer.statements:
+            src = f"  ({s.source})" if s.source else ""
+            print(f"  [{s.kind.value}] {s.text}{src}")
+    if answer.citations:
+        print("Sources:")
+        for c in answer.citations:
+            print(f"  - {c.title} ({c.relpath})  [conf={c.confidence:g}] {c.reason}")
+    if answer.conflicts:
+        print("Conflicting evidence:")
+        for cf in answer.conflicts:
+            print(f"  - {cf.subject}: {cf.reason} ({', '.join(cf.relpaths)})")
+    if answer.status == "failed":
+        print("Status: FAILED (provider error; vault unmodified)")
+    if trace is not None and hasattr(trace, "render_text"):
+        print()
+        print(trace.render_text())
+
+
+def _run_turn(
+    manager: ConversationManager, text: str, *, want_trace: bool, stream: bool,
+    fmt: OutputFormat,
+) -> ConversationAnswer:
+    # A single ask() records the turn exactly once; streaming is a display concern only.
+    answer, trace = manager.ask(text, want_trace=want_trace)
+    if fmt is OutputFormat.JSON:
+        payload = answer.to_dict()
+        if trace is not None:
+            payload["trace"] = trace.to_dict()
+        print(_dumps(payload))
+        return answer
+    if stream:
+        for i, word in enumerate(answer.text.split(" ")):
+            print(word if i == 0 else " " + word, end="", flush=True)
+        print()
+    else:
+        print(answer.text)
+    _print_provenance(answer, trace)
+    return answer
+
+
+def _cmd_chat(args: argparse.Namespace) -> int:
+    config = _build_config(args)
+    repo = FileSystemKnowledgeRepository(config)
+    manager = ConversationManager(QueryEngine(repo.discover()))
+    want_trace = args.trace
+    stream = args.stream
+    fmt = config.output_format
+
+    # Scripted multi-turn: deterministic, testable, single process/session.
+    if args.turns:
+        any_answered = False
+        for i, turn in enumerate(args.turns):
+            if fmt is OutputFormat.TEXT:
+                print(f"\n[turn {i}] you: {turn}")
+            answer = _run_turn(
+                manager, turn, want_trace=want_trace, stream=stream, fmt=fmt
+            )
+            any_answered = any_answered or bool(answer.citations)
+        return EXIT_OK if any_answered else EXIT_WARNINGS
+
+    # Interactive REPL over stdin (session lives only for this process).
+    print("Jarvis chat (read-only, session-only). " + _CHAT_HELP)
+    while True:
+        try:
+            line = input("you> ").strip()
+        except EOFError:
+            break
+        if not line:
+            continue
+        low = line.lower()
+        if low in (":exit", ":quit", "exit", "quit"):
+            break
+        if low == ":help":
+            print(_CHAT_HELP)
+            continue
+        if low == ":reset":
+            manager.reset()
+            print("(conversation reset)")
+            continue
+        if low == ":trace":
+            want_trace = not want_trace
+            print(f"(trace {'on' if want_trace else 'off'})")
+            continue
+        if low == ":history":
+            for t in manager.session.history():
+                print(f"  {t.index}. you: {t.user_input}")
+            continue
+        _run_turn(manager, line, want_trace=want_trace, stream=stream, fmt=fmt)
+    return EXIT_OK
+
+
 # ------------------------------------------------------------------------------ main
 def _add_common(parser: argparse.ArgumentParser, *, with_path: bool) -> None:
     if with_path:
@@ -397,6 +501,26 @@ def build_parser() -> argparse.ArgumentParser:
     p_explain.add_argument("--path", default=None, help="Vault/fixture directory.")
     _add_common(p_explain, with_path=False)
     p_explain.set_defaults(func=_cmd_explain)
+
+    p_chat = sub.add_parser(
+        "chat",
+        help="Multi-turn read-only conversation (session-only; resolves follow-ups).",
+    )
+    p_chat.add_argument("--path", default=None, help="Vault/fixture directory.")
+    p_chat.add_argument(
+        "--turns", nargs="+", default=None, metavar="Q",
+        help="Scripted turns to run in one session (deterministic). Omit for interactive.",
+    )
+    p_chat.add_argument(
+        "--trace", dest="trace", action="store_true", default=False,
+        help="Show conversation state, ranking, context, provider, timings per turn.",
+    )
+    p_chat.add_argument(
+        "--stream", dest="stream", action="store_true", default=False,
+        help="Stream the answer text (display only; content is deterministic).",
+    )
+    _add_common(p_chat, with_path=False)
+    p_chat.set_defaults(func=_cmd_chat)
 
     return parser
 

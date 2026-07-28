@@ -13,11 +13,13 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
-### Added (v0.3.1 — Query Trust Contracts, locally merged; release pending)
+## [0.3.1] - 2026-07-27
 
-Locally merged into `main` at `00f1813`. Product Owner disposition is **Approved** and
-independent QA disposition is **Ready** for the frozen executable `956c2ed`. No push, tag,
-or release has occurred.
+### Added — Query Trust Contracts
+
+Released from merge `00f1813` with Product Owner approval, independent QA disposition
+**Ready**, Librarian disposition **Ready for final release**, and frozen executable
+`956c2ed`.
 
 - Authorization before retrieval (ADR-0015): immutable `AuthorizationScope` on every query
   entry point; sensitivity/allowlist filtering applied before the request-visible index and
@@ -126,5 +128,6 @@ or release has occurred.
 
 | Version | Date | Change |
 |---|---|---|
+| 0.3.1 | 2026-07-27 | Released Query Trust Contracts with retained trust and performance evidence |
 | 0.2.0 | 2026-07-27 | Reconciled v0.3 foundation and locally merged v0.3.1 release state |
 | 0.1.0 | 2026-07-27 | Initial changelog |

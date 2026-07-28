@@ -146,11 +146,11 @@ All human and AI contributions follow [CONTRIBUTING.md](CONTRIBUTING.md) and the
 
 Version `0.3` established the merged Query Engine foundation: deterministic lexical
 retrieval, explainable ranking, citations, token-budgeted context, trace mode, and the
-`search` / `summarize` / `explain` commands. Version `0.3.1` Query Trust Contracts is
-locally merged into `main` at merge commit `00f1813`; it adds authorization-before-
+`search` / `summarize` / `explain` commands. Version `0.3.1` Query Trust Contracts was
+released from merge commit `00f1813`; it adds authorization-before-
 retrieval, passage/revision citations, stable source identity, versioned contracts, and
 unambiguous relative-relevance terminology. The Product Owner and QA approved the frozen
-executable `956c2ed`; final push, tag, and release remain pending post-merge closeout.
+executable `956c2ed`, and the release is identified by tag `v0.3.1`.
 
 See the [v0.3.1 Handoff Index](docs/handovers/v0.3.1/README.md),
 [Query Trust Contracts](docs/software/QUERY_TRUST_CONTRACTS.md), and

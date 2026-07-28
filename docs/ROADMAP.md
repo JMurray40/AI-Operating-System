@@ -17,7 +17,7 @@ This roadmap describes durable capability milestones. The
 | Release | Capability milestone | Current state |
 |---|---|---|
 | v0.3 | Milestone 3 — read-only query foundation | Merged |
-| v0.3.1 | Milestone 3 hardening — Query Trust Contracts | Locally merged; release closeout pending |
+| v0.3.1 | Milestone 3 hardening — Query Trust Contracts | Released |
 | v0.4 | Milestone 4 — Project Resume | Planning validated; implementation blocked |
 | v0.5 | Conversation slice formerly included in Milestone 3 | Parked; future authorization required |
 

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Milestone | v0.3.1 — Query Trust Contracts |
-| Status | Merged locally; Librarian closeout complete; final Product Owner action required |
+| Status | Released as `v0.3.1` |
 | Owner | Chief of Staff |
 | Updated | 2026-07-27 |
 | Merged branch | `main` at `00f181312b92cc59f20407fec6db1d1a3da09ec0` |
@@ -14,18 +14,18 @@
 
 | Item | Effective state |
 |---|---|
-| Lifecycle stage | Final Product Owner release action |
-| Next responsible role | Product Owner |
-| Current incoming artifact | [Librarian repository closeout](07-librarian-to-product-owner-repository-closeout.md) |
-| Required next output | Product Owner acceptance or return decision |
+| Lifecycle stage | Release complete; milestone closeout |
+| Next responsible role | Chief of Staff for next-milestone routing |
+| Current incoming artifact | [Product Owner final release acceptance](08-product-owner-final-release-acceptance.md) |
+| Required next output | Separate v0.4 implementation authorization, if approved |
 | Architecture | Ready for limited revalidation; QR-031-01 through QR-031-03 closed |
 | QA | **Ready**; affected Areas A, G, and H passed |
 | Evidence | Executable `956c2ed`; evidence commit `8fa5f18`; artifact digest verified |
-| Merge/release | Merged locally at `00f1813`; Librarian recommends Ready; push, tag, and release remain Product Owner-controlled |
+| Merge/release | Released from merge `00f1813` as tag `v0.3.1` |
 | Parked conversation work | Out of scope and untouched |
 
-Do not push, tag, release, begin v0.4 implementation, or reconcile conversation work until
-the Librarian closeout is complete and accepted.
+Do not begin v0.4 implementation or reconcile conversation work without separate
+authorization.
 
 ## Accepted evidence contract
 
@@ -41,8 +41,8 @@ bound to the Engineering Review addendum by SHA-256.
 
 The CTO verified evidence integrity, arithmetic, digest, executable-file diff, and the
 predeclared aggregation rule. QA independently revalidated affected Areas A, G, and H and
-issued `Ready`. The Product Owner approved controlled merge; the merge completed locally
-and now awaits Librarian closeout before push, tag, or release.
+issued `Ready`. The Product Owner approved controlled merge and final release, and the
+Librarian issued `Ready for final release`.
 
 ## Latest effective revisions
 
@@ -53,7 +53,7 @@ Read the latest named revision first. Earlier sections preserve history.
 | [Engineering Review](03-principal-engineer-to-cto-engineering-review.md) | Rev 6 with Evidence Addendum complete |
 | [CTO Architecture Disposition](04-cto-to-quality-architecture-disposition.md) | **Ready for limited Quality & Release revalidation** |
 | [Quality & Release Review](05-quality-to-product-owner-release-review.md) | **Ready**; superseding A/G/H revalidation complete |
-| [Project Control](../../coordination/README.md) | Final Product Owner action assigned |
+| [Project Control](../../coordination/README.md) | v0.3.1 release complete |
 
 ## Artifact map
 
@@ -75,6 +75,7 @@ Read the latest named revision first. Earlier sections preserve history.
 | 05 | [QA review](05-quality-to-product-owner-release-review.md) | Latest superseding revision is `Ready` |
 | 06 | [Product Owner decision](06-product-owner-to-librarian-release-decision.md) | **Approved for controlled merge** |
 | 07 | [Librarian closeout](07-librarian-to-product-owner-repository-closeout.md) | **Ready for final release** |
+| 08 | [Product Owner final acceptance](08-product-owner-final-release-acceptance.md) | **Approved for final release** |
 
 ### Chief of Staff prompts
 
@@ -92,6 +93,5 @@ Read the latest named revision first. Earlier sections preserve history.
 
 ## Next-file rule
 
-The Librarian closeout is complete. The next artifact is a Product Owner acceptance,
-return, stop, or re-scope decision for final release execution. Final push, tag, and
-release remain Product Owner-controlled.
+The v0.3.1 lifecycle is complete. Any v0.4 implementation requires a separate, explicit
+authorization based on its validated planning package.

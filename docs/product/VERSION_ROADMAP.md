@@ -21,7 +21,7 @@ product intent:
 | Release | Current identity | State |
 |---|---|---|
 | v0.3 | Query Engine foundation | Merged |
-| v0.3.1 | Query Trust Contracts | Locally merged; final push/tag/release pending |
+| v0.3.1 | Query Trust Contracts | Released |
 | v0.4 | Read-only Project Resume CLI Pilot | Planning validated; implementation blocked |
 | v0.5 | Visible-Context Conversation | Parked candidate requires reconciliation and fresh authorization |
 
@@ -70,8 +70,8 @@ expand its trust boundary.
 relative relevance separated from answer confidence; passage-and-revision citations;
 stable source identity; strict context budgets; versioned result/context/trace contracts.
 
-**State:** Locally merged into `main` at `00f1813`. Product Owner approved and QA issued
-`Ready`; final push, tag, and release await Librarian closeout.
+**State:** Released as `v0.3.1` from merge `00f1813`. Product Owner approved, QA issued
+`Ready`, and the Librarian issued `Ready for final release`.
 
 ## v0.4 — Read-only Project Resume CLI Pilot
 

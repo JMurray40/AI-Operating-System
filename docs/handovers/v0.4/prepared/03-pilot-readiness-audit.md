@@ -34,3 +34,43 @@ docs/handovers/v0.4/pilot-readiness-audit.md
 
 Classify every requirement as `Ready`, `Missing`, `Needs Product Owner input`, or
 `Candidate-dependent`, with no invented paths or hardware facts.
+
+## Execution context
+
+```text
+repository: C:\Users\jmurr\Projects\AI-Operating-System
+coordination_source: main
+released_v0.3.1: v0.3.1
+v0.4_immutable_base: 3253b052a3986e7d2c94124fbac86c03980e0765
+engineering_worktree: C:\Users\jmurr\Projects\AI-Operating-System\.worktrees\v0.4-engineering
+output: docs/handovers/v0.4/pilot-readiness-audit.md
+```
+
+The engineering worktree path is identity context only. Do not enter it or inspect
+uncommitted work during this audit.
+
+## Questions requiring explicit answers
+
+For each pilot, record:
+
+1. user-confirmed vault root or `Unknown`;
+2. user-confirmed repository root or `None/Unknown`;
+3. canonical project selector readiness without reading private contents;
+4. availability of an authorization scope and request-scoped Git grant;
+5. whether private evidence destinations exist, are ignored, and are outside the vault;
+6. whether a clean non-author environment is available;
+7. whether Python/Git/reference-hardware facts can be recorded;
+8. whether cold/warm and denied/unavailable/authorized modes are operationally feasible;
+9. whether before/after integrity inventories can be taken without changing timestamps;
+10. exact Product Owner decisions still needed.
+
+Also inspect `.gitignore`, documented pilot names, accepted privacy fields, benchmark
+protocol, and recovery requirements. Checking path existence is allowed only for paths
+already provided by the user or repository; do not search broadly outside scope.
+
+## Evidence and handoff
+
+The report must include an evidence table, blockers, owners, safe next actions, and a
+statement that no pilot content, Git activity, benchmark, collection, or mutation was
+performed. Do not stage or commit the report until the Chief of Staff validates that it
+contains no private path or content disclosure.

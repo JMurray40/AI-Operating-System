@@ -37,3 +37,62 @@ docs/handovers/v0.4/04-quality-to-product-owner-release-review.md
 
 End with exactly one disposition: `Ready`, `Ready with conditions`, `Refactor first`,
 `Not ready`, or `Re-scope`.
+
+## Activation block — Chief of Staff completes before handoff
+
+```text
+qa_worktree: <ABSOLUTE_DETACHED_WORKTREE>
+immutable_base: 3253b052a3986e7d2c94124fbac86c03980e0765
+candidate_sha: <CTO_CLEARED_FULL_SHA>
+engineering_handoff_commit: <FULL_SHA>
+cto_disposition_commit: <FULL_SHA>
+performance_artifact: <PATH>
+performance_sha256: <DIGEST>
+pilot_manifest: <PATH>
+packaging_evidence: <PATH>
+required_output: docs/handovers/v0.4/04-quality-to-product-owner-release-review.md
+```
+
+Do not start if the CTO clearance is absent, conditional fields are unresolved, or the
+candidate differs from the cleared SHA.
+
+## Mandatory startup and independence checks
+
+1. Verify clean detached candidate state and complete ancestry.
+2. Verify the candidate is unmerged and unpushed unless the CTO explicitly recorded a
+   different approved review topology.
+3. Verify no implementation/evidence change occurred after CTO clearance.
+4. Verify all release inputs are committed, stable, locally accessible, and privacy-safe.
+5. Build an independent test plan from A1–A12 and the CTO matrix before reading expected
+   success claims in detail.
+6. Record environment, tool versions, unavailable privileges, and all skips.
+
+## Required QA areas
+
+Report separately on:
+
+- A: candidate identity, ancestry, diff, dependencies, and exclusions;
+- B: exact project selection, ambiguity, duplicates, and safe errors;
+- C: authorization, sensitivity, non-disclosure, and graph confinement;
+- D: authority, temporal state, explicit supersession, conflict, and staleness;
+- E: claim evidence, current-byte validation, coverage, and rendering;
+- F: evidence/output budgets, determinism, trace, and error bounds;
+- G: ADR-0021 process/path/environment/parser/redaction/degradation/non-mutation;
+- H: CLI, compatibility, packaging, diagnostics, rebuild, and recovery;
+- I: performance protocol, raw arithmetic, pilots, privacy, and unchanged sources; and
+- J: A11 consent mechanism and honest strategic-pending status.
+
+Every failure must include a reproduction, expected contract, observed result, affected
+scope, and release impact. Do not grant waivers. Conditions must be concrete, owned, and
+non-blocking; otherwise use `Refactor first`, `Not ready`, or `Re-scope`.
+
+## Output and stop rule
+
+The review must list every command and result, all raw-evidence identities/digests,
+environmental limitations, individual benchmark variance, retained private-evidence
+boundaries, and residual risks. It must explicitly state whether the candidate can ship
+technically while A11 strategic validation remains pending.
+
+Commit only the QA artifact in the coordination worktree specified by the Chief of Staff.
+Do not modify the candidate, evidence, CTO disposition, branch, or remote. Stop after the
+single formal disposition.

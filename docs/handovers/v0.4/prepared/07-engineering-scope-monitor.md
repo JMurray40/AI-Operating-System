@@ -28,3 +28,47 @@ commit/path references. Treat ordinary in-scope implementation growth as expecte
 
 Produce a dated read-only status note outside the engineering branch or report directly
 to the Chief of Staff. A monitor report cannot clear CTO or QA gates.
+
+## Fixed monitoring context
+
+```text
+engineering_worktree: C:\Users\jmurr\Projects\AI-Operating-System\.worktrees\v0.4-engineering
+engineering_branch: feature/v0.4-project-resume
+immutable_base: 3253b052a3986e7d2c94124fbac86c03980e0765
+authorized_start: faba0f90f5b4c016e9323cab92f205d5e987067e
+parked_conversation_tip: 4b09050b76fd9a448af3ce91b4aa66963d23dad2
+```
+
+## Snapshot procedure
+
+Capture only:
+
+- current committed HEAD, branch, ahead/behind state, and porcelain status summary;
+- commits and paths since the previous monitored cursor;
+- base-to-HEAD path categories and diff statistics;
+- ancestry tests for immutable base, authorization, and parked tip;
+- presence/absence of expected handoff and evidence paths; and
+- objective keyword/import/path signals for excluded capabilities.
+
+Never display private file contents, secrets, raw evidence, or broad uncommitted diffs.
+If the worktree is dirty, report `engineering active; uncommitted state not inspected`.
+
+## Report schema
+
+```text
+observed_at:
+previous_cursor:
+current_head:
+branch:
+worktree_state:
+new_commits:
+changed_path_categories:
+expected_progress_signals:
+scope_alerts:
+handoff_readiness:
+action:
+```
+
+Valid actions are `No action`, `Ask engineering for clarification at next checkpoint`, or
+`Escalate concrete blocker`. Include exact evidence for any alert. Do not send routine
+monitoring noise to Claude or reinterpret incomplete work as a defect.

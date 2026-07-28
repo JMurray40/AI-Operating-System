@@ -29,3 +29,44 @@ docs/handovers/v0.4/06-librarian-to-product-owner-repository-closeout.md
 
 End with `Ready for final release`, `Ready with conditions`, or `Not ready`, and identify
 all remaining debt and owners.
+
+## Activation block
+
+```text
+local_main_worktree: <ABSOLUTE_PATH>
+pre_merge_main: <FULL_SHA>
+approved_candidate: <FULL_SHA>
+product_owner_decision: <FULL_SHA_OR_ARTIFACT>
+merge_commit: <FULL_SHA>
+qa_disposition: <FULL_SHA_OR_ARTIFACT>
+required_output: docs/handovers/v0.4/06-librarian-to-product-owner-repository-closeout.md
+```
+
+Do not start unless the merge is local, clean, exact, and unpushed.
+
+## Required reconciliation ledger
+
+For every changed document record:
+
+- prior claim;
+- merged implementation/evidence truth;
+- required correction;
+- owner/authority;
+- changed path;
+- link-validation result; and
+- closed, deferred, or escalated status.
+
+Check all local Markdown targets and important heading anchors; external links are
+separately labeled if not network-validated. Ensure changelog and roadmaps distinguish
+technical release from A11 strategic validation. Preserve exact evidence digests and
+private-data exclusions.
+
+## Required closeout evidence
+
+The closeout must list merge parents and ancestry, executable/evidence/QA/Product Owner
+identities, documentation-only diff, files reconciled, link counts, broken targets,
+whitespace result, deferred debt, and confirmation that the parked conversation branch
+and v0.5 remained untouched.
+
+Commit only the documentation reconciliation and closeout locally. Do not push, tag,
+publish, or begin the next milestone. Return final authority to the Product Owner.

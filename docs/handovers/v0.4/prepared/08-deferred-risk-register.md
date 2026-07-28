@@ -34,3 +34,43 @@ Produce or update:
 ```text
 docs/handovers/v0.4/v0.4-risk-register.md
 ```
+
+## Source and update rules
+
+Begin with current Project Control, v0.3.1 final QA/decision/Librarian records, v0.4
+acceptance tests, ADR-0018 through ADR-0021, the final CTO brief, pilot-readiness report,
+and only committed engineering evidence. Every entry must cite a repository artifact,
+commit, test, or decision; unsupported concerns are labeled `Hypothesis`.
+
+## Required fields
+
+```text
+risk_id:
+category:
+statement:
+evidence:
+status:
+accepted_by:
+owner:
+likelihood: low | medium | high | unknown
+impact: low | medium | high | unknown
+affected_gate:
+mitigation:
+trigger:
+next_review:
+closure_evidence:
+```
+
+Use status `Open blocker`, `Accepted residual`, `Mitigating`, `Deferred debt`,
+`Future-scope gate`, or `Closed`. Do not use numeric probability without measured data.
+
+## Governance and reporting
+
+Only the Product Owner accepts product/release risk; only the CTO accepts architecture
+interpretations; QA owns release evidence; engineering owns implementation mitigation;
+the Librarian owns record coherence. The register records those decisions but does not
+make them.
+
+Append changes with a dated history. Never delete an accepted risk or unfavorable
+benchmark attempt. Summarize blockers first, then accepted residuals, then deferred/future
+items. Stop after producing a documentation-only register update.

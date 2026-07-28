@@ -28,3 +28,42 @@ declare v0.5 unlocked.
 Produce an operations runbook and blank weekly scorecard at paths assigned by the active
 engineering/CTO package. During the evaluation, publish only redacted aggregates and keep
 the strategic status `Pending` until the full window closes.
+
+## Activation block
+
+```text
+candidate_sha: <TECHNICALLY_APPROVED_SHA>
+collection_contract_version: <VERSION>
+manual_template: evaluations/v0.4-project-resume-dogfood-template.tsv
+private_event_store: data/v0.4-dogfood/events.jsonl
+evaluation_start: <ISO_DATE>
+evaluation_end_after_eight_full_weeks: <ISO_DATE>
+product_owner_consent_record: <PATH_OR_DECISION_ID>
+```
+
+Do not collect anything until every field is resolved and the Product Owner has reviewed
+the consent notice and destination.
+
+## Operating protocol
+
+1. Freeze field definitions, rating denominator, correction rules, and aggregate formulas
+   before the first event.
+2. Verify the private destination is ignored, non-vault, access-limited, and recoverable.
+3. Assign pseudonymous identifiers without embedding project names or paths.
+4. Record events only through an explicit manual action after each meaningful resume.
+5. Validate records locally for schema, prohibited content, duplication, and date window.
+6. Review incorrect/missing context and citation defects at claim level.
+7. Produce weekly redacted aggregates with counts of unrated and abandoned events.
+8. At eight full weeks, compute useful-rated percentage and strategic targets without
+   excluding unfavorable valid events.
+
+## Weekly and final outputs
+
+Each weekly report must state candidate/version, window, total/successful/abandoned/rated
+counts, useful percentage, time-to-orientation, estimated time saved, defect/correction
+counts, privacy review, and data-quality limitations. Requested features must be grouped
+and redacted.
+
+The final report uses one status: `Strategically validated`, `Not strategically
+validated`, or `Insufficient evidence`. Technical release status is reported separately.
+No report may imply that v0.5 is authorized.

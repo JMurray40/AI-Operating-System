@@ -1583,3 +1583,239 @@ docs/handovers/v0.3.1/05-quality-to-product-owner-release-review.md
 ```
 
 Stop after this CTO disposition. Do not perform the Quality & Release role.
+
+---
+
+# Limited Evidence-Integrity CTO Revision 7
+
+**Date:** 2026-07-27
+
+**Role:** Chief Architect / CTO
+
+**Review scope:** Evidence integrity and performance-gate interpretation only
+
+**Evidence commit/HEAD:** `8fa5f18c09de1a0c9a79f33e0ba987f9de0e1083`
+
+**Executable candidate:** `956c2ed1dd1144e836014b049a89c47e971818a0`
+
+**Baseline:** `ce0dc35853008e6b83c3c6fdfd0b8650738bee3d`
+
+**Evidence artifact:** `docs/evidence/v0.3.1/paired-performance-956c2ed-vs-ce0dc35.json`
+
+## R7.1 State, scope, and integrity binding
+
+Before this revision was appended, the worktree was clean, the checked-out branch was
+`feature/v0.3.1-query-trust-contracts`, and HEAD was the exact evidence commit above.
+
+The independently computed SHA-256 of the retained JSON artifact is:
+
+```text
+f8a67162b74125454f2a5199e6b46a33952763fff18821b7c81497819ffa18d6
+```
+
+This exactly matches the requested and Engineering Evidence Addendum digest.
+
+The artifact records:
+
+- executable candidate
+  `956c2ed1dd1144e836014b049a89c47e971818a0`;
+- worktree HEAD at execution
+  `591187d0c64e1b1c335211497d05ee01b4ae2e03`, identified as documentation-only ahead
+  of the executable candidate;
+- baseline `ce0dc35853008e6b83c3c6fdfd0b8650738bee3d`;
+- baseline materialization through `git archive`;
+- the exact parameterized command;
+- Python 3.10.12 and Linux 6.8.0-124-generic x86_64;
+- the subprocess model and removal of `PYTHONPATH`;
+- five attempts, 1,000 notes, 30 runs per version, three warm-ups, query `links`;
+- alternating candidate-first/baseline-first order;
+- the construction-plus-one-public-query total-pipeline boundary; and
+- the percentile formula.
+
+The diff from executable candidate `956c2ed` through evidence commit `8fa5f18` contains no
+change under `src/`, `scripts/`, or `tests/`, and no change to `pyproject.toml`. No
+executable, automated test, benchmark harness, or benchmark-protocol file changed after
+the executable candidate.
+
+## R7.2 Sample-count verification
+
+The artifact contains exactly five attempts. Every attempt contains:
+
+- exactly 30 candidate raw observations; and
+- exactly 30 baseline raw observations.
+
+The totals are 150 candidate and 150 baseline observations. The stored `n` fields and
+top-level sample-count summary agree with the independently counted arrays.
+
+## R7.3 Independent percentile and regression recomputation
+
+Using the recorded estimator:
+
+```text
+idx = min(n - 1, round(q * (n - 1)))
+```
+
+the raw arrays independently reproduce the following values:
+
+| Attempt | Order | Candidate p50/p95/p99 (ms) | Baseline p50/p95/p99 (ms) | Regression |
+|---:|---|---:|---:|---:|
+| 0 | candidate first | 31.924 / 37.280 / 38.150 | 29.578 / 33.417 / 34.510 | 11.56% |
+| 1 | baseline first | 32.168 / 37.329 / 37.918 | 29.166 / 33.578 / 35.819 | 11.17% |
+| 2 | candidate first | 33.401 / 41.925 / 58.252 | 29.866 / 33.910 / 34.436 | 23.64% |
+| 3 | baseline first | 32.297 / 38.679 / 39.017 | 30.658 / 35.570 / 35.789 | 8.74% |
+| 4 | candidate first | 33.666 / 41.379 / 43.289 | 29.796 / 35.433 / 35.795 | 16.78% |
+
+Each recomputed percentile and regression agrees with the stored value at the artifact's
+reported precision.
+
+Sorting the five recomputed regressions yields:
+
+- **minimum:** 8.74%;
+- **median:** 11.56%; and
+- **maximum:** 23.64%.
+
+The aggregate candidate and baseline median p95 values also recompute to 38.679 ms and
+33.910 ms respectively.
+
+## R7.4 Variance statement
+
+The evidence proves that attempt 2 contains larger candidate observations and a 23.64%
+p95 regression. It records the order, raw values, environment, and timing protocol.
+
+It does **not** instrument the operating-system scheduler, background workload, CPU
+frequency, thermal state, or competing processes. Therefore
+“scheduler/background-load variance” is a plausible engineering inference, not a proven
+cause. The evidence supports describing the attempt as observed timing variance or an
+outlying paired result. It does not support attributing that result causally to the
+scheduler or background load.
+
+No outlier is removed or silently waived in this disposition.
+
+## R7.5 Performance-gate rule
+
+The original accepted requirement establishes a p95 regression ceiling of 20%, but it
+does not define how multiple paired attempts are aggregated. A later paired protocol was
+introduced specifically to address unstable single-run evidence.
+
+For this retained run, the median-of-five rule is sufficiently predeclared:
+
+1. `scripts/benchmark_paired.py` at executable commit `956c2ed` states before execution
+   that the aggregate is the median paired p95 regression.
+2. That committed script implements pass as
+   `median_regression_pct <= 20.0`.
+3. The script alternates order and fixes five attempts by default before observing this
+   artifact.
+4. Revision 6 reviewed the paired protocol as architecturally valid and required an
+   evidence-only rerun using it.
+5. Revision 6 expressly prohibited a benchmark-protocol change in the evidence correction.
+6. The retained artifact was produced later, at documentation-only worktree HEAD
+   `591187d`, without changing the executable protocol.
+
+This sequence avoids post-hoc selection: the aggregation function, attempt count, order
+rule, percentile estimator, and threshold existed in the executable candidate before the
+retained samples were generated and were preserved by the prior CTO direction.
+
+The accepted gate therefore permits the predeclared median-of-five paired rule for this
+evidence package; it does not require every individual attempt to pass. The observed
+23.64% attempt remains mandatory variance evidence and must be reviewed by QA, but it does
+not independently fail the predeclared aggregate gate.
+
+Under that rule:
+
+```text
+median paired p95 regression = 11.56% <= 20.00%
+```
+
+**The performance gate passes.**
+
+This interpretation is limited to this predeclared paired protocol. It does not authorize
+discarding attempts, changing run counts after observation, selecting the best attempt,
+or adopting a new aggregate rule after execution. A future protocol change must declare
+its acceptance rule before collecting release evidence.
+
+## R7.6 Evidence finding closure
+
+The evidence correction requested by Revision 6 is complete:
+
+- raw observations are retained at a stable path;
+- the artifact digest matches;
+- identities and execution conditions are recorded;
+- counts and all derived statistics independently recompute;
+- the executable candidate is unchanged; and
+- the aggregate rule was established before the retained run.
+
+**QR-031-03 is closed.** QR-031-01 and QR-031-02 remain closed. No trust-contract or
+previously closed architecture finding is reopened by this documentation-only evidence
+commit.
+
+## R7.7 Explicit disposition
+
+**READY FOR LIMITED QUALITY & RELEASE REVALIDATION.**
+
+Architecture and evidence integrity are cleared for:
+
+- executable candidate
+  `956c2ed1dd1144e836014b049a89c47e971818a0`;
+- evidence commit
+  `8fa5f18c09de1a0c9a79f33e0ba987f9de0e1083`;
+- baseline `ce0dc35853008e6b83c3c6fdfd0b8650738bee3d`; and
+- artifact digest
+  `f8a67162b74125454f2a5199e6b46a33952763fff18821b7c81497819ffa18d6`.
+
+This clearance is invalidated by any later executable, test, benchmark-protocol, evidence
+artifact, or gate-rule change.
+
+## R7.8 Authorized QA scope
+
+Quality & Release is explicitly authorized to rerun only the affected matrix areas:
+
+### Area A — Candidate and evidence integrity
+
+- verify the executable/evidence commit split and clean reviewed state;
+- verify no executable/test/protocol changes after `956c2ed`;
+- verify the artifact path and SHA-256;
+- verify candidate, baseline, command, environment, and protocol identities;
+- verify all sample counts and independently recompute every statistic;
+- record the 23.64% attempt without suppression or unsupported causal attribution.
+
+### Area G — Operational entry points and safety affected by remediation
+
+- rerun both documented benchmark commands from repository root without `PYTHONPATH`;
+- rerun the real subprocess smoke tests, including missing-dependency failure;
+- confirm completion markers, exit behavior, stdout/stderr behavior, temporary-directory
+  confinement, and unchanged canonical sources;
+- confirm baseline/candidate imports remain isolated.
+
+### Area H — Performance evidence and gate
+
+- rerun or independently validate the paired/interleaved protocol using the exact
+  candidate and baseline;
+- confirm equivalent harness, fixture, query, construction-plus-query boundary, warm-ups,
+  runs, percentile method, Python, and machine conditions;
+- validate retained raw samples and all per-attempt/aggregate results;
+- apply the predeclared median-of-five rule;
+- disclose the full 8.74%–23.64% range and 11.56% median;
+- treat scheduler/background-load attribution only as inference unless new instrumentation
+  proves causation; and
+- fail the gate if the valid predeclared median exceeds 20%, without waiver or
+  after-the-fact rule changes.
+
+Quality & Release must also rerun any evidence directly impacted by these corrections. It
+must not reopen unaffected matrix areas without a concrete regression signal, implement
+fixes, change the evidence, merge, or push.
+
+## R7.9 Required QA output
+
+Append a clearly marked superseding revision to:
+
+```text
+docs/handovers/v0.3.1/05-quality-to-product-owner-release-review.md
+```
+
+The superseding revision must pin both the executable candidate and evidence commit, state
+the applied predeclared gate rule, disclose the over-20% individual attempt, distinguish
+observation from causal inference, list all revalidation evidence, and issue one explicit
+Quality & Release disposition to the Product Owner.
+
+Stop after this limited CTO evidence-integrity disposition. Do not perform Quality &
+Release review.

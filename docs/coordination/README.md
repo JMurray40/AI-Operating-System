@@ -36,27 +36,28 @@ governance document, follow the order of precedence in
 |---|---|
 | Product Owner direction | Complete v0.3.1 before advancing the release sequence |
 | Requirements | [v0.3.1 Query Trust Contracts Requirements](../software/V0.3.1_QUERY_TRUST_CONTRACTS_REQUIREMENTS.md) |
-| Current incoming handoff | [Performance Evidence Correction](../handovers/v0.3.1/06-chief-of-staff-to-principal-engineer-evidence-correction.md) |
+| Current incoming handoff | [Limited QA Revalidation Prompt](../handovers/v0.3.1/07-chief-of-staff-to-quality-limited-revalidation.md) |
 | Requirements status | Accepted by Product Owner on 2026-07-27 |
 | Trust-contract ADRs | [ADR-0014](../adr/ADR-0014-Retrieval-Relevance-Is-Separate-From-Answer-Confidence.md), [ADR-0015](../adr/ADR-0015-Authorization-Precedes-Retrieval-And-Graph-Expansion.md), [ADR-0016](../adr/ADR-0016-Citations-Bind-Passages-To-Source-Revisions.md), and [ADR-0017](../adr/ADR-0017-Stable-Source-Identity-Is-Separate-From-Location.md) — accepted |
 | Product Owner decision | [Architecture approval](../handovers/v0.3.1/01-product-owner-to-cto-architecture-approval.md) |
 | Implementation brief | [CTO implementation brief](../handovers/v0.3.1/02-cto-to-principal-engineer-implementation-brief.md) — validated |
 | Engineer prompt package | [Chief of Staff validation and prompt](../handovers/v0.3.1/02-chief-of-staff-to-principal-engineer-validated-prompt.md) |
-| Principal Engineer work | Returned for documentation/evidence-only correction |
-| CTO disposition | QR-031-01/02 closed; QR-031-03 requires retained raw evidence |
-| QA review | [Refactor first](../handovers/v0.3.1/05-quality-to-product-owner-release-review.md) |
-| Evidence prompt | [Chief of Staff performance evidence correction](../handovers/v0.3.1/06-chief-of-staff-to-principal-engineer-evidence-correction.md) |
+| Principal Engineer work | Executable candidate complete at `956c2ed`; evidence retained at `8fa5f18` |
+| CTO disposition | Ready for limited revalidation; QR-031-01 through QR-031-03 closed |
+| QA review | [Earlier Refactor first; superseding A/G/H revision required](../handovers/v0.3.1/05-quality-to-product-owner-release-review.md) |
+| QA prompt | [Chief of Staff limited revalidation](../handovers/v0.3.1/07-chief-of-staff-to-quality-limited-revalidation.md) |
 | Librarian pass | Not started |
 | Primary gate | Close ARB conditions C1–C5 before conversational/generated-answer release |
 
-**Next responsible role:** Principal Engineer / Claude — evidence correction only
+**Next responsible role:** Quality & Release — limited revalidation only
 
 **Required next actions:**
 
-1. Rerun the accepted paired protocol with complete JSON retention.
-2. Bind raw samples, execution identities, recomputed results, and SHA-256.
-3. Append the Evidence Addendum to Engineering Review Rev 6.
-4. Return only the evidence artifact and arithmetic to CTO before QA reruns A, G, and H.
+1. Verify the frozen executable/evidence identity split and retained artifact integrity.
+2. Revalidate affected Areas A, G, and H under the latest CTO disposition.
+3. Apply the predeclared median-of-five gate and disclose the full observed range.
+4. Append one superseding revision to the existing QA review and return it to the Product
+   Owner without fixes, merge, push, or release.
 
 ### Parked candidate: conversational implementation currently named v0.4
 

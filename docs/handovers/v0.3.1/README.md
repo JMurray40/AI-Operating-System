@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Milestone | v0.3.1 — Query Trust Contracts |
-| Status | Active; release blocked pending retained performance evidence |
+| Status | Active; limited Quality & Release revalidation authorized |
 | Owner | Chief of Staff |
 | Updated | 2026-07-27 |
 | Branch | `feature/v0.3.1-query-trust-contracts` |
@@ -14,18 +14,18 @@
 
 | Item | Effective state |
 |---|---|
-| Lifecycle stage | Engineering evidence correction |
-| Next responsible role | Principal Engineer / Claude |
-| Current incoming artifact | [Performance Evidence Correction](06-chief-of-staff-to-principal-engineer-evidence-correction.md) |
-| Required next output | Retained raw JSON plus Evidence Addendum to Engineering Review Rev 6 |
-| Architecture | Trust-contract implementation cleared; QR-031-01 and QR-031-02 closed |
-| QA | `Refactor first`; rerun not yet authorized |
-| Sole open gate | QR-031-03 — retain raw paired samples and bind derived results to the exact execution |
+| Lifecycle stage | Limited Quality & Release revalidation |
+| Next responsible role | Quality & Release |
+| Current incoming artifact | [Limited QA revalidation prompt](07-chief-of-staff-to-quality-limited-revalidation.md) |
+| Required next output | Superseding limited-revalidation revision in the existing QA review |
+| Architecture | Ready for limited revalidation; QR-031-01 through QR-031-03 closed |
+| QA | Authorized only for affected Areas A, G, and H |
+| Evidence | Executable `956c2ed`; evidence commit `8fa5f18`; artifact digest verified |
 | Merge/release | Prohibited |
 | Parked conversation work | Out of scope and untouched |
 
-Do not start QA, Product Owner release decision, Librarian closeout, v0.4 implementation,
-or conversation reconciliation from this state.
+Do not start Product Owner release decision, Librarian closeout, v0.4 implementation, or
+conversation reconciliation from this state.
 
 ## Current evidence contract
 
@@ -39,11 +39,9 @@ The artifact must retain all candidate and baseline samples for five paired atte
 record execution identities and conditions, support independent recomputation, and be
 bound to the Engineering Review addendum by SHA-256.
 
-After that:
-
-1. CTO reviews only evidence integrity, arithmetic, digest, and executable-file diff.
-2. If cleared, QA reruns affected matrix areas A, G, and H.
-3. QA issues a superseding disposition to the Product Owner.
+The CTO has verified evidence integrity, arithmetic, digest, executable-file diff, and the
+predeclared aggregation rule. QA now reruns affected Areas A, G, and H and appends a
+superseding disposition to the Product Owner.
 
 ## Latest effective revisions
 
@@ -51,10 +49,10 @@ Read the latest named revision first. Earlier sections preserve history.
 
 | Artifact | Latest effective revision/state |
 |---|---|
-| [Engineering Review](03-principal-engineer-to-cto-engineering-review.md) | Rev 6; pending Evidence Addendum |
-| [CTO Architecture Disposition](04-cto-to-quality-architecture-disposition.md) | **Evidence correction required**; QR-031-03 open |
-| [Quality & Release Review](05-quality-to-product-owner-release-review.md) | **Refactor first**; superseding QA review pending |
-| [Project Control](../../coordination/README.md) | Evidence correction assigned to Principal Engineer |
+| [Engineering Review](03-principal-engineer-to-cto-engineering-review.md) | Rev 6 with Evidence Addendum complete |
+| [CTO Architecture Disposition](04-cto-to-quality-architecture-disposition.md) | **Ready for limited Quality & Release revalidation** |
+| [Quality & Release Review](05-quality-to-product-owner-release-review.md) | Earlier `Refactor first`; superseding limited review required |
+| [Project Control](../../coordination/README.md) | Limited A/G/H QA assigned to Quality & Release |
 
 ## Artifact map
 
@@ -71,9 +69,9 @@ Read the latest named revision first. Earlier sections preserve history.
 
 | Sequence | Artifact | Current interpretation |
 |---:|---|---|
-| 03 | [Engineering Review](03-principal-engineer-to-cto-engineering-review.md) | Read Rev 6; add evidence addendum next |
-| 04 | [CTO disposition](04-cto-to-quality-architecture-disposition.md) | Latest evidence disposition governs |
-| 05 | [QA review](05-quality-to-product-owner-release-review.md) | `Refactor first`; superseding rerun blocked |
+| 03 | [Engineering Review](03-principal-engineer-to-cto-engineering-review.md) | Read Rev 6 and its Evidence Addendum |
+| 04 | [CTO disposition](04-cto-to-quality-architecture-disposition.md) | Latest limited-QA clearance governs |
+| 05 | [QA review](05-quality-to-product-owner-release-review.md) | Append superseding A/G/H revalidation next |
 
 ### Chief of Staff prompts
 
@@ -85,7 +83,8 @@ Read the latest named revision first. Earlier sections preserve history.
 | [Remediation Rev 4](04-chief-of-staff-to-principal-engineer-remediation-prompt-rev4.md) | Superseded |
 | [QA review prompt](05-chief-of-staff-to-quality-release-review-prompt.md) | Historical |
 | [QA remediation](05-chief-of-staff-to-principal-engineer-qa-remediation.md) | Superseded |
-| [Performance evidence correction](06-chief-of-staff-to-principal-engineer-evidence-correction.md) | **Current** |
+| [Performance evidence correction](06-chief-of-staff-to-principal-engineer-evidence-correction.md) | Completed |
+| [Limited QA revalidation](07-chief-of-staff-to-quality-limited-revalidation.md) | **Current** |
 
 ## Next-file rule
 

@@ -28,7 +28,7 @@ governance document, follow the order of precedence in
 
 ## Current program state
 
-### Active priority: v0.3.1 — Query Trust Contracts
+### Active priority: v0.3.1 — final Product Owner release action
 
 **Latest effective handoff state:** [v0.3.1 Handoff Index](../handovers/v0.3.1/README.md)
 
@@ -36,7 +36,7 @@ governance document, follow the order of precedence in
 |---|---|
 | Product Owner direction | Complete v0.3.1 before advancing the release sequence |
 | Requirements | [v0.3.1 Query Trust Contracts Requirements](../software/V0.3.1_QUERY_TRUST_CONTRACTS_REQUIREMENTS.md) |
-| Current incoming handoff | [Post-Merge Librarian Closeout Prompt](../handovers/v0.3.1/07-chief-of-staff-to-librarian-post-merge-closeout.md) |
+| Current incoming handoff | [Librarian Repository Closeout](../handovers/v0.3.1/07-librarian-to-product-owner-repository-closeout.md) |
 | Requirements status | Accepted by Product Owner on 2026-07-27 |
 | Trust-contract ADRs | [ADR-0014](../adr/ADR-0014-Retrieval-Relevance-Is-Separate-From-Answer-Confidence.md), [ADR-0015](../adr/ADR-0015-Authorization-Precedes-Retrieval-And-Graph-Expansion.md), [ADR-0016](../adr/ADR-0016-Citations-Bind-Passages-To-Source-Revisions.md), and [ADR-0017](../adr/ADR-0017-Stable-Source-Identity-Is-Separate-From-Location.md) — accepted |
 | Product Owner decision | [Architecture approval](../handovers/v0.3.1/01-product-owner-to-cto-architecture-approval.md) |
@@ -48,17 +48,16 @@ governance document, follow the order of precedence in
 | Product Owner decision | [Approved for controlled merge](../handovers/v0.3.1/06-product-owner-to-librarian-release-decision.md) |
 | Merge state | Locally merged to `main` at `00f181312b92cc59f20407fec6db1d1a3da09ec0` |
 | QA prompt | [Chief of Staff limited revalidation](../handovers/v0.3.1/07-chief-of-staff-to-quality-limited-revalidation.md) — completed |
-| Librarian pass | In progress from validated post-merge closeout prompt |
+| Librarian pass | Complete; recommendation **Ready for final release** |
 | Primary gate | Close ARB conditions C1–C5 before conversational/generated-answer release |
 
-**Next responsible role:** Historian / Librarian — post-merge repository closeout
+**Next responsible role:** Product Owner — accept closeout and control final push/tag/release
 
 **Required next actions:**
 
-1. Reconcile the merged documentation against the repository health and drift report.
-2. Verify release naming, ADR/index coverage, roadmap sequence, links, and latest handoffs.
-3. Produce the required Librarian-to-Product-Owner closeout artifact.
-4. Keep push, tag, and final release blocked until closeout is accepted.
+1. Review the Librarian closeout and its remaining non-blocking documentation debt.
+2. Accept, return, stop, or re-scope final release execution.
+3. Keep v0.4 implementation blocked until separately authorized.
 
 ### Parked candidate: conversation branch with historical v0.4 identity
 

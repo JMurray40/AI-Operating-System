@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Milestone | v0.3.1 — Query Trust Contracts |
-| Status | Merged locally; Librarian closeout required before final release |
+| Status | Merged locally; Librarian closeout complete; final Product Owner action required |
 | Owner | Chief of Staff |
 | Updated | 2026-07-27 |
 | Merged branch | `main` at `00f181312b92cc59f20407fec6db1d1a3da09ec0` |
@@ -14,14 +14,14 @@
 
 | Item | Effective state |
 |---|---|
-| Lifecycle stage | Post-merge Historian / Librarian closeout |
-| Next responsible role | Historian / Librarian |
-| Current incoming artifact | [Post-merge Librarian prompt](07-chief-of-staff-to-librarian-post-merge-closeout.md) |
-| Required next output | `07-librarian-to-product-owner-repository-closeout.md` |
+| Lifecycle stage | Final Product Owner release action |
+| Next responsible role | Product Owner |
+| Current incoming artifact | [Librarian repository closeout](07-librarian-to-product-owner-repository-closeout.md) |
+| Required next output | Product Owner acceptance or return decision |
 | Architecture | Ready for limited revalidation; QR-031-01 through QR-031-03 closed |
 | QA | **Ready**; affected Areas A, G, and H passed |
 | Evidence | Executable `956c2ed`; evidence commit `8fa5f18`; artifact digest verified |
-| Merge/release | Merged locally at `00f1813`; push, tag, and release await Librarian closeout |
+| Merge/release | Merged locally at `00f1813`; Librarian recommends Ready; push, tag, and release remain Product Owner-controlled |
 | Parked conversation work | Out of scope and untouched |
 
 Do not push, tag, release, begin v0.4 implementation, or reconcile conversation work until
@@ -53,7 +53,7 @@ Read the latest named revision first. Earlier sections preserve history.
 | [Engineering Review](03-principal-engineer-to-cto-engineering-review.md) | Rev 6 with Evidence Addendum complete |
 | [CTO Architecture Disposition](04-cto-to-quality-architecture-disposition.md) | **Ready for limited Quality & Release revalidation** |
 | [Quality & Release Review](05-quality-to-product-owner-release-review.md) | **Ready**; superseding A/G/H revalidation complete |
-| [Project Control](../../coordination/README.md) | Post-merge Librarian closeout assigned |
+| [Project Control](../../coordination/README.md) | Final Product Owner action assigned |
 
 ## Artifact map
 
@@ -74,6 +74,7 @@ Read the latest named revision first. Earlier sections preserve history.
 | 04 | [CTO disposition](04-cto-to-quality-architecture-disposition.md) | Latest limited-QA clearance governs |
 | 05 | [QA review](05-quality-to-product-owner-release-review.md) | Latest superseding revision is `Ready` |
 | 06 | [Product Owner decision](06-product-owner-to-librarian-release-decision.md) | **Approved for controlled merge** |
+| 07 | [Librarian closeout](07-librarian-to-product-owner-repository-closeout.md) | **Ready for final release** |
 
 ### Chief of Staff prompts
 
@@ -87,15 +88,10 @@ Read the latest named revision first. Earlier sections preserve history.
 | [QA remediation](05-chief-of-staff-to-principal-engineer-qa-remediation.md) | Superseded |
 | [Performance evidence correction](06-chief-of-staff-to-principal-engineer-evidence-correction.md) | Completed |
 | [Limited QA revalidation](07-chief-of-staff-to-quality-limited-revalidation.md) | Completed |
-| [Post-merge Librarian closeout](07-chief-of-staff-to-librarian-post-merge-closeout.md) | **Current** |
+| [Post-merge Librarian closeout](07-chief-of-staff-to-librarian-post-merge-closeout.md) | Completed |
 
 ## Next-file rule
 
-The next required lifecycle file is:
-
-```text
-docs/handovers/v0.3.1/07-librarian-to-product-owner-repository-closeout.md
-```
-
-After that closeout is committed, final push, tag, and release remain Product
-Owner-controlled.
+The Librarian closeout is complete. The next artifact is a Product Owner acceptance,
+return, stop, or re-scope decision for final release execution. Final push, tag, and
+release remain Product Owner-controlled.

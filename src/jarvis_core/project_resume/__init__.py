@@ -6,10 +6,17 @@ request-scoped, read-only capability (ADR-0018 through ADR-0021).
 """
 from __future__ import annotations
 
+from jarvis_core.project_resume.assembler import assemble
 from jarvis_core.project_resume.contract import (
     PROJECT_RESUME_CONTRACT_VERSION,
     PROJECT_RESUME_TRACE_VERSION,
     REPOSITORY_ACTIVITY_CONTRACT_VERSION,
+)
+from jarvis_core.project_resume.render import (
+    EXIT_CODES,
+    exit_code_for,
+    render_json,
+    render_text,
 )
 from jarvis_core.project_resume.request import (
     BudgetRangeError,
@@ -30,8 +37,10 @@ from jarvis_core.project_resume.results import (
     ProjectResumeResult,
     RepositoryCitation,
 )
+from jarvis_core.project_resume.trace import ProjectResumeTrace, workspace_fingerprint
 
 __all__ = [
+    "EXIT_CODES",
     "PROJECT_RESUME_CONTRACT_VERSION",
     "PROJECT_RESUME_TRACE_VERSION",
     "REPOSITORY_ACTIVITY_CONTRACT_VERSION",
@@ -47,7 +56,13 @@ __all__ = [
     "ProjectResumeError",
     "ProjectResumeRequest",
     "ProjectResumeResult",
+    "ProjectResumeTrace",
     "RepositoryCitation",
     "RequestValidationError",
+    "assemble",
     "build_request",
+    "exit_code_for",
+    "render_json",
+    "render_text",
+    "workspace_fingerprint",
 ]

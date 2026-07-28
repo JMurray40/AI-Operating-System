@@ -404,7 +404,166 @@ Return a superseding exact-HEAD package containing:
 Quality & Release must then rerun the affected Area A, G, and H evidence and any area
 impacted by the correction before issuing a superseding release disposition.
 
-## 9. Final disposition
+## 9. Prepared narrowed A/G/H rerun checklist
+
+**Status:** Prepared only; not executed.
+
+This checklist becomes active only after the CTO issues evidence clearance for a new exact
+HEAD and identifies the bounded correction diff. Preparation of this checklist does not
+authorize QA execution, change the disposition below, or accept engineering or
+architecture claims as proof.
+
+### Entry gate — required before any QA rerun
+
+- [ ] Receive a superseding CTO evidence-clearance artifact naming the exact branch, exact
+  HEAD, prior QA HEAD, correction range, reviewed files, and authorized QA scope.
+- [ ] Confirm the clearance explicitly authorizes the narrowed A/G/H rerun.
+- [ ] Confirm the correction scope is limited to benchmark entry points, process-boundary
+  smoke coverage, performance evidence, and directly necessary documentation.
+- [ ] Stop and require broader architecture review if production query, policy,
+  authorization, identity, citation, context, compatibility, CLI contract, dependency, or
+  packaging behavior changed.
+- [ ] Use a clean detached QA worktree at the cleared exact HEAD.
+- [ ] Record the toolchain, operating system, CPU/power context, and environment variables.
+- [ ] Preserve the candidate as read-only; write only a superseding QA handoff after the
+  rerun is complete.
+
+### Area A — exact candidate and evidence integrity
+
+- [ ] Verify `git rev-parse HEAD` equals the CTO-cleared SHA.
+- [ ] Verify `git symbolic-ref -q HEAD` confirms detached HEAD.
+- [ ] Verify the starting worktree is clean with
+  `git status --porcelain=v2 --branch`.
+- [ ] Verify the cleared commit belongs to
+  `feature/v0.3.1-query-trust-contracts`.
+- [ ] Verify the prior QA HEAD is an ancestor of the cleared HEAD.
+- [ ] Verify the correction range matches the files and commits named by CTO clearance.
+- [ ] Inspect the complete correction diff and `git diff --check`.
+- [ ] Refresh `origin`, then verify no remote branch contains the cleared commit and
+  neither local nor remote `main` contains it.
+- [ ] Identify untracked, generated, cached, environment-specific, or unreviewed release
+  inputs.
+- [ ] Rerun the full test suite, Ruff, and mypy because the benchmark smoke test is part of
+  the integrated release suite.
+- [ ] Record every pass, failure, skip, warning, and environment limitation without
+  substituting Engineering or CTO summaries.
+- [ ] Reconfirm exact HEAD and clean candidate status after all A/G/H work.
+
+Prepared command set:
+
+```powershell
+git rev-parse HEAD
+git symbolic-ref -q HEAD
+git status --porcelain=v2 --branch
+git branch --contains <CLEARED_HEAD>
+git log --oneline --reverse 09a4ca5a6e0d9b73a1e37a9e086abe788c894c72..<CLEARED_HEAD>
+git diff --name-status 09a4ca5a6e0d9b73a1e37a9e086abe788c894c72..<CLEARED_HEAD>
+git diff --check 09a4ca5a6e0d9b73a1e37a9e086abe788c894c72..<CLEARED_HEAD>
+git fetch origin --prune
+git branch -r --contains <CLEARED_HEAD>
+git merge-base --is-ancestor <CLEARED_HEAD> main
+git merge-base --is-ancestor <CLEARED_HEAD> origin/main
+python -m pytest -q
+python -m ruff check src tests scripts
+python -m mypy src
+```
+
+### Area G — operational and read-only safety of corrected entry points
+
+- [ ] Capture a sorted before-snapshot of every designated fixture/vault source containing
+  relative path, SHA-256, size, and UTC last-write timestamp.
+- [ ] Run both corrected benchmark commands exactly as documented from the repository root,
+  with no undocumented `PYTHONPATH`, working-directory, import, or installation workaround.
+- [ ] Capture stdout, stderr, and exit code separately for each command.
+- [ ] Verify successful output is on stdout and diagnostics are on stderr.
+- [ ] Exercise invalid benchmark arguments and verify deterministic nonzero exit behavior
+  without traceback leakage or filesystem mutation.
+- [ ] Verify benchmark temporary data is isolated outside source fixtures and is not left
+  behind as a release input.
+- [ ] Verify no product network, subprocess escape, vault write, deletion, rename,
+  permission, or timestamp mutation occurs.
+- [ ] Capture the after-snapshot and require exact equality with the before-snapshot.
+- [ ] Verify no candidate or repository file changed and no untracked benchmark output was
+  created.
+- [ ] If the correction changes shared CLI/bootstrap/import behavior, rerun representative
+  `ask`, `search`, `summarize`, and `explain` text/JSON exit-code scenarios; otherwise
+  record why those previously passed scenarios are outside the bounded correction.
+
+Prepared exact supported commands:
+
+```powershell
+python scripts\benchmark_query.py --sizes 100,500,1000 --runs 10
+python scripts\benchmark_regression.py --runs 50
+```
+
+No environment-path override is permitted when evaluating whether these documented entry
+points are corrected.
+
+### Area H — benchmark entry point, smoke enforcement, and performance gate
+
+- [ ] Run `scripts/benchmark_query.py` through warm-up, 100/500/1,000 measured sizes,
+  1,000-note memory measurement, and authorization-stress completion.
+- [ ] Require the exact documented command to start and finish without import-path help.
+- [ ] Run the benchmark smoke module directly.
+- [ ] Inspect the corrected smoke test and prove it crosses a real process boundary from
+  the repository root rather than importing the script inside pytest.
+- [ ] Perform a negative mutation review: demonstrate that removing the benchmark import
+  correction, `scope`, or `source_root` at either corrected site would make the enforced
+  smoke test fail.
+- [ ] Verify the baseline adapter cannot instantiate current candidate code without both
+  explicit scope and `source_root`.
+- [ ] Run the exact v0.3 baseline and cleared candidate with identical fixture, query,
+  warm-ups, run count, percentile calculation, interpreter, machine, and
+  construction-plus-query boundary.
+- [ ] Use a predeclared paired or interleaved order to reduce scheduler/order bias.
+- [ ] Retain or reference raw samples for every baseline and candidate attempt.
+- [ ] Report p50, p95, p99, peak memory, authorization-stress behavior, and the exact
+  percentage calculation.
+- [ ] Require every accepted paired result—or a predeclared aggregate rule approved in the
+  CTO clearance—to remain no more than +20% above baseline p95.
+- [ ] Treat any unapproved result above +20%, missing raw evidence, entry-point failure, or
+  mismatch in benchmark boundaries as release-blocking.
+- [ ] Do not weaken authorization, current-source validation, citation construction, or
+  measured scope to improve performance.
+
+Prepared regression calculation:
+
+```text
+regression_percent = ((candidate_p95 - baseline_p95) / baseline_p95) * 100
+pass only when the CTO-approved reproducibility rule is satisfied and
+regression_percent <= 20.0
+```
+
+### Narrowed rerun stop conditions
+
+Stop without issuing a superseding QA disposition if:
+
+- the CTO clearance is absent, ambiguous, or refers to a different HEAD;
+- the candidate is not detached and clean at the cleared HEAD;
+- the correction diff exceeds the authorized benchmark/test/documentation scope;
+- the commit has been merged or pushed before QA;
+- a documented entry point still needs an undocumented environment workaround;
+- the process-boundary smoke test does not detect startup/import failure;
+- fixture/vault metadata or content changes;
+- the equivalent performance gate breaches the approved ceiling or remains unresolved;
+- any trust-contract or production source changed without renewed full-matrix clearance.
+
+### Prepared rerun output contract
+
+After authorized execution, append a superseding QA revision to this handoff or create the
+exact successor artifact directed by the CTO/Chief of Staff. Record:
+
+1. cleared branch, exact HEAD, prior HEAD, and correction range;
+2. environment and exact commands;
+3. A/G/H results, failures, skips, waivers, and evidence locations;
+4. vault before/after result;
+5. benchmark raw-evidence location and performance calculation;
+6. residual risks;
+7. one new formal disposition to the Product Owner.
+
+Until that authorized rerun occurs, the disposition below remains controlling.
+
+## 10. Final disposition
 
 **Refactor first.**
 

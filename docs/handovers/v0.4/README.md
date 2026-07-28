@@ -3,23 +3,27 @@
 | Field | Value |
 |---|---|
 | Milestone | v0.4 — Read-only Project Resume CLI Pilot |
-| Status | Planning validated; implementation blocked |
+| Status | Product Owner authorized implementation; CTO finalization in progress |
 | Prerequisite | v0.3.1 accepted, released, and closed |
 | Repository activity | Accepted: fixtures plus local read-only Git only |
-| Implementation branch | Not authorized |
-| Implementation base | Not pinned |
+| Implementation branch | Reserved: `feature/v0.4-project-resume`; create only after CTO package validation |
+| Implementation base | `main@2022c2dffeda8341011b45ceaedd550dd53bf742` |
 
 ## Current effective state
 
-Architecture planning is complete. No engineering work may begin.
+Architecture planning is complete and Product Owner implementation direction is recorded.
+Engineering code remains blocked until the required ADRs and final CTO implementation
+brief are complete and validated.
 
 | Item | Current artifact/state |
 |---|---|
 | Accepted release tests | [v0.4 Project Resume Acceptance Tests](../../product/V0.4_PROJECT_RESUME_ACCEPTANCE_TESTS.md) |
 | CTO planning brief | [Project Resume Planning Brief](00-cto-to-principal-engineer-project-resume-planning-brief.md) |
 | Chief of Staff validation | [Planning Validation](00-chief-of-staff-project-resume-planning-validation.md) |
-| Principal Engineer authorization | Does not exist |
-| Required future authorization | `01-chief-of-staff-to-principal-engineer-implementation-authorization.md` |
+| Current incoming artifact | [Chief of Staff to CTO implementation finalization](01-chief-of-staff-to-cto-implementation-finalization.md) |
+| Next responsible role | Chief Architect / CTO |
+| Principal Engineer authorization | Pending CTO finalization |
+| Required future authorization | `02-chief-of-staff-to-principal-engineer-implementation-authorization.md` |
 | Conversation candidate | Parked and excluded; planned separately as v0.5 |
 
 ## Product Owner decision
@@ -28,14 +32,13 @@ Architecture planning is complete. No engineering work may begin.
 v0.4 uses deterministic fixtures plus local read-only Git only. Live GitHub is deferred
 to a separately authorized connector milestone.
 
-## Authorization gate
+## Remaining authorization gate
 
 The future implementation authorization may be created only when:
 
-1. v0.3.1 has a Product Owner release decision and Librarian closeout;
-2. the selected v0.4 base contains the released trust contracts;
-3. the accepted repository-activity decision is incorporated;
-4. the brief is reconciled against the merged base;
-5. required new ADRs are accepted;
-6. the Product Owner explicitly authorizes implementation;
-7. a clean branch and exact base SHA are pinned.
+1. CTO reconciles the brief against released `main@2022c2d`;
+2. required Project Resume ADRs are accepted;
+3. the final CTO implementation brief closes all authorization-time refinements;
+4. Chief of Staff validates that package;
+5. a clean `feature/v0.4-project-resume` worktree is created at the pinned base; and
+6. the Principal Engineer receives the validated authorization prompt.

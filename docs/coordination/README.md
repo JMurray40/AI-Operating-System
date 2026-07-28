@@ -28,37 +28,32 @@ governance document, follow the order of precedence in
 
 ## Current program state
 
-### Completed release: v0.3.1 — Query Trust Contracts
+### Active priority: v0.4 — Read-only Project Resume CLI Pilot
 
-**Latest effective handoff state:** [v0.3.1 Handoff Index](../handovers/v0.3.1/README.md)
+**Latest effective handoff state:** [v0.4 Planning Index](../handovers/v0.4/README.md)
 
 | Item | Current state |
 |---|---|
-| Product Owner direction | Complete v0.3.1 before advancing the release sequence |
-| Requirements | [v0.3.1 Query Trust Contracts Requirements](../software/V0.3.1_QUERY_TRUST_CONTRACTS_REQUIREMENTS.md) |
-| Current incoming handoff | [Product Owner Final Release Acceptance](../handovers/v0.3.1/08-product-owner-final-release-acceptance.md) |
-| Requirements status | Accepted by Product Owner on 2026-07-27 |
-| Trust-contract ADRs | [ADR-0014](../adr/ADR-0014-Retrieval-Relevance-Is-Separate-From-Answer-Confidence.md), [ADR-0015](../adr/ADR-0015-Authorization-Precedes-Retrieval-And-Graph-Expansion.md), [ADR-0016](../adr/ADR-0016-Citations-Bind-Passages-To-Source-Revisions.md), and [ADR-0017](../adr/ADR-0017-Stable-Source-Identity-Is-Separate-From-Location.md) — accepted |
-| Product Owner decision | [Architecture approval](../handovers/v0.3.1/01-product-owner-to-cto-architecture-approval.md) |
-| Implementation brief | [CTO implementation brief](../handovers/v0.3.1/02-cto-to-principal-engineer-implementation-brief.md) — validated |
-| Engineer prompt package | [Chief of Staff validation and prompt](../handovers/v0.3.1/02-chief-of-staff-to-principal-engineer-validated-prompt.md) |
-| Principal Engineer work | Executable candidate complete at `956c2ed`; evidence retained at `8fa5f18` |
-| CTO disposition | Ready for limited revalidation; QR-031-01 through QR-031-03 closed |
-| QA review | [Ready; superseding Areas A/G/H revalidation complete](../handovers/v0.3.1/05-quality-to-product-owner-release-review.md) |
-| Product Owner decision | [Approved for controlled merge](../handovers/v0.3.1/06-product-owner-to-librarian-release-decision.md) |
-| Merge state | Locally merged to `main` at `00f181312b92cc59f20407fec6db1d1a3da09ec0` |
-| QA prompt | [Chief of Staff limited revalidation](../handovers/v0.3.1/07-chief-of-staff-to-quality-limited-revalidation.md) — completed |
-| Librarian pass | Complete; recommendation **Ready for final release** |
-| Release | `v0.3.1` |
-| Primary gate | Close ARB conditions C1–C5 before conversational/generated-answer release |
+| Current incoming handoff | [CTO Implementation Finalization](../handovers/v0.4/01-chief-of-staff-to-cto-implementation-finalization.md) |
+| Acceptance tests | [Accepted v0.4 Project Resume tests](../product/V0.4_PROJECT_RESUME_ACCEPTANCE_TESTS.md) |
+| Planning brief | [CTO Project Resume planning brief](../handovers/v0.4/00-cto-to-principal-engineer-project-resume-planning-brief.md) |
+| Planning validation | [Chief of Staff validation](../handovers/v0.4/00-chief-of-staff-project-resume-planning-validation.md) |
+| v0.3.1 release | Complete as `v0.3.1` |
+| v0.4 Product Owner direction | Begin implementation |
+| v0.4 base | `main@2022c2dffeda8341011b45ceaedd550dd53bf742` |
+| Repository activity | [Fixtures plus local read-only Git](../handovers/v0.4/00-product-owner-repository-activity-scope-decision.md); live GitHub excluded |
+| Engineering branch | Reserved but not created pending CTO package validation |
+| Current gate | Accept Project Resume ADRs and issue the final implementation brief |
+| v0.5 conversation | Parked and excluded |
 
-**Next responsible role:** Chief of Staff — prepare separate v0.4 implementation authorization
+**Next responsible role:** Chief Architect / CTO — finalize ADRs and implementation brief
 
 **Required next actions:**
 
-1. Preserve the v0.3.1 release evidence and accepted residual-risk record.
-2. Confirm v0.4 planning inputs remain current after the v0.3.1 release.
-3. Obtain separate Product Owner authorization before v0.4 implementation begins.
+1. Reconcile the Project Resume architecture against released v0.3.1.
+2. Accept the required Project Resume ADRs and update the ADR index.
+3. Produce the final CTO-to-Principal-Engineer implementation brief.
+4. Stop for Chief of Staff validation before engineering branch creation.
 
 ### Parked candidate: conversation branch with historical v0.4 identity
 

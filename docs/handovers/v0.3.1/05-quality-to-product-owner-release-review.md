@@ -12,6 +12,17 @@
 | QA worktree | `C:\Users\jmurr\Projects\AI-Operating-System\.worktrees\v0.3.1-qa` |
 | Disposition | **Refactor first** |
 
+## Latest effective state
+
+**Effective revision:** Superseding limited A/G/H revalidation.
+
+**Effective disposition:** **Ready** for frozen executable `956c2ed`; Product Owner
+subsequently approved controlled merge.
+
+**Supersession:** This effective state supersedes the initial `Refactor first` disposition
+shown in the historical metadata and body below. Use the
+[v0.3.1 Handoff Index](README.md) for current lifecycle routing.
+
 ## 1. Executive finding
 
 The frozen candidate must not ship from this exact HEAD.

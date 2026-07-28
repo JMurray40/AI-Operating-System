@@ -4,7 +4,7 @@
 |---|---|
 | Purpose | Index durable architecture decisions |
 | Status | Active |
-| Version | 0.2.0 |
+| Version | 0.4.0 |
 | Owner | Jason |
 | Revised | 2026-07-27 |
 | Related | [System Architecture](../SYSTEM_ARCHITECTURE.md), [Development Guide](../DEVELOPMENT_GUIDE.md) |
@@ -18,14 +18,13 @@
 | [0003](ADR-0003-GitHub-Is-The-Source-Of-Truth-For-Code.md) | GitHub is the source of truth for software | Proposed |
 | [0004](ADR-0004-Project-Dashboards-Are-The-Primary-Navigation-Layer.md) | Project dashboards are the primary navigation layer | Accepted |
 | [0005](ADR-0005-Inventory-Before-Modification.md) | Inventory before modification | Accepted |
-| 0006 | Use Python for the Jarvis Core prototype (present on authoritative v0.1 `main`; reconcile before commit) | Proposed |
+| [0006](ADR-0006-Use-Python-For-Jarvis-Core-Prototype.md) | Use Python for the Jarvis Core prototype | Proposed |
 | [0007](ADR-0007-Read-Only-Is-The-Default-Operating-Mode.md) | Read-only is the default operating mode | Accepted |
 | [0008](ADR-0008-Plugins-Require-Declarative-Permission-Manifests.md) | Plugins require declarative permission manifests | Proposed |
 | [0009](ADR-0009-Durable-Memory-Is-Proposal-Based.md) | Durable memory is proposal-based | Proposed |
 | [0010](ADR-0010-AI-Providers-Are-Accessed-Through-A-Versioned-Abstraction.md) | AI providers use a versioned abstraction | Accepted |
 | [0011](ADR-0011-MCP-Is-Mediated-By-An-Isolated-Gateway.md) | MCP is mediated by an isolated gateway | Proposed |
 | [0012](ADR-0012-Query-Engine-Is-A-Layered-Deterministic-Pipeline.md) | The query engine is a layered, deterministic, citation-based pipeline | Accepted |
-
 | [0014](ADR-0014-Retrieval-Relevance-Is-Separate-From-Answer-Confidence.md) | Retrieval relevance is separate from answer confidence | Accepted |
 | [0015](ADR-0015-Authorization-Precedes-Retrieval-And-Graph-Expansion.md) | Authorization precedes retrieval and graph expansion | Accepted |
 | [0016](ADR-0016-Citations-Bind-Passages-To-Source-Revisions.md) | Citations bind supporting passages to source revisions | Accepted |
@@ -37,6 +36,7 @@ Accepted ADRs are not rewritten to reflect a later choice. A new ADR supersedes 
 
 | Version | Date | Change |
 |---|---|---|
+| 0.4.0 | 2026-07-27 | Added accepted ADR-0014 through ADR-0017 for v0.3.1 Query Trust Contracts |
 | 0.3.0 | 2026-07-27 | Added ADR-0012 for the v0.3 query-engine architecture |
 | 0.2.0 | 2026-07-27 | Added ADR-0006 through ADR-0011 to the decision history |
 | 0.1.0 | 2026-07-27 | Initial ADR index |

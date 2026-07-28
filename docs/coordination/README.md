@@ -48,7 +48,7 @@ governance document, follow the order of precedence in
 | Product Owner decision | [Approved for controlled merge](../handovers/v0.3.1/06-product-owner-to-librarian-release-decision.md) |
 | Merge state | Locally merged to `main` at `00f181312b92cc59f20407fec6db1d1a3da09ec0` |
 | QA prompt | [Chief of Staff limited revalidation](../handovers/v0.3.1/07-chief-of-staff-to-quality-limited-revalidation.md) — completed |
-| Librarian pass | Not started |
+| Librarian pass | In progress from validated post-merge closeout prompt |
 | Primary gate | Close ARB conditions C1–C5 before conversational/generated-answer release |
 
 **Next responsible role:** Historian / Librarian — post-merge repository closeout
@@ -60,7 +60,7 @@ governance document, follow the order of precedence in
 3. Produce the required Librarian-to-Product-Owner closeout artifact.
 4. Keep push, tag, and final release blocked until closeout is accepted.
 
-### Parked candidate: conversational implementation currently named v0.4
+### Parked candidate: conversation branch with historical v0.4 identity
 
 | Item | Current state |
 |---|---|
@@ -70,13 +70,13 @@ governance document, follow the order of precedence in
 | Engineering report | [v0.4 Implementation Report](../software/V0.4_IMPLEMENTATION_REPORT.md) |
 | Existing QA review | [Quality & Release Review](../reviews/QUALITY_RELEASE_REVIEW_V0.4_CONVERSATION_2026-07-27.md) — **Not ready** |
 | Release status | Parked; do not merge or release |
-| Sequencing decision | v0.3.1 is completed first |
+| Sequencing decision | Project Resume is v0.4; conversation is planned for v0.5 |
 | Known blockers | Trust-contract C1/C3, trace numbering, streaming scope/evidence, complete re-review package, release-name reconciliation |
 
-The existing QA review says the implementation report was absent at review time; the report
-now exists. This does not invalidate the other findings. QA must perform a fresh review only
-after v0.3.1 is complete and the conversation candidate has been reconciled with the approved
-release sequence and trust contracts.
+The existing QA review says the implementation report was absent at review time; the
+historical report now exists. This does not invalidate the other findings. QA must perform
+a fresh review only after the candidate has been reconciled as v0.5 with the approved
+sequence and released trust contracts.
 
 ## Role queue
 

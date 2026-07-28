@@ -16,6 +16,17 @@
 | Architecture disposition | **Refactor first** |
 | QA authorization | Withheld pending engineering correction and CTO re-review |
 
+## Latest effective state
+
+**Effective revision:** Final evidence-bound CTO clearance following Revision 6.
+
+**Effective disposition:** **Ready for limited Quality & Release revalidation**; all
+QR-031 findings closed for executable `956c2ed` and evidence `8fa5f18`.
+
+**Supersession:** This effective state supersedes the initial `Refactor first` disposition
+and every earlier interim disposition preserved below. Use the
+[v0.3.1 Handoff Index](README.md) for current lifecycle routing.
+
 ## 1. Executive disposition
 
 **Architecture disposition: Refactor first.**

@@ -3,13 +3,18 @@
 | Field | Value |
 |---|---|
 | Purpose | Transfer current project context, decisions, responsibilities, risks, and next actions into a new project or AI session |
-| Status | Current handover |
+| Status | Historical program baseline; superseded for current execution routing |
 | Version | 1.0.0 |
 | Owner | Jason Murray |
 | Prepared | 2026-07-27 |
 | Repository | `JMurray40/AI-Operating-System` |
 | Primary branch | `main` |
 | Related | [Jarvis Bible](../JARVIS_BIBLE.md), [Product Strategy](../product/PRODUCT_STRATEGY.md), [Version Roadmap](../product/VERSION_ROADMAP.md) |
+
+> **Current-state notice:** This turnover preserves the program state and recommendations
+> recorded after v0.3. It is not the current incoming artifact. Start at
+> [Project Control](../coordination/README.md) and the
+> [Handoff Router](README.md) for current execution.
 
 ## 1. Executive context
 
@@ -452,4 +457,5 @@ After every material Claude implementation, provide the implementation report to
 
 | Version | Date | Change |
 |---|---|---|
+| 1.0.1 | 2026-07-27 | Marked as historical after v0.3.1 merged; current routing moved to Project Control |
 | 1.0.0 | 2026-07-27 | Initial project turnover after v0.3 implementation and executive review |

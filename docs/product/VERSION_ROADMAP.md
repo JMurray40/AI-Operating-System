@@ -3,8 +3,8 @@
 | Field | Value |
 |---|---|
 | Purpose | Sequence product releases with implementable acceptance gates |
-| Status | Draft for approval |
-| Version | 0.2.0 |
+| Status | Active planning record; near-term sequence approved |
+| Version | 0.3.0 |
 | Owner | Chief Product Officer |
 | Revised | 2026-07-27 |
 | Related | [Product Strategy](PRODUCT_STRATEGY.md), [Roadmap](../ROADMAP.md), [Architecture Review](../reviews/ENTERPRISE_ARCHITECTURE_REVIEW.md) |
@@ -12,6 +12,21 @@
 ## Estimation model
 
 Effort is expressed as focused engineer-weeks, excluding external security audits and store approvals. Estimates assume one experienced engineer assisted by AI, reviewed by a human maintainer. Release gates are evidence-based; dates should not override failed acceptance criteria.
+
+## Current approved near-term sequence
+
+This sequence supersedes the original v0.3–v0.5 numbering while preserving its historical
+product intent:
+
+| Release | Current identity | State |
+|---|---|---|
+| v0.3 | Query Engine foundation | Merged |
+| v0.3.1 | Query Trust Contracts | Locally merged; final push/tag/release pending |
+| v0.4 | Read-only Project Resume CLI Pilot | Planning validated; implementation blocked |
+| v0.5 | Visible-Context Conversation | Parked candidate requires reconciliation and fresh authorization |
+
+The originally planned v0.3 chat/provider scope moved to v0.5. Proposed Memory moved
+beyond v0.5; its exact release number requires a future Product Owner decision.
 
 ## v0.2 — Indexed Retrieval Foundation
 
@@ -33,27 +48,40 @@ Effort is expressed as focused engineer-weeks, excluding external security audit
 - Source files remain byte-identical.
 - Benchmark precision@10 and recall targets are documented and pass.
 
-## v0.3 — Read-only Chat and Provenance
+## v0.3 — Query Engine Foundation
 
-**Objectives:** Provide a useful conversational interface without tool or vault write risk.
+**Objectives:** Provide deterministic, explainable, read-only retrieval and provenance.
 
-**Major features:** Local API; streaming chat UI; conversation store; context preview; citations; provider adapter for one cloud model and Ollama; cost/latency capture; prompt-injection labeling.
+**Delivered features:** Layered lexical query pipeline; deterministic ranking; source-note
+citations; token-budgeted context; trace mode; `ask`, `search`, `summarize`, and `explain`.
 
-**Dependencies:** v0.2 search; provider protocol v1; secrets strategy; [Chat PRD](../prd/CHAT_INTERFACE.md).
+**Deferred from the original milestone:** Local/streaming chat, conversation storage,
+cloud/Ollama adapters, cost/latency capture, and provider egress controls moved to v0.5.
 
-**Risks:** Context leakage, citation mismatch, provider lock-in, uncontrolled cost.
+**Historical note:** The original title was “Read-only Chat and Provenance.” The merged
+release completed the Query Engine/provenance foundation, not that entire original scope.
 
-**Effort:** 6–9 weeks.
+## v0.3.1 — Query Trust Contracts
 
-**Acceptance criteria:** Provider switching preserves session semantics; every vault-derived material claim links to a source; restricted content cannot reach disallowed providers; no write capability exists.
+**Objectives:** Harden the merged query engine before Project Resume or generated answers
+expand its trust boundary.
 
-## v0.4 — Project Resume and Dashboard
+**Delivered features:** Explicit authorization scope before retrieval/graph expansion;
+relative relevance separated from answer confidence; passage-and-revision citations;
+stable source identity; strict context budgets; versioned result/context/trace contracts.
+
+**State:** Locally merged into `main` at `00f1813`. Product Owner approved and QA issued
+`Ready`; final push, tag, and release await Librarian closeout.
+
+## v0.4 — Read-only Project Resume CLI Pilot
 
 **Objectives:** Make project resumption the first daily-use workflow.
 
-**Major features:** Project dashboard UI; Resume briefing; GitHub read adapter; resource health; recent sessions and decisions; missing-context warnings.
+**Planned features:** Deterministic sourced Resume briefing; project status, decisions,
+sessions, resources, and missing-context warnings; fixtures plus local read-only Git only.
 
-**Dependencies:** v0.3 chat; GitHub authorization model; dashboard schema.
+**Dependencies:** Released v0.3.1 trust contracts; accepted Project Resume tests;
+repository-activity scope decision; explicit implementation authorization.
 
 **Risks:** Stale summaries, overly broad context, weak project identity matching.
 
@@ -61,19 +89,23 @@ Effort is expressed as focused engineer-weeks, excluding external security audit
 
 **Acceptance criteria:** Pilot projects generate sourced briefings in under 30 seconds; user rates ≥80% as useful; missing/ambiguous project matches are surfaced rather than guessed.
 
-## v0.5 — Proposed Memory
+## v0.5 — Visible-Context Conversation
 
-**Objectives:** Convert useful session outcomes into reviewable durable knowledge.
+**Objectives:** Add inspectable conversation only after the trust contracts and Project
+Resume path are proven.
 
-**Major features:** Memory candidate extraction; diff-based approval; session summary and decision proposals; atomic vault writes; backup/rollback; audit trail.
+**Planned features:** Visible context, evidence-backed responses, local API, provider/egress
+controls, retained/deletable conversation state, cost/latency capture, and streaming only
+if separately accepted.
 
-**Dependencies:** Accepted write-security ADR; [Memory PRD](../prd/MEMORY_SYSTEM.md); migration runbook.
+**Dependencies:** Released trust contracts; fresh architecture/QA review; reconciliation of
+the parked `feature/v0.4-conversation` candidate; [Chat PRD](../prd/CHAT_INTERFACE.md).
 
-**Risks:** Vault corruption, duplicate notes, privacy leakage, approval fatigue.
+**Risks:** Context leakage, citation mismatch, provider lock-in, uncontrolled cost, and
+confusion between temporary conversation state and durable memory.
 
-**Effort:** 7–10 weeks plus security review.
-
-**Acceptance criteria:** All writes show exact diffs and expected hashes; simulated failure restores the pre-write state; zero silent writes; duplicate and conflict candidates require review.
+**Acceptance criteria:** Requires a future accepted brief. No v0.5 implementation is
+authorized by this roadmap reconciliation.
 
 ## v0.6 — Semantic Search and Relationship Intelligence
 
@@ -223,4 +255,5 @@ No release advances because a feature list is complete. It advances when its acc
 
 | Version | Date | Change |
 |---|---|---|
+| 0.3.0 | 2026-07-27 | Reconciled v0.3 Query Engine, v0.3.1 Trust Contracts, v0.4 Project Resume, and v0.5 conversation sequence |
 | 0.2.0 | 2026-07-27 | Initial product release sequence through v2.0 |

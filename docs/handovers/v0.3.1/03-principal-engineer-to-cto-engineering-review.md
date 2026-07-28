@@ -14,6 +14,18 @@
 | Commits (this milestone) | `b512a1a` feat · `38d944c` test · `6ff478c` docs · this handoff commit (see `git log`) |
 | Merged / pushed | **No** (branch left for review) |
 
+## Latest effective state
+
+**Effective revision:** Rev 6 plus Evidence Addendum.
+
+**Frozen executable:** `956c2ed1dd1144e836014b049a89c47e971818a0`.
+
+**Evidence commit:** `8fa5f18c09de1a0c9a79f33e0ba987f9de0e1083`.
+
+**Current interpretation:** Engineering evidence is complete and preserved in merged
+ancestry. Earlier readiness statements below are historical. Use the
+[v0.3.1 Handoff Index](README.md) for current lifecycle routing.
+
 ## 1. Preconditions verified before implementation
 
 Branch `feature/v0.3.1-query-trust-contracts`; `HEAD` = supplied governance SHA `a6c89c5`;

@@ -13,7 +13,11 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
-### Added (v0.3.1 — Query Trust Contracts, in review)
+### Added (v0.3.1 — Query Trust Contracts, locally merged; release pending)
+
+Locally merged into `main` at `00f1813`. Product Owner disposition is **Approved** and
+independent QA disposition is **Ready** for the frozen executable `956c2ed`. No push, tag,
+or release has occurred.
 
 - Authorization before retrieval (ADR-0015): immutable `AuthorizationScope` on every query
   entry point; sensitivity/allowlist filtering applied before the request-visible index and
@@ -34,13 +38,19 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 - CLI runs under an explicit local allow-all scope; text/JSON use relevance terminology and
   passage citations; trace adds request id, workspace fingerprint, index/contract version,
   and a safe authorization summary.
-- Benchmark reports p50/p95/p99 per stage plus peak memory and an authorization-stress case;
-  1,000-note total p95 within 20% of the v0.3 baseline (measured ~flat).
-- 39 new tests (163 total): policy, identity, passages, context-budget, authorization/
-  non-disclosure, citation resolution/staleness, versioned contract, compatibility, and
-  unchanged-vault read-only evidence. No chat/streaming/provider/write code introduced.
+- Benchmark reports p50/p95/p99 per stage plus peak memory and an authorization-stress
+  case. The retained five-attempt paired protocol reports an 11.56% median p95 regression
+  against v0.3, within the accepted 20% aggregate gate; individual-attempt variance,
+  including results above 20%, remains disclosed in release evidence.
+- Final independent QA recorded 198 passing tests and one environment-limited skipped
+  symlink test, with Ruff and mypy passing. No chat, streaming, real-provider, Project
+  Resume, or write capability was introduced.
+- Retained evidence:
+  [paired performance samples](docs/evidence/v0.3.1/paired-performance-956c2ed-vs-ce0dc35.json),
+  [QA disposition](docs/handovers/v0.3.1/05-quality-to-product-owner-release-review.md),
+  and [Product Owner decision](docs/handovers/v0.3.1/06-product-owner-to-librarian-release-decision.md).
 
-### Added (v0.3 — Intelligent Query Engine, in review)
+### Added (v0.3 — Intelligent Query Engine foundation, merged)
 
 - Dedicated query layer under `jarvis_core.query`, composed of small, injectable
   collaborators: `tokenizer`, `LexicalIndex` (inverted index over title/aliases/tags/
@@ -116,4 +126,5 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.0 | 2026-07-27 | Reconciled v0.3 foundation and locally merged v0.3.1 release state |
 | 0.1.0 | 2026-07-27 | Initial changelog |

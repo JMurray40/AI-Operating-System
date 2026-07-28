@@ -10,6 +10,11 @@ no writes to any source it reads.
 > report (`jarvis vault-report`) — all still strictly read-only. See
 > [VAULT_HEALTH.md](VAULT_HEALTH.md).
 
+> v0.3 added the deterministic Query Engine. v0.3.1 Query Trust Contracts is locally
+> merged and adds explicit authorization, passage/revision citations, stable source
+> identity, strict context budgets, and versioned contracts. Final push, tag, and release
+> remain pending the post-merge closeout.
+
 > Scope guardrail: this prototype implements the read-only slice of
 > [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md) Phase 3. It deliberately omits the
 > web UI, SQLite persistence, real providers, agents, MCP, and any write capability.
@@ -26,6 +31,8 @@ no writes to any source it reads.
 - [EXTENDING.md](EXTENDING.md) — how future provider and storage adapters plug in.
 - [VAULT_HEALTH.md](VAULT_HEALTH.md) — Phase 2: real-vault health report and performance.
 - [QUERYING.md](QUERYING.md) — `jarvis ask`: offline, deterministic vault queries.
+- [QUERY_TRUST_CONTRACTS.md](QUERY_TRUST_CONTRACTS.md) — v0.3.1 public trust and
+  compatibility contracts.
 
 ## Governing documents
 

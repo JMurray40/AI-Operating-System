@@ -19,15 +19,18 @@
 
 ## Workflow
 
-1. Start from an issue or a documented milestone outcome.
-2. Create a focused branch named `feature/...`, `fix/...`, `docs/...`, or `chore/...`.
-3. Review relevant specifications and ADRs.
-4. Check the proposal against the System Principles.
-5. Make the smallest coherent change.
-6. Update related documentation and the changelog when behavior or architecture changes.
-7. Run available validation.
-8. Open a pull request using the repository template.
-9. Obtain human approval for architecture, security, schema, migration, or external-write changes.
+1. Read [Project Control](docs/coordination/README.md) and the active milestone's
+   [handoff index](docs/handovers/README.md); do not rely on conversation history.
+2. Start from the exact incoming artifact, issue, or documented milestone outcome.
+3. Verify the named branch, base commit, scope, exclusions, and governing decisions.
+4. Create a focused branch named `feature/...`, `fix/...`, `docs/...`, or `chore/...`.
+5. Review relevant specifications and ADRs.
+6. Check the proposal against the System Principles.
+7. Make the smallest coherent change.
+8. Update related documentation and the changelog when behavior or architecture changes.
+9. Run available validation.
+10. Open a pull request using the repository template.
+11. Obtain human approval for architecture, security, schema, migration, or external-write changes.
 
 ## Documentation changes
 
@@ -69,4 +72,5 @@ feat: add read-only vault scanner
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.0 | 2026-07-27 | Added project-control and handoff startup requirements |
 | 0.1.0 | 2026-07-27 | Initial contribution policy |

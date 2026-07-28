@@ -53,7 +53,7 @@ Agents, plugins, MCP, automation, mobile, and voice should extend that loop only
 | Sensitivity labels and provider egress | Required before cloud AI sees vault content | ADR before v0.3 |
 | Provider protocol v1 | `summarize()` cannot support chat/streaming/tools | ADR before v0.3 |
 | Operational DB/event/audit model | Conversations, approvals, agents, and workflows depend on it | ADR before v0.3 |
-| Atomic write and approval transaction | Required before memory | ADR before v0.5 |
+| Atomic write and approval transaction | Required before memory | ADR before the future memory release |
 | Plugin isolation and capability model | Required before plugins/MCP | ADR before v0.7 |
 | Agent budget/delegation semantics | Required before multi-agent work | ADR before v0.8 |
 

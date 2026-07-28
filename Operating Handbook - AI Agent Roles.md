@@ -12,6 +12,11 @@ This document provides the current state of the Jarvis project, defines the AI o
 
 Every AI contributor should read this document before performing work.
 
+Current milestone state does not live in this handbook. Start every assignment at
+[Project Control](docs/coordination/README.md) and follow the
+[Handoff Router](docs/handovers/README.md). This handbook defines durable roles and
+workflow; the control page defines current priority.
+
 ---
 
 # Project Vision
@@ -78,6 +83,24 @@ Completed:
 - 124 Passing Tests
 - Performance Optimization
 - ADR-0012
+
+---
+
+### v0.3.1 Query Trust Contracts
+
+Locally merged; final release closeout pending:
+
+- Authorization before retrieval and graph expansion
+- Relative relevance separated from answer confidence
+- Passage-and-revision citations
+- Stable source identity
+- Strict context-budget invariant
+- Versioned query result, context, citation, and trace contracts
+- Accepted ADR-0014 through ADR-0017
+
+See the [v0.3.1 Handoff Index](docs/handovers/v0.3.1/README.md) for the exact current
+state. Project Resume is v0.4. Conversation is planned for v0.5; the earlier v0.4-named
+conversation candidate is parked and unreleased.
 
 ---
 
@@ -410,12 +433,16 @@ Evidence always takes precedence over recollection.
 
 # Current Priorities
 
-1. Merge governance documentation
-2. Complete Librarian repository audit
-3. Implement v0.4 Read-Only Conversational Intelligence
-4. Expand benchmark suite
-5. Continue architecture refinement
-6. Improve repository navigation
+This section is a pointer, not a second coordination ledger.
+
+1. Complete v0.3.1 post-merge Librarian closeout.
+2. Keep push, tag, and release blocked until the closeout is accepted.
+3. Keep v0.4 Project Resume implementation blocked until its explicit authorization gate.
+4. Keep the earlier v0.4-named conversation candidate parked for future v0.5
+   reconciliation.
+
+For the current receiver and incoming artifact, use
+[Project Control](docs/coordination/README.md).
 
 ---
 
@@ -496,7 +523,8 @@ CTO
 
 Principal Engineer
 
-- Implement v0.4
+- Do not begin v0.4 until the Project Resume index records explicit implementation
+  authorization.
 
 Quality & Release
 
@@ -505,8 +533,8 @@ Quality & Release
 
 Historian
 
-- Complete repository audit
-- Maintain documentation integrity
+- Complete the assigned post-merge repository closeout.
+- Maintain documentation integrity and preserve superseded history.
 
 Product Owner
 

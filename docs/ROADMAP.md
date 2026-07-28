@@ -4,10 +4,25 @@
 |---|---|
 | Purpose | Sequence delivery into independently valuable milestones |
 | Status | Draft |
-| Version | 0.1.0 |
+| Version | 0.2.0 |
 | Owner | Jason |
 | Revised | 2026-07-27 |
 | Related | [Product Vision](PRODUCT_VISION.md), [Version Roadmap v0.2–v2.0](product/VERSION_ROADMAP.md), [Implementation Plan](IMPLEMENTATION_PLAN.md) |
+
+## Milestone-to-release crosswalk
+
+This roadmap describes durable capability milestones. The
+[Version Roadmap](product/VERSION_ROADMAP.md) controls current release numbering.
+
+| Release | Capability milestone | Current state |
+|---|---|---|
+| v0.3 | Milestone 3 — read-only query foundation | Merged |
+| v0.3.1 | Milestone 3 hardening — Query Trust Contracts | Locally merged; release closeout pending |
+| v0.4 | Milestone 4 — Project Resume | Planning validated; implementation blocked |
+| v0.5 | Conversation slice formerly included in Milestone 3 | Parked; future authorization required |
+
+The crosswalk does not declare the broader milestone complete merely because one release
+within it has merged.
 
 ## Milestone 0 — Foundation
 
@@ -97,4 +112,5 @@ A milestone begins only when its dependencies are met. Completion requires evide
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.0 | 2026-07-27 | Added milestone-to-release crosswalk through v0.5 |
 | 0.1.0 | 2026-07-27 | Initial milestone roadmap |

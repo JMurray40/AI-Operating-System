@@ -6,7 +6,7 @@
 | Status | Merged locally; Librarian closeout required before final release |
 | Owner | Chief of Staff |
 | Updated | 2026-07-27 |
-| Branch | `feature/v0.3.1-query-trust-contracts` |
+| Merged branch | `main` at `00f181312b92cc59f20407fec6db1d1a3da09ec0` |
 | Executable candidate under evidence review | `956c2ed1dd1144e836014b049a89c47e971818a0` |
 | Coordination lineage | Evidence-routing state begins at `3918257ba1f5325b2f56f89a81574c4144c6004f`; verify the current worktree HEAD at startup |
 
@@ -27,9 +27,9 @@
 Do not push, tag, release, begin v0.4 implementation, or reconcile conversation work until
 the Librarian closeout is complete and accepted.
 
-## Current evidence contract
+## Accepted evidence contract
 
-The Principal Engineer must produce:
+The Principal Engineer produced:
 
 ```text
 docs/evidence/v0.3.1/paired-performance-956c2ed-vs-ce0dc35.json
@@ -41,7 +41,8 @@ bound to the Engineering Review addendum by SHA-256.
 
 The CTO verified evidence integrity, arithmetic, digest, executable-file diff, and the
 predeclared aggregation rule. QA independently revalidated affected Areas A, G, and H and
-issued `Ready`. The Product Owner now decides whether to approve, return, stop, or re-scope.
+issued `Ready`. The Product Owner approved controlled merge; the merge completed locally
+and now awaits Librarian closeout before push, tag, or release.
 
 ## Latest effective revisions
 
@@ -90,12 +91,11 @@ Read the latest named revision first. Earlier sections preserve history.
 
 ## Next-file rule
 
-The next new lifecycle file is not created until the current evidence gate closes.
-Engineering Review receives an Evidence Addendum. CTO and QA append superseding revisions
-to their existing cumulative artifacts.
-
-After a Product Owner release decision, create:
+The next required lifecycle file is:
 
 ```text
-docs/handovers/v0.3.1/06-product-owner-to-librarian-release-decision.md
+docs/handovers/v0.3.1/07-librarian-to-product-owner-repository-closeout.md
 ```
+
+After that closeout is committed, final push, tag, and release remain Product
+Owner-controlled.

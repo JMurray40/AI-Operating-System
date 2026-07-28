@@ -71,30 +71,43 @@ AI-Operating-System/
 ├── CONTRIBUTING.md           Contribution and review workflow
 ├── CHANGELOG.md              Version history
 ├── docs/                     Product and architecture specifications
-│   └── adr/                  Architecture Decision Records
+│   ├── adr/                  Architecture Decision Records
+│   ├── coordination/         Current project control and role routing
+│   └── handovers/            Milestone handoffs and historical evidence
 ├── prompts/                  Versioned reusable prompts
 ├── templates/                Canonical Obsidian note templates
 ├── schemas/                  Machine-readable schema definitions
 ├── examples/                 Non-sensitive examples and fixtures
 ├── research/                 Time-bounded engineering investigations
 ├── meeting-notes/            Project governance records
+├── src/                      Jarvis Core implementation
+├── tests/                    Automated verification
+├── scripts/                  Benchmarks and repository utilities
 └── .github/                  GitHub collaboration configuration
 ```
 
+## Current work and handoffs
+
+Do not infer active scope from conversation history or from a feature branch name.
+
+1. Start at [Project Control](docs/coordination/README.md).
+2. Follow the [Handoff Router](docs/handovers/README.md).
+3. Open only the milestone artifact marked **Current incoming artifact** for your role.
+4. Apply [Governance](docs/GOVERNANCE.md) and
+   [Ways of Working](docs/WAYS_OF_WORKING.md) when artifacts conflict.
+
 ## Roadmap
 
-The project advances through validated milestones:
+The accepted near-term sequence is:
 
-1. Foundation
-2. Knowledge System
-3. Cross-AI Memory
-4. Read-only Jarvis
-5. Project Resume
-6. Relationship Engine
-7. Automation
-8. Voice and additional interfaces
+1. v0.3 — Query Engine foundation
+2. v0.3.1 — Query Trust Contracts
+3. v0.4 — Read-only Project Resume CLI Pilot
+4. v0.5 — Visible-Context Conversation
 
-Each milestone has explicit dependencies and completion criteria in the [Roadmap](docs/ROADMAP.md). No Jarvis application code is included in the foundation release.
+The broader capability milestones remain in the [Roadmap](docs/ROADMAP.md); the
+[Version Roadmap](docs/product/VERSION_ROADMAP.md) records the version crosswalk and
+preserves earlier planning assumptions.
 
 ## Obsidian and this repository
 
@@ -114,27 +127,39 @@ The Obsidian vault and this repository complement rather than duplicate one anot
 
 Start with:
 
-1. [The Jarvis Bible](docs/JARVIS_BIBLE.md)
-2. [Foundation Executive Summary](docs/JARVIS_V1_FOUNDATION_EXECUTIVE_SUMMARY.md)
-3. [Executive Product and Architecture Summary](docs/EXECUTIVE_PRODUCT_ARCHITECTURE_SUMMARY.md)
-4. [Product Vision](docs/PRODUCT_VISION.md) and [Product Strategy](docs/product/PRODUCT_STRATEGY.md)
-5. [System Principles](docs/SYSTEM_PRINCIPLES.md)
-6. [Version Roadmap](docs/product/VERSION_ROADMAP.md)
-7. [The BRAIN v2](docs/THE_BRAIN_V2_SPEC.md)
-8. [System Architecture](docs/SYSTEM_ARCHITECTURE.md) and [Enterprise Review](docs/reviews/ENTERPRISE_ARCHITECTURE_REVIEW.md)
-9. [Storage Architecture](docs/STORAGE_ARCHITECTURE.md) and [Security Threat Model](docs/reviews/SECURITY_THREAT_MODEL.md)
-10. [AI Behavior Standard](docs/AI_BEHAVIOR_STANDARD.md), [UX Specification](docs/ux/UX_INTERACTION_SPECIFICATION.md), and [Query Evaluation](evaluations/QUERY_EVALUATION_BENCHMARK.md)
-11. [Capability PRDs](docs/prd/README.md)
-12. [Plugin SDK](docs/sdk/PLUGIN_SDK_SPECIFICATION.md) and [Agent Specifications](docs/agents/AGENT_SPECIFICATIONS.md)
-13. [Architecture Decision Matrix](docs/ARCHITECTURE_DECISION_MATRIX.md), [ADRs](docs/adr/), and [Architecture Review Board](docs/governance/ARCHITECTURE_REVIEW_BOARD.md)
-14. [Implementation Plan](docs/IMPLEMENTATION_PLAN.md), [Quality Checklists](docs/ENGINEERING_QUALITY_CHECKLISTS.md), and [Developer Experience](docs/DEVELOPER_EXPERIENCE_STRATEGY.md)
-15. [Prompt Library](prompts/PROMPT_LIBRARY.md), [Demo Vault](docs/demo/DEMO_VAULT_SPECIFICATION.md), and [Future Research Backlog](research/FUTURE_RESEARCH_BACKLOG.md)
+1. [Project Control](docs/coordination/README.md) and the current incoming handoff
+2. [Governance](docs/GOVERNANCE.md) and [Ways of Working](docs/WAYS_OF_WORKING.md)
+3. [Operating Handbook](Operating%20Handbook%20-%20AI%20Agent%20Roles.md)
+4. [The Jarvis Bible](docs/JARVIS_BIBLE.md)
+5. [Product Vision](docs/PRODUCT_VISION.md) and [Product Strategy](docs/product/PRODUCT_STRATEGY.md)
+6. [System Principles](docs/SYSTEM_PRINCIPLES.md)
+7. [Version Roadmap](docs/product/VERSION_ROADMAP.md)
+8. [The BRAIN v2](docs/THE_BRAIN_V2_SPEC.md)
+9. [System Architecture](docs/SYSTEM_ARCHITECTURE.md) and [Security Threat Model](docs/reviews/SECURITY_THREAT_MODEL.md)
+10. [Capability PRDs](docs/prd/README.md) and [ADRs](docs/adr/README.md)
+11. The implementation, architecture-review, QA, and release-decision artifacts linked by
+    the active milestone index
 
 All human and AI contributions follow [CONTRIBUTING.md](CONTRIBUTING.md) and the [AI Behavior Standard](docs/AI_BEHAVIOR_STANDARD.md).
 
 ## Current status
 
-Version `0.1.0` established the read-only Jarvis Core foundation. Phase 2 adds real-vault health reporting, deterministic offline querying, metrics, and implementation-ready product architecture while preserving read-only operation. Version `0.3` (in review) turns the query prototype into an intelligent read-only query engine: a dedicated lexical index, deterministic and explainable ranking, source citations, a token-budgeted context builder, trace mode, and the `search` / `summarize` / `explain` commands — with no write capability introduced. See the [Querying guide](docs/software/QUERYING.md), [ADR-0012](docs/adr/ADR-0012-Query-Engine-Is-A-Layered-Deterministic-Pipeline.md), and the [v0.3 Implementation Report](docs/software/V0.3_IMPLEMENTATION_REPORT.md).
+Version `0.3` established the merged Query Engine foundation: deterministic lexical
+retrieval, explainable ranking, citations, token-budgeted context, trace mode, and the
+`search` / `summarize` / `explain` commands. Version `0.3.1` Query Trust Contracts is
+locally merged into `main` at merge commit `00f1813`; it adds authorization-before-
+retrieval, passage/revision citations, stable source identity, versioned contracts, and
+unambiguous relative-relevance terminology. The Product Owner and QA approved the frozen
+executable `956c2ed`; final push, tag, and release remain pending post-merge closeout.
+
+See the [v0.3.1 Handoff Index](docs/handovers/v0.3.1/README.md),
+[Query Trust Contracts](docs/software/QUERY_TRUST_CONTRACTS.md), and
+[Product Owner Release Decision](docs/handovers/v0.3.1/06-product-owner-to-librarian-release-decision.md).
+
+The next planned product milestone is v0.4 Project Resume. Its planning package is
+validated but implementation remains blocked. The earlier conversation candidate retains
+its historical v0.4 branch identity but is parked, not merged, and scheduled for
+reconciliation as v0.5.
 
 ## Related documents
 
@@ -151,4 +176,5 @@ Version `0.1.0` established the read-only Jarvis Core foundation. Phase 2 adds r
 
 | Version | Date | Change |
 |---|---|---|
+| 0.2.0 | 2026-07-27 | Added current-work routing, accepted release sequence, and merged v0.3/v0.3.1 status |
 | 0.1.0 | 2026-07-27 | Initial engineering foundation |

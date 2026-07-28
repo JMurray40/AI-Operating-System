@@ -1,4 +1,4 @@
-# Quality & Release Review — v0.4 Conversation Candidate
+# Quality & Release Review — Historical v0.4-Named Conversation Candidate
 
 | Field | Value |
 |---|---|
@@ -7,6 +7,10 @@
 | Candidate | Uncommitted workspace on `feature/v0.4-conversation` |
 | Review type | Independent release readiness assessment |
 | Disposition | **Not ready** |
+| Current release identity | Planned for v0.5 after reconciliation; v0.4 is Project Resume |
+
+> The v0.4 label below records the branch and candidate identity at review time. It is
+> historical, not the current roadmap assignment.
 
 ## Executive disposition
 

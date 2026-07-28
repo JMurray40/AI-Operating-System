@@ -37,4 +37,3 @@ docs/handovers/v0.4/04-quality-to-product-owner-release-review.md
 
 End with exactly one disposition: `Ready`, `Ready with conditions`, `Refactor first`,
 `Not ready`, or `Re-scope`.
-

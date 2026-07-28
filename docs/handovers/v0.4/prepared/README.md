@@ -18,4 +18,3 @@ the current lifecycle stage, or permit access to Claude's active engineering wor
 Before activating a prompt, the Chief of Staff replaces every `<PLACEHOLDER>`, verifies
 the current coordination index, and records the exact branch, worktree, base, candidate,
 and incoming handoff.
-

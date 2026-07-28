@@ -28,4 +28,3 @@ commit/path references. Treat ordinary in-scope implementation growth as expecte
 
 Produce a dated read-only status note outside the engineering branch or report directly
 to the Chief of Staff. A monitor report cannot clear CTO or QA gates.
-

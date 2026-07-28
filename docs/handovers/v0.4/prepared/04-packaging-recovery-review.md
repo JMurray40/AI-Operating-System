@@ -21,4 +21,3 @@ sources, access network/GitHub, expose private content, merge, push, or release.
 
 Append evidence to the QA handoff or create the exact artifact assigned by the active CTO
 disposition. Report reproducible failures, environmental skips, and whether A7/A12 pass.
-

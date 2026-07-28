@@ -28,4 +28,3 @@ declare v0.5 unlocked.
 Produce an operations runbook and blank weekly scorecard at paths assigned by the active
 engineering/CTO package. During the evaluation, publish only redacted aggregates and keep
 the strategic status `Pending` until the full window closes.
-

@@ -29,4 +29,3 @@ docs/handovers/v0.4/06-librarian-to-product-owner-repository-closeout.md
 
 End with `Ready for final release`, `Ready with conditions`, or `Not ready`, and identify
 all remaining debt and owners.
-

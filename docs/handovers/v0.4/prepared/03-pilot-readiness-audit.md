@@ -34,4 +34,3 @@ docs/handovers/v0.4/pilot-readiness-audit.md
 
 Classify every requirement as `Ready`, `Missing`, `Needs Product Owner input`, or
 `Candidate-dependent`, with no invented paths or hardware facts.
-

@@ -37,4 +37,3 @@ docs/handovers/v0.4/03-cto-to-quality-architecture-disposition.md
 
 Use one disposition: `Ready for Quality & Release`, `Refactor first`, `Re-scope`, or
 `Stop`. If cleared, include the full adversarial QA matrix and exact evidence identities.
-

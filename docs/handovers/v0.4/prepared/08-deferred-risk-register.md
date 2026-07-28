@@ -34,4 +34,3 @@ Produce or update:
 ```text
 docs/handovers/v0.4/v0.4-risk-register.md
 ```
-

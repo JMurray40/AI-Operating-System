@@ -1,0 +1,350 @@
+"""C9: local read-only Git adapter — injected-runner + real-Git boundary (ADR-0021, §12).
+
+The injected ProcessRunner exercises success/timeout/overflow/malformed/redaction and the
+root-escape/not-a-repo paths without an installed Git. A single real-Git test (routed to the
+slow suite by its ``process_boundary`` name) proves the process boundary and that Git state is
+unchanged before/after.
+"""
+from __future__ import annotations
+
+import hashlib
+import shutil
+import subprocess
+from datetime import datetime, timezone
+from pathlib import Path
+
+import pytest
+
+from jarvis_core.project_resume.local_git import (
+    LocalGitRepositoryActivityAdapter,
+    ProcessResult,
+    SubprocessProcessRunner,
+    _cmd_head,
+    _cmd_log,
+    _cmd_toplevel,
+    build_git_env,
+    parse_log_records,
+)
+from jarvis_core.project_resume.repository_activity import (
+    CODE_DENIED_NO_GRANT,
+    CODE_DENIED_ROOT_ESCAPE,
+    CODE_DENIED_ROOT_MISMATCH,
+    CODE_MALFORMED_RECORD,
+    CODE_UNAVAILABLE_NO_GIT,
+    CODE_UNAVAILABLE_NOT_A_REPO,
+    CODE_UNAVAILABLE_OUTPUT_OVERFLOW,
+    CODE_UNAVAILABLE_TIMEOUT,
+    RepositoryActivityGrant,
+    RepositoryActivitySnapshot,
+)
+
+EVAL = datetime(2026, 7, 27, tzinfo=timezone.utc)
+_GIT = "/usr/bin/git"
+
+
+def _grant(root: Path, *, project_id: str = "project-alpha", max_records: int = 20):
+    return RepositoryActivityGrant(
+        workspace_id="local", project_id=project_id, repository_root=root, max_records=max_records
+    )
+
+
+def _log_bytes(records: list[tuple[str, str, str, str]]) -> bytes:
+    entries = [f"{oid}\x00{iso}\x00{an}\x00{s}\x00" for oid, iso, an, s in records]
+    return "\n".join(entries).encode("utf-8")
+
+
+class FakeRunner:
+    """Routes each fixed command shape to a pre-set ProcessResult; records argv + env."""
+
+    def __init__(self, *, toplevel: ProcessResult, head: ProcessResult, log: ProcessResult):
+        self._toplevel, self._head, self._log = toplevel, head, log
+        self.calls: list[list[str]] = []
+        self.envs: list[dict[str, str]] = []
+
+    def run(self, argv, *, cwd, env, timeout_seconds, stdout_cap_bytes, stderr_cap_bytes):
+        self.calls.append(argv)
+        self.envs.append(env)
+        if "--show-toplevel" in argv:
+            return self._toplevel
+        if "--verify" in argv:
+            return self._head
+        if "log" in argv:
+            return self._log
+        raise AssertionError(f"unexpected argv: {argv}")
+
+
+def _ok_runner(root: Path) -> FakeRunner:
+    return FakeRunner(
+        toplevel=ProcessResult(0, str(root.resolve()).encode(), b""),
+        head=ProcessResult(0, ("a" * 40).encode(), b""),
+        log=ProcessResult(
+            0, _log_bytes([("a" * 40, "2026-07-25T10:00:00+00:00", "Dev", "recent work")]), b""
+        ),
+    )
+
+
+def _adapter(runner, **kw) -> LocalGitRepositoryActivityAdapter:
+    return LocalGitRepositoryActivityAdapter(runner, git_executable=_GIT, **kw)
+
+
+# ---------------------------------------------------------------- happy path
+
+
+def test_reads_snapshot_via_injected_runner(tmp_path: Path) -> None:
+    adapter = _adapter(_ok_runner(tmp_path))
+    out = adapter.load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert isinstance(out, RepositoryActivitySnapshot)
+    assert out.head_object_id == "a" * 40
+    assert [r.subject for r in out.records] == ["recent work"]
+    assert out.fingerprint
+
+
+# ---------------------------------------------------------------- default-denied
+
+
+def test_no_grant_denied(tmp_path: Path) -> None:
+    out = _adapter(_ok_runner(tmp_path)).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=None, evaluation_time=EVAL
+    )
+    assert out.code == CODE_DENIED_NO_GRANT
+
+
+def test_root_mismatch_denied(tmp_path: Path) -> None:
+    other = tmp_path / "other"
+    other.mkdir()
+    out = _adapter(_ok_runner(tmp_path)).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(other),
+        evaluation_time=EVAL,
+    )
+    assert out.code == CODE_DENIED_ROOT_MISMATCH
+
+
+# ---------------------------------------------------------------- degradation paths
+
+
+def test_not_a_repository_unavailable(tmp_path: Path) -> None:
+    runner = FakeRunner(
+        toplevel=ProcessResult(128, b"", b"fatal: not a git repository"),
+        head=ProcessResult(0, b"", b""), log=ProcessResult(0, b"", b""),
+    )
+    out = _adapter(runner).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert out.code == CODE_UNAVAILABLE_NOT_A_REPO
+
+
+def test_root_escape_denied(tmp_path: Path) -> None:
+    # toplevel resolves OUTSIDE the granted root (parent / submodule / linked worktree / bare).
+    escaped = tmp_path.parent
+    runner = FakeRunner(
+        toplevel=ProcessResult(0, str(escaped).encode(), b""),
+        head=ProcessResult(0, ("a" * 40).encode(), b""), log=ProcessResult(0, b"", b""),
+    )
+    out = _adapter(runner).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert out.code == CODE_DENIED_ROOT_ESCAPE
+
+
+def test_timeout_is_unavailable(tmp_path: Path) -> None:
+    runner = FakeRunner(
+        toplevel=ProcessResult(-1, b"", b"", timed_out=True),
+        head=ProcessResult(0, b"", b""), log=ProcessResult(0, b"", b""),
+    )
+    out = _adapter(runner).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert out.code == CODE_UNAVAILABLE_TIMEOUT
+
+
+def test_output_overflow_is_unavailable(tmp_path: Path) -> None:
+    runner = FakeRunner(
+        toplevel=ProcessResult(0, str(tmp_path.resolve()).encode(), b""),
+        head=ProcessResult(0, ("a" * 40).encode(), b""),
+        log=ProcessResult(0, b"x", b"", stdout_overflow=True),
+    )
+    out = _adapter(runner).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert out.code == CODE_UNAVAILABLE_OUTPUT_OVERFLOW
+
+
+def test_malformed_records_end_to_end(tmp_path: Path) -> None:
+    runner = FakeRunner(
+        toplevel=ProcessResult(0, str(tmp_path.resolve()).encode(), b""),
+        head=ProcessResult(0, ("a" * 40).encode(), b""),
+        log=ProcessResult(0, b"deadbeef\x00not-a-date\x00Dev\x00subj\x00", b""),
+    )
+    out = _adapter(runner).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert out.code == CODE_MALFORMED_RECORD
+
+
+def test_missing_git_is_unavailable(tmp_path: Path) -> None:
+    adapter = _adapter(_ok_runner(tmp_path))
+    adapter._git = None  # simulate git not installed
+    out = adapter.load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert out.code == CODE_UNAVAILABLE_NO_GIT
+
+
+# ---------------------------------------------------------------- redaction
+
+
+def test_degradation_messages_do_not_leak_paths(tmp_path: Path) -> None:
+    runner = FakeRunner(
+        toplevel=ProcessResult(128, b"", f"fatal: {tmp_path}/secret".encode()),
+        head=ProcessResult(0, b"", b""), log=ProcessResult(0, b"", b""),
+    )
+    out = _adapter(runner).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert str(tmp_path) not in out.message
+    assert "secret" not in out.message
+
+
+# ---------------------------------------------------------------- env allowlist
+
+
+def test_env_allowlist_excludes_inherited_git_vars() -> None:
+    env = build_git_env(_GIT)
+    assert env["PATH"] == "/usr/bin"
+    assert env["GIT_CONFIG_NOSYSTEM"] == "1"
+    assert env["GIT_TERMINAL_PROMPT"] == "0"
+    assert env["PAGER"] == "cat"
+    assert env["LC_ALL"] == "C"
+    for leaked in ("GIT_DIR", "GIT_WORK_TREE", "GIT_ASKPASS", "SSH_AUTH_SOCK",
+                   "GIT_CONFIG", "HTTP_PROXY", "GIT_SSH"):
+        assert leaked not in env
+
+
+def test_runner_receives_allowlisted_env(tmp_path: Path) -> None:
+    runner = _ok_runner(tmp_path)
+    _adapter(runner).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert runner.envs, "runner was invoked"
+    assert "GIT_DIR" not in runner.envs[0]
+    assert runner.envs[0]["GIT_CONFIG_NOSYSTEM"] == "1"
+
+
+# ---------------------------------------------------------------- command shapes
+
+
+def test_only_three_fixed_command_shapes(tmp_path: Path) -> None:
+    runner = _ok_runner(tmp_path)
+    _adapter(runner).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert len(runner.calls) == 3
+    for argv in runner.calls:
+        assert argv[0] == _GIT
+        assert "-C" in argv  # always operates via -C <root>, never a cwd-relative guess
+
+
+def test_log_command_shape_is_exact() -> None:
+    argv = _cmd_log(_GIT, Path("/repo"), 20)
+    assert argv[-3:] == ["--pretty=format:%H%x00%cI%x00%an%x00%s%x00", "--max-count=20", "HEAD"]
+    assert "--first-parent" in argv
+    assert "--date=iso-strict" in argv
+    assert "--no-color" in argv
+
+
+def test_toplevel_and_head_shapes() -> None:
+    assert _cmd_toplevel(_GIT, Path("/r"))[-2:] == ["rev-parse", "--show-toplevel"]
+    assert _cmd_head(_GIT, Path("/r"))[-3:] == ["rev-parse", "--verify", "HEAD"]
+
+
+# ---------------------------------------------------------------- parser edge cases
+
+
+def test_parser_multiple_records_and_trailing_newline() -> None:
+    data = _log_bytes([
+        ("a" * 40, "2026-07-25T10:00:00+00:00", "Dev", "one"),
+        ("b" * 40, "2026-07-20T10:00:00+00:00", "Dev", "two"),
+    ])
+    records = parse_log_records(data)
+    assert records is not None
+    assert [r.object_id for r in records] == ["a" * 40, "b" * 40]
+    assert [r.subject for r in records] == ["one", "two"]
+
+
+def test_parser_empty_is_empty_tuple() -> None:
+    assert parse_log_records(b"") == ()
+
+
+def test_parser_bad_field_count_is_malformed() -> None:
+    assert parse_log_records(b"a\x00b\x00c\x00") is None  # 3 fields
+
+
+def test_parser_bad_object_id_is_malformed() -> None:
+    assert parse_log_records(b"zzz\x002026-07-25T10:00:00+00:00\x00Dev\x00s\x00") is None
+
+
+def test_parser_invalid_utf8_is_malformed() -> None:
+    assert parse_log_records(b"\xff\xfe\x00x\x00y\x00z\x00") is None
+
+
+# ---------------------------------------------------------------- real git (slow suite)
+
+
+def _git_dir_inventory(git_dir: Path) -> dict[str, str]:
+    inv: dict[str, str] = {}
+    for name in ("HEAD", "config", "index"):
+        p = git_dir / name
+        if p.is_file():
+            inv[name] = hashlib.sha256(p.read_bytes()).hexdigest()
+    refs = git_dir / "refs"
+    if refs.is_dir():
+        inv["refs"] = ",".join(sorted(str(x.relative_to(refs)) for x in refs.rglob("*")))
+    return inv
+
+
+def test_real_git_process_boundary_reads_and_does_not_mutate(tmp_path: Path) -> None:
+    git = shutil.which("git")
+    if not git:
+        pytest.skip("git not installed")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+
+    def _git(*args: str) -> None:
+        subprocess.run(
+            [git, "-c", "user.name=Dev", "-c", "user.email=dev@example.com",
+             "-c", "commit.gpgsign=false", "-C", str(repo), *args],
+            check=True, capture_output=True,
+        )
+
+    _git("init", "-q")
+    (repo / "f.txt").write_text("hello\n", encoding="utf-8")
+    _git("add", "f.txt")
+    _git("commit", "-q", "-m", "initial commit")
+
+    git_dir = repo / ".git"
+    before = _git_dir_inventory(git_dir)
+
+    adapter = LocalGitRepositoryActivityAdapter(SubprocessProcessRunner(), git_executable=git)
+    out = adapter.load_activity(
+        project_id="project-alpha", repository_root=repo, grant=_grant(repo),
+        evaluation_time=datetime.now(timezone.utc),
+    )
+    assert isinstance(out, RepositoryActivitySnapshot)
+    assert len(out.records) == 1
+    assert out.records[0].subject == "initial commit"
+    assert len(out.head_object_id) in (40, 64)
+
+    after = _git_dir_inventory(git_dir)
+    assert before == after  # read-only: HEAD/config/index/refs unchanged

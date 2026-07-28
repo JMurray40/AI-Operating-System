@@ -8,7 +8,7 @@
 | Updated | 2026-07-27 |
 | Branch | `feature/v0.3.1-query-trust-contracts` |
 | Executable candidate under evidence review | `956c2ed1dd1144e836014b049a89c47e971818a0` |
-| Current coordination HEAD | `3918257ba1f5325b2f56f89a81574c4144c6004f` |
+| Coordination lineage | Evidence-routing state begins at `3918257ba1f5325b2f56f89a81574c4144c6004f`; verify the current worktree HEAD at startup |
 
 ## Current effective state
 

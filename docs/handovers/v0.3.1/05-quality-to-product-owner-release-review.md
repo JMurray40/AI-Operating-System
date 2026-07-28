@@ -570,3 +570,291 @@ Until that authorized rerun occurs, the disposition below remains controlling.
 Return exact HEAD `09a4ca5a6e0d9b73a1e37a9e086abe788c894c72` for the bounded corrections
 and evidence described above. The Product Owner retains final authority, but this QA
 record does not recommend merge or release of the frozen candidate.
+
+---
+
+# Superseding Limited Revalidation — Areas A, G, and H
+
+| Field | Value |
+|---|---|
+| Role | Independent Quality & Release Manager |
+| Revalidation date | 2026-07-27 |
+| Authorized scope | Areas A, G, and H only |
+| Executable candidate | `956c2ed1dd1144e836014b049a89c47e971818a0` |
+| Evidence commit | `8fa5f18c09de1a0c9a79f33e0ba987f9de0e1083` |
+| CTO/routing commit | `6692c5e3b1cf4564f3f2be5c7f412739a4d3686a` |
+| Exact baseline | `ce0dc35853008e6b83c3c6fdfd0b8650738bee3d` |
+| QA worktree | `C:\Users\jmurr\Projects\AI-Operating-System\.worktrees\v0.3.1-qa-revalidation` |
+| Evidence artifact | `docs/evidence/v0.3.1/paired-performance-956c2ed-vs-ce0dc35.json` |
+| Evidence SHA-256 | `f8a67162b74125454f2a5199e6b46a33952763fff18821b7c81497819ffa18d6` |
+
+## S1. Superseding effect and scope
+
+This revision supersedes the earlier Quality & Release disposition for the bounded
+benchmark-entry-point, process-smoke, and performance-evidence findings QR-031-01 through
+QR-031-03. The earlier full review remains the historical record for unaffected Areas
+B–F and I.
+
+Execution was limited to the latest CTO-authorized Areas A, G, and H. No concrete
+regression signal required reopening an unaffected trust-contract area.
+
+No source, test, script, protocol, evidence, gate rule, dependency, or candidate file was
+changed during revalidation. QA did not implement a fix, merge, push, release, perform
+Librarian work, or touch the parked conversation candidate.
+
+## S2. Environment
+
+| Component | Revalidation value |
+|---|---|
+| OS | Windows 11 `10.0.26200` |
+| Python | 3.14.4 |
+| pytest | 9.1.1 |
+| Ruff | 0.16.0 |
+| mypy | 2.3.0 |
+| Git | 2.55.0.windows.1 |
+| Candidate state | Clean detached HEAD |
+| Product benchmark network use | None |
+| Benchmark import override | None; `PYTHONPATH` removed |
+
+The retained evidence was generated separately on Python 3.10.12 and Linux
+6.8.0-124-generic x86_64. QA treated the retained arithmetic and the fresh Windows
+execution as separate evidence and did not equate their absolute timings.
+
+## S3. Area A — candidate and evidence integrity
+
+### Identity and repository state
+
+- The revalidation worktree began clean and detached at exact executable candidate
+  `956c2ed1dd1144e836014b049a89c47e971818a0`.
+- `09a4ca5` and baseline `ce0dc35` are ancestors of the executable candidate.
+- The executable candidate is an ancestor of evidence commit `8fa5f18`.
+- The local feature branch contains the executable candidate.
+- Refreshed remote refs contain neither the candidate nor a feature branch for it.
+- Neither local `main` nor fetched `origin/main` contains the candidate.
+- The candidate therefore remains unmerged and unpushed.
+- The ending candidate state remained clean, detached, and byte-identical at `956c2ed`.
+
+The executable correction from prior QA HEAD `09a4ca5` through `956c2ed` changed only
+benchmark scripts, benchmark smoke tests, the new paired protocol, and lifecycle
+documentation. The range from executable candidate `956c2ed` through evidence commit
+`8fa5f18` contains no change under `src/`, `tests/`, `scripts/`, or `pyproject.toml`.
+The evidence commit itself adds the retained JSON and Engineering Review addendum only.
+
+### Evidence digest and independent arithmetic
+
+QA independently computed the artifact digest:
+
+```text
+f8a67162b74125454f2a5199e6b46a33952763fff18821b7c81497819ffa18d6
+```
+
+It exactly matches the authorized digest.
+
+QA parsed every raw array and independently applied the committed estimator:
+
+```text
+idx = min(n - 1, round(q * (n - 1)))
+```
+
+Every stored count, p50, p95, p99, and regression matched:
+
+| Attempt | Order | Candidate p50/p95/p99 (ms) | Baseline p50/p95/p99 (ms) | Regression |
+|---:|---|---:|---:|---:|
+| 0 | candidate first | 31.924 / 37.280 / 38.150 | 29.578 / 33.417 / 34.510 | 11.56% |
+| 1 | baseline first | 32.168 / 37.329 / 37.918 | 29.166 / 33.578 / 35.819 | 11.17% |
+| 2 | candidate first | 33.401 / 41.925 / 58.252 | 29.866 / 33.910 / 34.436 | **23.64%** |
+| 3 | baseline first | 32.297 / 38.679 / 39.017 | 30.658 / 35.570 / 35.789 | 8.74% |
+| 4 | candidate first | 33.666 / 41.379 / 43.289 | 29.796 / 35.433 / 35.795 | 16.78% |
+
+Counts are exactly 30 candidate plus 30 baseline observations in each of five attempts:
+150 candidate and 150 baseline samples.
+
+Sorted retained regressions are 8.74%, 11.17%, 11.56%, 16.78%, and 23.64%. The
+predeclared median is 11.56%. The 23.64% attempt is retained and not removed, discounted,
+or waived.
+
+### Integrated checks
+
+```text
+python -m pytest -q
+python -m ruff check src tests scripts
+python -m mypy src
+git diff --check 09a4ca5..956c2ed
+```
+
+Results:
+
+- pytest: 200 passed, 1 skipped in 27.42 seconds;
+- Ruff: passed;
+- mypy: passed for 52 source files;
+- correction-diff check: passed.
+
+The one skip remains the previously recorded Windows inability to create the symlink used
+by `test_symlink_escape_declines_citation`. The limited correction did not touch that
+test or path-confinement implementation, so it is retained as an environmental residual
+risk rather than a new regression signal.
+
+**Area A result: pass.**
+
+## S4. Area G — operational entry points and safety
+
+QA removed `PYTHONPATH` and executed the documented commands directly from the frozen
+candidate repository root:
+
+```text
+python scripts\benchmark_query.py --sizes 100,500,1000 --runs 10
+python scripts\benchmark_regression.py --runs 50
+```
+
+Both started and completed with exit code 0 and no import-path workaround.
+
+The query benchmark reached all required completion phases:
+
+| Workload | Total p50 | Total p95 | Total p99 |
+|---:|---:|---:|---:|
+| 100 notes | 3.264 ms | 5.525 ms | 5.525 ms |
+| 500 notes | 14.845 ms | 16.202 ms | 16.202 ms |
+| 1,000 notes | 31.383 ms | 33.462 ms | 33.462 ms |
+
+- Peak memory at 1,000 notes: 5.453 MB.
+- Authorization stress excluded 500 of 1,000 notes.
+- Authorization-stress total p95: 16.925 ms.
+
+The standalone current-candidate regression diagnostic completed with total-pipeline p95
+36.260 ms over 50 runs.
+
+An invalid `--runs not-an-integer` invocation returned exit 2 with an argparse diagnostic
+and no candidate or canonical-source mutation.
+
+Before and after the documented commands, QA compared every canonical fixture source by
+relative path, SHA-256, byte size, and UTC last-write timestamp. The snapshots were
+identical. No repository output or untracked benchmark artifact was produced. Benchmark
+fixtures and the independently materialized baseline were confined to temporary
+directories; the QA-created exact-baseline directory was verified beneath the system temp
+root and removed after use.
+
+The corrected benchmark bootstrap inserts only each script's own repository root and
+`src` directory. Candidate and baseline runs execute from separate trees. The paired
+protocol removes inherited `PYTHONPATH` and runs one subprocess per version per attempt.
+
+Real process-boundary smoke command:
+
+```text
+python -m pytest -q -vv tests\integration\test_benchmark_smoke.py
+```
+
+Result: 5 passed in 9.09 seconds. The cases cover:
+
+- direct query benchmark completion from repository root;
+- direct regression benchmark completion;
+- JSON raw-sample output;
+- nonzero missing-runtime-dependency failure; and
+- paired-protocol entry-point completion.
+
+Source inspection confirmed these tests invoke new Python processes rather than importing
+the benchmark modules inside pytest. The missing-dependency case proves the smoke fails
+when the script cannot reach required runtime modules. Existing fail-closed engine tests
+continue to enforce explicit scope and `source_root`.
+
+**Area G result: pass.**
+
+## S5. Area H — performance evidence and gate
+
+### Predeclared rule
+
+The committed `scripts/benchmark_paired.py` defines, before retained evidence collection:
+
+- five paired attempts by default;
+- 30 measured runs per version per attempt;
+- three warm-ups;
+- alternating candidate-first and baseline-first order;
+- the same `benchmark_regression.py` harness in both trees;
+- 1,000 synthetic notes and query `links`;
+- construction plus one public `QueryEngine.run()` as the measured boundary;
+- the recorded nearest-rank percentile estimator; and
+- pass when median paired p95 regression is no more than 20%.
+
+QA did not change or select this rule after observing results.
+
+### Retained evidence result
+
+```text
+range: 8.74%–23.64%
+median: 11.56%
+gate: 11.56% <= 20.00%
+```
+
+The retained performance gate passes under the predeclared median-of-five rule. Attempt 2
+at 23.64% is explicitly disclosed. The evidence proves that the attempt occurred; it does
+not instrument or prove scheduler activity, background load, CPU frequency, thermal
+behavior, or another cause. Any attribution to those causes remains inference.
+
+### Independent fresh paired rerun
+
+QA materialized exact baseline `ce0dc35` from `git archive`, used the identical harness,
+removed `PYTHONPATH`, and ran:
+
+```text
+python scripts\benchmark_paired.py --baseline-root <temporary-ce0dc35-tree> \
+  --notes 1000 --runs 30 --attempts 5
+```
+
+Observed results:
+
+| Attempt | Order | Candidate p95 | Baseline p95 | Regression |
+|---:|---|---:|---:|---:|
+| 0 | candidate first | 39.886 ms | 36.880 ms | 8.15% |
+| 1 | baseline first | 40.216 ms | 36.358 ms | 10.61% |
+| 2 | candidate first | 44.749 ms | 31.750 ms | **40.94%** |
+| 3 | baseline first | 40.880 ms | 32.707 ms | **24.99%** |
+| 4 | candidate first | 38.190 ms | 33.349 ms | 14.52% |
+
+```text
+range: 8.15%–40.94%
+median: 14.52%
+gate: 14.52% <= 20.00%
+exit code: 0
+```
+
+The fresh equivalent rerun independently confirms that the committed rule executes and
+passes on this Windows/Python environment. It also shows substantial attempt-level timing
+variance, including two attempts above 20%. Those attempts are not removed or waived.
+The rerun did not instrument a cause, so QA records the variance as observation only.
+
+Absolute retained Linux timings and fresh Windows timings are not combined. Each
+candidate/baseline pair used equivalent conditions within its own attempt.
+
+The baseline compatibility adapter remains confined to the isolated historical baseline
+tree. Current candidate construction uses explicit authorization scope and
+`source_root`; existing contract tests fail closed when either is absent.
+
+**Area H result: pass under the predeclared median-of-five rule.**
+
+## S6. Failures, waivers, and residual risks
+
+No A/G/H release-blocking failure remains, and no waiver was requested or granted.
+
+Residual risks disclosed to the Product Owner:
+
+1. Attempt-level timing variance is material. The retained range reaches 23.64%; the fresh
+   Windows range reaches 40.94%, with two individual attempts above 20%. The predeclared
+   median gate passes in both datasets, but future releases should continue paired raw
+   evidence rather than rely on one comparison.
+2. The evidence does not prove that scheduler or background load caused any high attempt.
+3. The previously recorded Windows symlink-execution limitation remains outside the
+   bounded correction and was not reopened without a regression signal.
+4. Aggregate timing remains the previously accepted coarse side-channel and operational
+   measurement debt.
+
+## S7. Product Owner disposition
+
+**Ready.**
+
+Quality & Release recommends the exact executable candidate
+`956c2ed1dd1144e836014b049a89c47e971818a0`, with evidence commit
+`8fa5f18c09de1a0c9a79f33e0ba987f9de0e1083` and the digest pinned above, for Product
+Owner go/no-go consideration. The earlier QR-031-01, QR-031-02, and QR-031-03 blockers are
+closed by independent limited revalidation.
+
+This recommendation does not merge, push, release, or authorize v0.4 work. The Product
+Owner retains final authority.

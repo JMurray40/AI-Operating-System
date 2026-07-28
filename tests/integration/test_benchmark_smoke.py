@@ -39,6 +39,15 @@ def test_benchmark_query_runs_from_repo_root():
     assert "total" in proc.stdout
 
 
+def test_benchmark_project_resume_runs_from_repo_root():
+    proc = _run(["scripts/benchmark_project_resume.py", "--sizes", "5", "--runs", "1"], _ROOT)
+    assert proc.returncode == 0, proc.stderr
+    assert "Peak memory" in proc.stdout
+    assert "discover_ms" in proc.stdout  # the retrieval stage is recorded separately (A10)
+    assert "total_ms" in proc.stdout
+    assert "PENDING" in proc.stdout  # never asserts the reference-hardware gate is met
+
+
 def test_benchmark_regression_runs_from_repo_root():
     proc = _run(["scripts/benchmark_regression.py", "--notes", "5", "--runs", "2"], _ROOT)
     assert proc.returncode == 0, proc.stderr

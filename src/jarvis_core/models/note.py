@@ -34,6 +34,16 @@ class Note:
     attachments: tuple[AttachmentRef, ...] = ()
     tags: tuple[str, ...] = ()
     parse_errors: tuple[str, ...] = ()
+    # --- exact-source provenance (v0.3.1; additive, set by the repository) ---
+    source_text: str = ""          # exact decoded file text (for locator/excerpt/validation)
+    source_fingerprint: str = ""   # sha256 of exact source *bytes* (revision, not identity)
+    body_start_line: int = 1        # 1-based source line where the body begins (after fm)
+    source_bytes: bytes = b""       # exact source bytes at discovery (revision snapshot)
+
+    @property
+    def source_lines(self) -> list[str]:
+        """The exact source split into lines (no keepends), for locator resolution."""
+        return self.source_text.splitlines()
 
     # --- typed conveniences derived from frontmatter ---
     @property

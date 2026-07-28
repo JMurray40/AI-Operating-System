@@ -63,3 +63,10 @@ counts. It is the first tool to reach for when a question returns something surp
 - **Lexical, not semantic**: synonyms and paraphrases are not understood — that is the job
   of a future semantic-search version, which will fuse with (not replace) lexical search.
 - The index is in-memory and rebuilt per run; there is no persisted index in v0.3.
+
+## v0.3.1 note
+
+Ranking values are now labelled **relative relevance** (a query-local normalization), not
+confidence, and no numeric answer confidence is produced. Every query runs under an
+authorization scope, and citations bind a passage (heading path + line range) to an exact
+source revision (fingerprint). See [Query Trust Contracts](QUERY_TRUST_CONTRACTS.md).

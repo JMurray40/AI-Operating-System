@@ -67,3 +67,13 @@ jarvis summarize-project "FileOrbit" --path tests/fixtures/fileorbit
 jarvis vault-report tests/fixtures/edge-cases          # exit 1: contains errors
 jarvis vault-report /path/to/real/ObsidianVault        # real vault, read-only
 ```
+
+## v0.3.1 query trust contracts
+
+`ask`, `search`, `summarize`, and `explain` run under an explicit local authorization scope
+(`local_allow_all`). Sources list a passage locator (`relpath:line_start-line_end`) and a
+**relative relevance** value — never "confidence" — plus the reason selected. If policy
+excludes any sources, an aggregate `(<n> source(s) excluded by policy)` line is shown; the
+excluded identities and content are never disclosed. `--trace` additionally shows the
+request id, workspace fingerprint, contract/index version, and a safe authorization summary.
+See [Query Trust Contracts](QUERY_TRUST_CONTRACTS.md).

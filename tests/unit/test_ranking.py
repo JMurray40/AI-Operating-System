@@ -60,11 +60,11 @@ def test_ranking_is_deterministic(tmp_path: Path):
     assert a == b
 
 
-def test_confidence_is_relative_to_top(tmp_path: Path):
+def test_relative_relevance_is_relative_to_top(tmp_path: Path):
     r = _ranker(tmp_path)
     ranked = r.rank(["quickbooks"], {"Invoicing.md", "Scratch.md"})
-    assert ranked[0].confidence == 1.0
-    assert all(0.0 <= s.confidence <= 1.0 for s in ranked)
+    assert ranked[0].relative_relevance == 1.0
+    assert all(0.0 <= s.relative_relevance <= 1.0 for s in ranked)
 
 
 def test_custom_weights_change_order(tmp_path: Path):

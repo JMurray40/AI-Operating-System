@@ -114,6 +114,7 @@ class ContextPackage:
     def to_dict(self) -> dict[str, object]:
         """Serialize to an ordered, JSON-ready dict (no timestamps, no randomness)."""
         return {
+            "contract_version": "jarvis.query.v0.3.1",
             "schema_version": self.schema_version,
             "project": {
                 "id": self.project_id,

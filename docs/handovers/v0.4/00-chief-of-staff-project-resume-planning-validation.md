@@ -45,15 +45,11 @@ Before creating the implementation authorization:
 7. confirm that any local Git subprocess boundary is already approved or separately
    review its command, path, timeout, output, and injection controls.
 
-## Open Product Owner decision
+## Product Owner decision
 
-Choose one:
-
-- **Recommended:** fixture adapter plus local read-only Git for v0.4; no live network.
-- Live GitHub reads, requiring a separately reviewed capability and security package.
-
-This decision blocks only repository-activity implementation scope, but it must be recorded
-before the final engineering authorization is issued.
+The Product Owner approved fixture data plus local read-only Git for v0.4. Live GitHub
+reads are deferred. See
+[Repository Activity Scope Decision](00-product-owner-repository-activity-scope-decision.md).
 
 ## Constraints
 

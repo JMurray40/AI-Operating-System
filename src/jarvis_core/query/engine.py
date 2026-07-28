@@ -16,7 +16,6 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from jarvis_core.context.loader import ProjectContextLoader, ProjectNotFoundError
-from jarvis_core.identity import fingerprint_bytes
 from jarvis_core.models.base import NoteType
 from jarvis_core.models.context import SourceRef
 from jarvis_core.models.note import Note
@@ -31,11 +30,11 @@ from jarvis_core.query.context_builder import (
     QueryContextBuilder,
 )
 from jarvis_core.query.contract import CONTRACT_VERSION, INDEX_VERSION
+from jarvis_core.query.evidence import CitationFactory, CurrentSourceResolver
 from jarvis_core.query.index import LexicalIndex
 from jarvis_core.query.intent import Intent, IntentParser, ParsedQuery
-from jarvis_core.query.passages import Locator, locate, validate_against_text
 from jarvis_core.query.ranking import Ranker, RankingWeights, ScoredNote
-from jarvis_core.query.results import Citation, QueryAnswer, citation_from_scored
+from jarvis_core.query.results import Citation, QueryAnswer
 from jarvis_core.query.tokenizer import normalize, token_set
 from jarvis_core.query.trace import QueryTrace
 from jarvis_core.relationships.resolver import RelationshipResolver, ResolutionReport
@@ -98,6 +97,11 @@ class QueryEngine:
         self._notes = view.notes
         self._identities = view.identities
         self._excluded_count = view.excluded_count
+        # Current-source/citation logic is the shared query-layer service (ADR-0016); the
+        # engine composes it rather than owning the path-confinement/validation rules.
+        self._citations = CitationFactory(
+            self._identities, CurrentSourceResolver(self._source_root)
+        )
         self._resolver = RelationshipResolver(self._notes)
         self._report = self._resolver.resolve_all()
         self._by_relpath = {n.relpath: n for n in self._notes}
@@ -349,21 +353,6 @@ class QueryEngine:
     ) -> QueryAnswer:
         return QueryAnswer(intent, question, text, citations, excluded_count=self._excluded_count)
 
-    def _current_bytes(self, note: Note) -> bytes:
-        """Exact CURRENT source bytes for ``note``, re-read within the resolved source root.
-
-        Path/symlink escape, a missing or unreadable file, and any read error fail closed by
-        returning empty bytes, which then fail the fingerprint check and decline the citation
-        (AC-03R3-01). There is no discovery-snapshot fallback.
-        """
-        try:
-            cand = (self._source_root / note.relpath).resolve()
-            if cand.is_relative_to(self._source_root) and cand.is_file():
-                return cand.read_bytes()
-        except OSError:
-            pass
-        return b""  # missing / escaped / unreadable -> fail closed
-
     def _make_citation(
         self,
         note: Note,
@@ -374,36 +363,9 @@ class QueryEngine:
         material: bool,
         scored: ScoredNote | None = None,
     ) -> Citation | None:
-        """Emit a validated citation, or None. Validates the stored fingerprint against the
-        CURRENT source bytes plus locator/hierarchy/excerpt before emission (AC-03R2)."""
-        ident = self._identities[note.relpath]
-        current = self._current_bytes(note)
-        if fingerprint_bytes(current) != note.source_fingerprint:
-            return None  # stale: source changed since discovery -> never emitted as valid
-        current_text = current.decode("utf-8", errors="replace")
-        locator, excerpt = locate(note, evidence)
-        if excerpt and validate_against_text(locator, excerpt, current_text).ok:
-            if scored is not None:
-                return citation_from_scored(
-                    scored, source_id=ident.source_id, source_identity_kind=ident.kind,
-                    source_fingerprint=note.source_fingerprint, locator=locator, excerpt=excerpt,
-                )
-            return Citation(
-                source_id=ident.source_id, source_identity_kind=ident.kind,
-                title=note.title or note.path.stem, relpath=note.relpath,
-                source_fingerprint=note.source_fingerprint, locator=locator, excerpt=excerpt,
-                reason=reason, relative_relevance=relevance, coverage="supported",
-            )
-        # No claim-specific supporting passage.
-        if material:
-            return None  # decline a ranked material citation with no supporting passage
-        # Unranked reference: emit an explicit coverage-incomplete citation (never arbitrary
-        # first content) — identity + revision only, no passage claim.
-        return Citation(
-            source_id=ident.source_id, source_identity_kind=ident.kind,
-            title=note.title or note.path.stem, relpath=note.relpath,
-            source_fingerprint=note.source_fingerprint, locator=Locator((), 0, 0), excerpt="",
-            reason=reason, relative_relevance=relevance, coverage="incomplete",
+        """Delegate to the shared citation service (behavior-preserving, ADR-0016)."""
+        return self._citations.make(
+            note, evidence, relevance=relevance, reason=reason, material=material, scored=scored,
         )
 
     def _cite_scored(self, scored: ScoredNote, evidence: frozenset[str]) -> Citation | None:

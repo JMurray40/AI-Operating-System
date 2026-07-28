@@ -11,6 +11,7 @@ Commands:
     jarvis summarize "<name>"           Summarize a project with cited sources.
     jarvis explain "<A>" "<B>"          Explain how two notes are related.
     jarvis resume "<selector>"          Assemble a deterministic, sourced project briefing.
+    jarvis resume-doctor                Diagnose the environment and rebuild derived state.
 
 Exit codes:
     0  success / validation OK / answer produced / complete supported briefing
@@ -57,13 +58,22 @@ from jarvis_core.project_resume.contract import (
     DEFAULT_EVIDENCE_TOKEN_BUDGET,
     DEFAULT_OUTPUT_TOKEN_BUDGET,
 )
+from jarvis_core.project_resume.diagnostics import (
+    STATUS_FAIL,
+    STATUS_OK,
+    run_diagnostics,
+)
 from jarvis_core.project_resume.identity import resolve_project
 from jarvis_core.project_resume.local_git import (
     LocalGitRepositoryActivityAdapter,
     SubprocessProcessRunner,
 )
 from jarvis_core.project_resume.repository_activity import RepositoryActivityGrant
-from jarvis_core.project_resume.request import BudgetRangeError, RequestValidationError
+from jarvis_core.project_resume.request import (
+    BudgetRangeError,
+    RequestValidationError,
+    parse_evaluation_time,
+)
 from jarvis_core.providers import get_provider
 from jarvis_core.query import QueryAnswer, QueryEngine, QueryTrace
 from jarvis_core.relationships import RelationshipResolver
@@ -430,6 +440,41 @@ def _cmd_resume(args: argparse.Namespace) -> int:
     return exit_code_for(result.status)
 
 
+def _cmd_resume_doctor(args: argparse.Namespace) -> int:
+    """Diagnose the environment and rebuild derived state (read-only; brief §21).
+
+    Reports the runtime, vault readability, the derived-state rebuild (authorized view + lexical
+    index + relationship graph reconstructed from canonical sources, never persisted), Git
+    availability and version, and — when ``--repository-root`` is given — a redacted probe of
+    that root through the local read-only Git adapter. Exit: 0 healthy, 2 warnings, 1 failure.
+    """
+    config = _build_config(args)
+    repo = FileSystemKnowledgeRepository(config)
+    notes = repo.discover()
+    scope = local_allow_all(workspace_id="local")
+    repository_root = Path(args.repository_root) if args.repository_root else None
+    try:
+        evaluation_time = parse_evaluation_time(args.as_of) if args.as_of else None
+    except RequestValidationError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_FATAL
+
+    report = run_diagnostics(
+        notes, scope=scope, source_root=repo.root,
+        repository_root=repository_root, evaluation_time=evaluation_time,
+    )
+    if config.output_format is OutputFormat.JSON:
+        print(_dumps(report.to_dict()))
+    else:
+        print(report.render_text())
+
+    if report.overall_status == STATUS_OK:
+        return EXIT_OK
+    if report.overall_status == STATUS_FAIL:
+        return EXIT_FATAL
+    return EXIT_WARNINGS
+
+
 # ------------------------------------------------------------------------------ main
 def _add_common(parser: argparse.ArgumentParser, *, with_path: bool) -> None:
     if with_path:
@@ -569,6 +614,22 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_common(p_resume, with_path=False)
     p_resume.set_defaults(func=_cmd_resume)
+
+    p_doctor = sub.add_parser(
+        "resume-doctor",
+        help="Diagnose the environment and rebuild derived state (read-only).",
+    )
+    p_doctor.add_argument("--path", default=None, help="Vault/fixture directory.")
+    p_doctor.add_argument(
+        "--repository-root", dest="repository_root", default=None,
+        help="Optional local Git repository root to probe (redacted diagnosis).",
+    )
+    p_doctor.add_argument(
+        "--as-of", dest="as_of", default=None,
+        help="Explicit ISO-8601 UTC time for the repository staleness probe (default: now).",
+    )
+    _add_common(p_doctor, with_path=False)
+    p_doctor.set_defaults(func=_cmd_resume_doctor)
 
     return parser
 

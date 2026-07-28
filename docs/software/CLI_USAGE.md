@@ -16,6 +16,7 @@
 | `jarvis summarize "<name>" [--path <dir>]` | Summarize a project with cited sources. |
 | `jarvis explain "<A>" "<B>" [--path <dir>]` | Explain how two notes are related. |
 | `jarvis resume "<selector>" [--path <dir>] [--trace]` | Assemble a deterministic, sourced project briefing (v0.4). |
+| `jarvis resume-doctor [--path <dir>] [--repository-root <root>]` | Diagnose the environment and rebuild derived state (read-only). |
 
 `<name>` matches a project note's title, alias, id, or filename stem.
 
@@ -110,6 +111,25 @@ Resume-specific options:
   fingerprint, explicit evaluation time, safe authorization summary, selected identity/tier,
   discovery channels, included evidence identities, coverage, budgets, and isolated timings.
   Excluded identities and rejected ambiguity candidates are never disclosed.
+
+### Diagnostics and recovery
+
+`jarvis resume-doctor` is a read-only health check. It verifies the runtime, confirms the vault
+is readable, rebuilds the derived state, reports Git availability and version, and — with
+`--repository-root <root>` — probes that root through the same local read-only Git adapter the
+runtime uses (a denied, escaping, or non-repository root is rejected with a redacted message).
+
+Project Resume keeps **no persisted index**: the authorized view, lexical index, and
+relationship graph are derived projections rebuilt in memory from canonical sources on every
+run. A missing or corrupt derived index therefore self-heals on the next invocation — the doctor
+performs that rebuild explicitly and reports the resulting index version and workspace
+fingerprint. No diagnostic or recovery step ever writes to, repairs, or migrates canonical
+sources. Exit codes: `0` healthy, `2` warnings (e.g. Git unavailable), `1` a failed check.
+
+```bash
+jarvis resume-doctor --path /path/to/vault
+jarvis resume-doctor --path /path/to/vault --repository-root /path/to/local/git/repo --format json
+```
 
 ## v0.3.1 query trust contracts
 

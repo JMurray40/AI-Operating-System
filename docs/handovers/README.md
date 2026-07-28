@@ -18,6 +18,7 @@
 | Milestone | Status | Index |
 |---|---|---|
 | v0.3.1 — Query Trust Contracts | Active; evidence correction | [v0.3.1 handoff index](v0.3.1/README.md) |
+| v0.4 — Project Resume | Planning validated; implementation blocked | [v0.4 planning index](v0.4/README.md) |
 
 Project-wide priority and decision state remains in
 [Project Control](../coordination/README.md).

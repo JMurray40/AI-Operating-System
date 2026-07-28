@@ -40,10 +40,13 @@ from jarvis_core.project_resume.results import (
 
 __all__ = ["EXIT_CODES", "exit_code_for", "render_json", "render_text"]
 
-# Stable, distinct process exit codes (brief §9). Success (complete/partial) is 0.
+# Stable process exit codes that EXTEND the existing CLI convention without reassigning it
+# (0 success, 1 fatal, 2 warnings; brief §9/§13). A complete supported briefing is 0; a
+# partial/warning briefing reuses the established warnings code 2; the remaining outcomes take
+# new distinct codes above the existing range.
 EXIT_CODES: dict[str, int] = {
     STATUS_COMPLETE: 0,
-    STATUS_PARTIAL: 0,
+    STATUS_PARTIAL: 2,
     STATUS_FAILED: 1,
     STATUS_AMBIGUOUS: 3,
     STATUS_NOT_FOUND: 4,

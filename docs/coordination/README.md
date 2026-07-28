@@ -40,7 +40,8 @@ governance document, follow the order of precedence in
 | Planning validation | [Chief of Staff validation](../handovers/v0.4/00-chief-of-staff-project-resume-planning-validation.md) |
 | v0.3.1 release | Complete as `v0.3.1` |
 | v0.4 Product Owner direction | Begin implementation |
-| v0.4 base | `main@2022c2dffeda8341011b45ceaedd550dd53bf742` |
+| v0.4 released baseline | `main@2022c2dffeda8341011b45ceaedd550dd53bf742` |
+| v0.4 implementation base | Pending CTO ADR/brief commit and Chief of Staff validation |
 | Repository activity | [Fixtures plus local read-only Git](../handovers/v0.4/00-product-owner-repository-activity-scope-decision.md); live GitHub excluded |
 | Engineering branch | Reserved but not created pending CTO package validation |
 | Current gate | Accept Project Resume ADRs and issue the final implementation brief |

@@ -7,7 +7,8 @@
 | Prerequisite | v0.3.1 accepted, released, and closed |
 | Repository activity | Accepted: fixtures plus local read-only Git only |
 | Implementation branch | Reserved: `feature/v0.4-project-resume`; create only after CTO package validation |
-| Implementation base | `main@2022c2dffeda8341011b45ceaedd550dd53bf742` |
+| Released architecture baseline | `main@2022c2dffeda8341011b45ceaedd550dd53bf742` |
+| Implementation base | Pending exact commit containing accepted ADRs and final CTO brief |
 
 ## Current effective state
 
@@ -36,9 +37,9 @@ to a separately authorized connector milestone.
 
 The future implementation authorization may be created only when:
 
-1. CTO reconciles the brief against released `main@2022c2d`;
+1. CTO reconciles the brief against released baseline `main@2022c2d`;
 2. required Project Resume ADRs are accepted;
 3. the final CTO implementation brief closes all authorization-time refinements;
-4. Chief of Staff validates that package;
-5. a clean `feature/v0.4-project-resume` worktree is created at the pinned base; and
+4. Chief of Staff validates and commits that package, then pins that exact `main` commit;
+5. a clean `feature/v0.4-project-resume` worktree is created at that pinned base; and
 6. the Principal Engineer receives the validated authorization prompt.

@@ -8,8 +8,9 @@
 | Date | 2026-07-27 |
 | Status | **Authorized architecture-finalization gate** |
 | Repository | `AI-Operating-System` |
-| Required base branch | `main` |
-| Required base commit | `2022c2dffeda8341011b45ceaedd550dd53bf742` |
+| Architecture reconciliation branch | `main` |
+| Released architecture baseline | `2022c2dffeda8341011b45ceaedd550dd53bf742` |
+| Future engineering base | Exact clean `main` commit containing the accepted ADRs and final CTO brief; Chief of Staff pins it after validation |
 | Released prerequisite | `v0.3.1` |
 | Product Owner implementation direction | **Begin v0.4 implementation** |
 
@@ -27,7 +28,7 @@ and the [v0.4 Planning Index](README.md).
 The following prerequisites are closed:
 
 - v0.3.1 is released as tag `v0.3.1`;
-- local and remote `main` are pinned at
+- released v0.3.1 code is pinned at
   `2022c2dffeda8341011b45ceaedd550dd53bf742`;
 - the v0.3.1 executable, evidence, QA, Product Owner, and Librarian lifecycle is closed;
 - the Product Owner chose deterministic fixtures plus local read-only Git only;
@@ -80,10 +81,14 @@ Update the ADR index. Do not accept live GitHub or a generic connector framework
 
 ### 3. Close authorization-time refinements
 
-The final brief must pin:
+The final brief must define:
 
 - branch `feature/v0.4-project-resume`;
-- base `main@2022c2dffeda8341011b45ceaedd550dd53bf742`;
+- released architecture baseline
+  `main@2022c2dffeda8341011b45ceaedd550dd53bf742`;
+- the rule that the implementation base is the exact clean `main` commit containing the
+  accepted Project Resume ADRs and final brief, to be recorded by the Chief of Staff after
+  validating and committing the CTO package;
 - affected-file/package forecast;
 - exact local-Git subprocess and security boundaries;
 - reference hardware and required benchmark protocol;

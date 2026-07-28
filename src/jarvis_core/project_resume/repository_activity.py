@@ -12,9 +12,13 @@ single invocation.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Protocol
 
+from jarvis_core.identity import fingerprint_bytes
 from jarvis_core.project_resume.contract import REPOSITORY_ACTIVITY_CONTRACT_VERSION
 
 # The single permitted operation (ADR-0021). No other Git operation is representable.
@@ -179,3 +183,171 @@ RepositoryActivityResult = (
     | RepositoryActivityMalformed
     | RepositoryActivityStale
 )
+
+
+# ==================================================================================
+# C8 — the port protocol, the shared snapshot builder, and the fixture adapter (ADR-0021)
+#
+# Project Resume depends on this narrow port, never on ``subprocess``. Two adapters implement
+# it: a deterministic fixture adapter (here, no Git required) and the local read-only Git
+# adapter (``local_git``, C9). Both build the snapshot through the SAME normalization and
+# fingerprint so a fixture record and a real Git record share one semantic contract. The port
+# is denied by default: a request without a matching, frozen grant returns a typed
+# ``RepositoryActivityDenied``, never an empty snapshot.
+# ==================================================================================
+
+DEFAULT_STALENESS_THRESHOLD_DAYS = 180
+
+
+class RepositoryActivityPort(Protocol):
+    """The one method Project Resume uses to read recent local commit activity (ADR-0021)."""
+
+    def load_activity(
+        self,
+        *,
+        project_id: str,
+        repository_root: Path,
+        grant: RepositoryActivityGrant | None,
+        evaluation_time: datetime,
+    ) -> RepositoryActivityResult:
+        ...
+
+
+def _record_bytes(records: tuple[RepositoryCommitRecord, ...]) -> bytes:
+    """Exact normalized record bytes used for the snapshot fingerprint (both adapters)."""
+    return "\n".join(
+        "\x00".join((r.object_id, r.committer_iso, r.author, r.subject)) for r in records
+    ).encode("utf-8")
+
+
+def _committer_key(record: RepositoryCommitRecord) -> tuple[int, str]:
+    """Sort key: committer timestamp descending, then object id ascending (ADR-0021)."""
+    try:
+        ts = datetime.fromisoformat(record.committer_iso).timestamp()
+    except ValueError:
+        ts = 0.0
+    return (-int(ts), record.object_id)
+
+
+def build_snapshot(
+    *,
+    repository_id: str,
+    head_object_id: str,
+    records: tuple[RepositoryCommitRecord, ...] | list[RepositoryCommitRecord],
+    max_records: int,
+    git_version: str = "",
+) -> RepositoryActivitySnapshot:
+    """Deterministically sort, cap, and fingerprint records into a revision-bound snapshot."""
+    ordered = tuple(sorted(records, key=_committer_key))[:max_records]
+    return RepositoryActivitySnapshot(
+        repository_id=repository_id,
+        head_object_id=head_object_id,
+        records=ordered,
+        fingerprint=fingerprint_bytes(_record_bytes(ordered)),
+        git_version=git_version,
+    )
+
+
+def newest_committer_datetime(
+    snapshot: RepositoryActivitySnapshot,
+) -> datetime | None:
+    """The most recent committer timestamp in a snapshot, or None when empty/unparseable."""
+    newest: datetime | None = None
+    for record in snapshot.records:
+        try:
+            parsed = datetime.fromisoformat(record.committer_iso)
+        except ValueError:
+            continue
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        if newest is None or parsed > newest:
+            newest = parsed
+    return newest
+
+
+def is_stale(
+    snapshot: RepositoryActivitySnapshot,
+    *,
+    evaluation_time: datetime,
+    threshold_days: int = DEFAULT_STALENESS_THRESHOLD_DAYS,
+) -> bool:
+    """True when the newest commit is at least ``threshold_days`` old at the evaluation time."""
+    newest = newest_committer_datetime(snapshot)
+    if newest is None:
+        return False
+    eval_utc = evaluation_time.astimezone(timezone.utc)
+    return (eval_utc - newest.astimezone(timezone.utc)).days >= threshold_days
+
+
+@dataclass(frozen=True)
+class RepositoryActivityFixture:
+    """A pre-seeded, deterministic activity fixture for one canonical repository root.
+
+    ``forced_outcome`` lets fixtures deterministically exercise the unavailable/malformed
+    degradation paths without an installed Git or a real failure.
+    """
+
+    repository_id: str
+    head_object_id: str
+    records: tuple[RepositoryCommitRecord, ...] = ()
+    forced_outcome: RepositoryActivityResult | None = None
+
+
+class FixtureRepositoryActivityAdapter:
+    """A deterministic :class:`RepositoryActivityPort` that runs without Git (ADR-0021).
+
+    Fixtures are keyed by the canonical (resolved) repository-root path string. The adapter
+    enforces the same default-denied, grant-bound, root-matched contract the Git adapter must:
+    no grant is denied; a grant that does not bind this exact project and root is denied; a
+    root with no fixture is ``unavailable`` (never an empty snapshot); a forced outcome is
+    returned verbatim; otherwise a healthy snapshot is built and staleness is applied.
+    """
+
+    def __init__(
+        self,
+        fixtures: Mapping[str, RepositoryActivityFixture],
+        *,
+        staleness_threshold_days: int = DEFAULT_STALENESS_THRESHOLD_DAYS,
+    ) -> None:
+        self._fixtures = {str(Path(k).resolve()): v for k, v in fixtures.items()}
+        self._threshold_days = staleness_threshold_days
+
+    def load_activity(
+        self,
+        *,
+        project_id: str,
+        repository_root: Path,
+        grant: RepositoryActivityGrant | None,
+        evaluation_time: datetime,
+    ) -> RepositoryActivityResult:
+        if grant is None:
+            return RepositoryActivityDenied(
+                CODE_DENIED_NO_GRANT, "repository activity denied: no grant"
+            )
+        requested = str(repository_root.resolve())
+        granted = str(grant.repository_root.resolve())
+        if grant.project_id != project_id or granted != requested:
+            return RepositoryActivityDenied(
+                CODE_DENIED_ROOT_MISMATCH,
+                "repository activity denied: grant does not bind this project and root",
+            )
+        fixture = self._fixtures.get(requested)
+        if fixture is None:
+            return RepositoryActivityUnavailable(
+                CODE_UNAVAILABLE_NOT_A_REPO, "repository activity unavailable: no repository"
+            )
+        if fixture.forced_outcome is not None:
+            return fixture.forced_outcome
+        snapshot = build_snapshot(
+            repository_id=fixture.repository_id,
+            head_object_id=fixture.head_object_id,
+            records=fixture.records,
+            max_records=grant.max_records,
+        )
+        if is_stale(
+            snapshot, evaluation_time=evaluation_time, threshold_days=self._threshold_days
+        ):
+            return RepositoryActivityStale(
+                CODE_STALE, "repository activity is stale relative to the evaluation time"
+            )
+        return snapshot

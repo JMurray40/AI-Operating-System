@@ -36,7 +36,7 @@ governance document, follow the order of precedence in
 |---|---|
 | Product Owner direction | Complete v0.3.1 before advancing the release sequence |
 | Requirements | [v0.3.1 Query Trust Contracts Requirements](../software/V0.3.1_QUERY_TRUST_CONTRACTS_REQUIREMENTS.md) |
-| Current incoming handoff | [Superseding Quality & Release Review](../handovers/v0.3.1/05-quality-to-product-owner-release-review.md) |
+| Current incoming handoff | [Product Owner Release Decision](../handovers/v0.3.1/06-product-owner-to-librarian-release-decision.md) |
 | Requirements status | Accepted by Product Owner on 2026-07-27 |
 | Trust-contract ADRs | [ADR-0014](../adr/ADR-0014-Retrieval-Relevance-Is-Separate-From-Answer-Confidence.md), [ADR-0015](../adr/ADR-0015-Authorization-Precedes-Retrieval-And-Graph-Expansion.md), [ADR-0016](../adr/ADR-0016-Citations-Bind-Passages-To-Source-Revisions.md), and [ADR-0017](../adr/ADR-0017-Stable-Source-Identity-Is-Separate-From-Location.md) — accepted |
 | Product Owner decision | [Architecture approval](../handovers/v0.3.1/01-product-owner-to-cto-architecture-approval.md) |
@@ -45,19 +45,19 @@ governance document, follow the order of precedence in
 | Principal Engineer work | Executable candidate complete at `956c2ed`; evidence retained at `8fa5f18` |
 | CTO disposition | Ready for limited revalidation; QR-031-01 through QR-031-03 closed |
 | QA review | [Ready; superseding Areas A/G/H revalidation complete](../handovers/v0.3.1/05-quality-to-product-owner-release-review.md) |
+| Product Owner decision | [Approved for controlled merge](../handovers/v0.3.1/06-product-owner-to-librarian-release-decision.md) |
 | QA prompt | [Chief of Staff limited revalidation](../handovers/v0.3.1/07-chief-of-staff-to-quality-limited-revalidation.md) — completed |
 | Librarian pass | Not started |
 | Primary gate | Close ARB conditions C1–C5 before conversational/generated-answer release |
 
-**Next responsible role:** Product Owner — release go/no-go decision
+**Next responsible role:** Chief of Staff — controlled merge; then Historian / Librarian
 
 **Required next actions:**
 
-1. Review the superseding QA disposition and its disclosed residual risks.
-2. Decide whether to approve, return, stop, or re-scope exact executable `956c2ed` with
-   evidence commit `8fa5f18`.
-3. If approved, record the Product Owner decision before any merge, push, or release.
-4. Route approved release execution and subsequent Librarian closeout as separate gates.
+1. Merge the reviewed feature lineage into `main` without touching the parked candidate.
+2. Verify the exact executable and decision ancestry in the merged state.
+3. Route the merged repository to the Historian / Librarian closeout.
+4. Keep push, tag, and final release blocked until closeout is accepted.
 
 ### Parked candidate: conversational implementation currently named v0.4
 

@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Milestone | v0.3.1 — Query Trust Contracts |
-| Status | Active; awaiting Product Owner release decision |
+| Status | Product Owner approved; controlled merge authorized |
 | Owner | Chief of Staff |
 | Updated | 2026-07-27 |
 | Branch | `feature/v0.3.1-query-trust-contracts` |
@@ -14,18 +14,18 @@
 
 | Item | Effective state |
 |---|---|
-| Lifecycle stage | Product Owner go/no-go decision |
-| Next responsible role | Product Owner |
-| Current incoming artifact | [Superseding Quality & Release review](05-quality-to-product-owner-release-review.md) |
-| Required next output | Recorded approval, return, stop, or re-scope decision |
+| Lifecycle stage | Controlled merge, then Librarian closeout |
+| Next responsible role | Chief of Staff for merge execution; Historian / Librarian after merge |
+| Current incoming artifact | [Product Owner release decision](06-product-owner-to-librarian-release-decision.md) |
+| Required next output | Merged-state verification and Librarian repository closeout |
 | Architecture | Ready for limited revalidation; QR-031-01 through QR-031-03 closed |
 | QA | **Ready**; affected Areas A, G, and H passed |
 | Evidence | Executable `956c2ed`; evidence commit `8fa5f18`; artifact digest verified |
-| Merge/release | Prohibited |
+| Merge/release | Local merge authorized; push, tag, and release await Librarian closeout |
 | Parked conversation work | Out of scope and untouched |
 
-Do not merge, push, release, start Librarian closeout, begin v0.4 implementation, or
-reconcile conversation work until the Product Owner records a decision.
+Do not push, tag, release, begin v0.4 implementation, or reconcile conversation work until
+the controlled merge and Librarian closeout are complete.
 
 ## Current evidence contract
 
@@ -52,7 +52,7 @@ Read the latest named revision first. Earlier sections preserve history.
 | [Engineering Review](03-principal-engineer-to-cto-engineering-review.md) | Rev 6 with Evidence Addendum complete |
 | [CTO Architecture Disposition](04-cto-to-quality-architecture-disposition.md) | **Ready for limited Quality & Release revalidation** |
 | [Quality & Release Review](05-quality-to-product-owner-release-review.md) | **Ready**; superseding A/G/H revalidation complete |
-| [Project Control](../../coordination/README.md) | Product Owner decision pending |
+| [Project Control](../../coordination/README.md) | Controlled merge authorized |
 
 ## Artifact map
 
@@ -72,6 +72,7 @@ Read the latest named revision first. Earlier sections preserve history.
 | 03 | [Engineering Review](03-principal-engineer-to-cto-engineering-review.md) | Read Rev 6 and its Evidence Addendum |
 | 04 | [CTO disposition](04-cto-to-quality-architecture-disposition.md) | Latest limited-QA clearance governs |
 | 05 | [QA review](05-quality-to-product-owner-release-review.md) | Latest superseding revision is `Ready` |
+| 06 | [Product Owner decision](06-product-owner-to-librarian-release-decision.md) | **Approved for controlled merge** |
 
 ### Chief of Staff prompts
 

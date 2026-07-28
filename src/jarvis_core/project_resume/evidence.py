@@ -25,10 +25,22 @@ from jarvis_core.project_resume.contract import (
     CHANNEL_METADATA,
     CHANNEL_RELATIONSHIP,
     CHANNEL_RETRIEVAL,
+    COVERAGE_COMPLETE,
+    COVERAGE_INCOMPLETE,
+    COVERAGE_NONE,
+    COVERAGE_PARTIAL,
+    SUPPORT_INCOMPLETE,
+    SUPPORT_SUPPORTED,
 )
 from jarvis_core.project_resume.identity import normalize_selector
-from jarvis_core.project_resume.results import Omission, ProjectIdentity
+from jarvis_core.project_resume.results import (
+    CoverageSummary,
+    EvidenceCitation,
+    Omission,
+    ProjectIdentity,
+)
 from jarvis_core.query.authorized import AuthorizedView
+from jarvis_core.query.evidence import CitationFactory
 from jarvis_core.query.index import LexicalIndex
 from jarvis_core.query.ranking import Ranker
 from jarvis_core.query.tokenizer import token_set
@@ -199,3 +211,116 @@ def discover_evidence(
     add_channel(CHANNEL_RETRIEVAL, retrieval, "retrieval materially bound to the selected project")
 
     return DiscoveryResult(sources=tuple(selected), omissions=tuple(omissions))
+
+
+# ==================================================================================
+# C6 — claim-to-current-citation binding (ADR-0020, brief §9)
+#
+# Every material claim must be bound to at least one citation validated against CURRENT
+# source bytes immediately before emission. Binding never reimplements citation logic: it
+# delegates to the reusable query-layer :class:`CitationFactory`, which re-reads the current
+# source within the resolved root and validates fingerprint + locator + heading path +
+# excerpt. A source that changed, was deleted, is unreadable, or escaped the root fails the
+# fingerprint/path check and yields no supported citation, so the claim is marked incomplete
+# rather than silently dropped. Metadata-derived claims pass the metadata signal as the
+# evidence terms, so ``locate`` cites the metadata-bearing frontmatter locator, not an
+# unrelated body passage.
+# ==================================================================================
+
+
+def evidence_id_for(source: DiscoveredSource) -> str:
+    """A deterministic evidence id: stable identity + the exact revision it was seen at."""
+    return f"ev:{source.source_id}:{source.source_fingerprint[:12]}"
+
+
+@dataclass(frozen=True)
+class EvidenceBinding:
+    """The outcome of binding one source to current-validated evidence for a claim."""
+
+    source: DiscoveredSource
+    citation: EvidenceCitation | None
+    support_state: str  # SUPPORT_SUPPORTED | SUPPORT_INCOMPLETE
+
+    @property
+    def is_supported(self) -> bool:
+        return self.support_state == SUPPORT_SUPPORTED
+
+
+def bind_source_citation(
+    source: DiscoveredSource,
+    *,
+    factory: CitationFactory,
+    evidence_terms: frozenset[str],
+    relevance: float | None = None,
+    reason: str | None = None,
+) -> EvidenceBinding:
+    """Bind one discovered source to a validated current citation (ADR-0020).
+
+    Returns a ``supported`` binding only when the material claim-supporting passage validates
+    against current bytes. Otherwise falls back to an identity+revision ``incomplete``
+    reference when the source is still current, and to no citation at all when the source is
+    stale/deleted/unreadable/escaped — in every non-supported case the claim is ``incomplete``,
+    never presented as supported.
+    """
+    note = source.note
+    why = reason if reason is not None else source.channel_reason
+
+    supported = factory.make(
+        note, evidence_terms, relevance=relevance, reason=why, material=True
+    )
+    if supported is not None and supported.coverage == "supported":
+        citation = EvidenceCitation(
+            evidence_id=evidence_id_for(source),
+            channel=source.channel,
+            channel_reason=why,
+            citation=supported,
+        )
+        return EvidenceBinding(source, citation, SUPPORT_SUPPORTED)
+
+    # No validated material passage: fall back to a bare identity+revision reference, which the
+    # factory emits only when the source is still current (fingerprint matches).
+    incomplete = factory.make(
+        note, evidence_terms, relevance=relevance, reason=why, material=False
+    )
+    if incomplete is not None:
+        citation = EvidenceCitation(
+            evidence_id=evidence_id_for(source),
+            channel=source.channel,
+            channel_reason=why,
+            citation=incomplete,
+        )
+        return EvidenceBinding(source, citation, SUPPORT_INCOMPLETE)
+
+    # Stale / deleted / unreadable / escaped: the claim keeps no current-valid evidence.
+    return EvidenceBinding(source, None, SUPPORT_INCOMPLETE)
+
+
+def summarize_coverage(
+    *, supported: int, incomplete: int, conflicting: int
+) -> CoverageSummary:
+    """Answer-level coverage label from supported/incomplete/conflicting claim counts.
+
+    Mirrors the released query coverage labels (ADR-0020) and additionally degrades to
+    ``partial`` whenever any claim conflicts, so an unresolved conflict never reads as
+    ``complete``.
+    """
+    if supported and not incomplete and not conflicting:
+        label = COVERAGE_COMPLETE
+    elif supported:
+        label = COVERAGE_PARTIAL
+    elif incomplete or conflicting:
+        label = COVERAGE_INCOMPLETE
+    else:
+        label = COVERAGE_NONE
+    note = (
+        None
+        if label in (COVERAGE_COMPLETE, COVERAGE_NONE)
+        else "one or more claims are incomplete or in unresolved conflict"
+    )
+    return CoverageSummary(
+        label=label,
+        supported=supported,
+        incomplete=incomplete,
+        conflicting=conflicting,
+        note=note,
+    )

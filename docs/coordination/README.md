@@ -8,6 +8,7 @@
 | Product Owner | Jason Murray |
 | Updated | 2026-07-27 |
 | Governing documents | [Governance](../GOVERNANCE.md), [Ways of Working](../WAYS_OF_WORKING.md), [Operating Handbook](../../Operating%20Handbook%20-%20AI%20Agent%20Roles.md) |
+| Handoff router | [Global handoff router](../handovers/README.md) |
 
 ## Start here
 
@@ -29,11 +30,13 @@ governance document, follow the order of precedence in
 
 ### Active priority: v0.3.1 — Query Trust Contracts
 
+**Latest effective handoff state:** [v0.3.1 Handoff Index](../handovers/v0.3.1/README.md)
+
 | Item | Current state |
 |---|---|
 | Product Owner direction | Complete v0.3.1 before advancing the release sequence |
 | Requirements | [v0.3.1 Query Trust Contracts Requirements](../software/V0.3.1_QUERY_TRUST_CONTRACTS_REQUIREMENTS.md) |
-| Current incoming handoff | [Chief of Staff to CTO](../handovers/v0.3.1/00-chief-of-staff-to-cto-finalize-implementation-brief.md) |
+| Current incoming handoff | [Performance Evidence Correction](../handovers/v0.3.1/06-chief-of-staff-to-principal-engineer-evidence-correction.md) |
 | Requirements status | Accepted by Product Owner on 2026-07-27 |
 | Trust-contract ADRs | [ADR-0014](../adr/ADR-0014-Retrieval-Relevance-Is-Separate-From-Answer-Confidence.md), [ADR-0015](../adr/ADR-0015-Authorization-Precedes-Retrieval-And-Graph-Expansion.md), [ADR-0016](../adr/ADR-0016-Citations-Bind-Passages-To-Source-Revisions.md), and [ADR-0017](../adr/ADR-0017-Stable-Source-Identity-Is-Separate-From-Location.md) — accepted |
 | Product Owner decision | [Architecture approval](../handovers/v0.3.1/01-product-owner-to-cto-architecture-approval.md) |

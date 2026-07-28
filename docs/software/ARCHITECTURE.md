@@ -86,3 +86,20 @@ The repository opens files with mode `r` only. No component creates, edits, move
 deletes anything. A test (`tests/integration/test_readonly_safety.py`) hashes the entire
 fixture tree before and after a full run and asserts it is unchanged, and that no files
 were added or removed.
+
+## Project Resume (v0.4)
+
+`jarvis_core.project_resume` composes the released query-layer collaborators (authorized view,
+lexical index, relationship resolver, and the reusable current-source/citation service) into a
+sourced project briefing. The `assemble` orchestrator is the only seam that wires the pieces and
+maps their typed outputs into a frozen `ProjectResumeResult`; it holds no parsing, policy,
+subprocess, rendering, or scoring logic of its own. Data flow: build the authorized view → select
+exactly one project (`identity`) → discover typed evidence (`evidence`) → lift into authority
+space and resolve ordering/supersession/conflict (`authority`) → bind each claim to a
+current-validated citation (`evidence` + query `CitationFactory`) → enforce the evidence and
+output budgets (`budget`) → optionally read grant-gated local Git activity behind a port
+(`repository_activity` / `local_git`) → render text/JSON (`render`) and an isolated-timing trace
+(`trace`). Nothing is persisted: derived projections are rebuilt in memory each run, and
+`diagnostics` makes that rebuild explicit for the `resume-doctor` command. Determinism and
+read-only safety hold exactly as above — the semantic result is byte-identical for identical
+inputs (timings live only in the trace), and no path writes to canonical vault or Git state.

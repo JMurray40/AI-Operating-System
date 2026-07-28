@@ -1386,3 +1386,200 @@ docs/handovers/v0.3.1/05-quality-to-product-owner-release-review.md
 ```
 
 Stop after this CTO disposition. Do not perform the Quality & Release review.
+
+---
+
+# Renewed Exact-HEAD CTO Review — Revision 6
+
+**Date:** 2026-07-27
+
+**Role:** Chief Architect / CTO
+
+**Supersedes:** Exact-HEAD CTO Clearance Revision 5 above
+
+**Reviewed branch:** `feature/v0.3.1-query-trust-contracts`
+
+**Reviewed HEAD:** `956c2ed1dd1144e836014b049a89c47e971818a0`
+
+**QA-reviewed candidate:** `09a4ca5a6e0d9b73a1e37a9e086abe788c894c72`
+
+**QA return commit:** `be527a8148914a08007e6c2fb6d0f2ed8cd9a4d4`
+
+**Correction diff:** `09a4ca5a6e0d9b73a1e37a9e086abe788c894c72..956c2ed1dd1144e836014b049a89c47e971818a0`
+
+## R6.1 Exact-state and scope verification
+
+Before this revision was appended, the worktree was clean. The checked-out branch and HEAD
+matched the exact values above, and both the QA-reviewed candidate and QA return commit are
+ancestors of the reviewed HEAD. The correction diff is limited to benchmark/test tooling
+plus governance and evidence documents:
+
+- `scripts/benchmark_query.py`;
+- `scripts/benchmark_regression.py`;
+- new `scripts/benchmark_paired.py`; and
+- `tests/integration/test_benchmark_smoke.py`.
+
+No production query, authorization, citation, result, compatibility, graph, context, CLI,
+or persistence code changed. The reviewed commit diff passes `git diff --check`.
+
+## R6.2 QR-031-01 — direct benchmark startup and isolation
+
+Both documented benchmark scripts now derive their repository root from their own file
+location and prepend that root and its `src` directory before importing
+`tests.support.synthetic_vault` or `jarvis_core`. Therefore the documented commands can run
+directly from the repository root without a `PYTHONPATH` override.
+
+The isolation model is structurally correct:
+
+- the candidate script resolves the candidate tree and imports candidate `jarvis_core`;
+- after the current regression harness is copied into a baseline tree, that copy resolves
+  the baseline tree and prepends the baseline tree's `src`;
+- the paired runner removes inherited `PYTHONPATH` for every child process;
+- candidate and baseline execute in separate subprocesses with their respective tree as
+  the working directory; and
+- the scope-only and no-argument constructor fallbacks remain reachable only when the
+  loaded historical implementation rejects the current signature.
+
+Copying the harness does not retain a candidate-root constant or candidate import path.
+The baseline copy consequently does not accidentally import the candidate implementation.
+On the current implementation, the full scope-plus-`source_root` constructor succeeds; the
+adaptive branches cannot weaken its mandatory-root behavior.
+
+**QR-031-01 is closed.**
+
+## R6.3 QR-031-02 — process-boundary smoke coverage
+
+The previous in-process module loading has been replaced with real subprocess invocation
+using the active Python executable, repository-root working directory, and an environment
+with `PYTHONPATH` removed.
+
+The smoke suite now covers:
+
+- direct `benchmark_query.py` startup and completion of measured output, memory
+  measurement, and authorization-stress phases;
+- direct `benchmark_regression.py` startup and total-pipeline completion;
+- regression JSON output and the requested raw-sample count;
+- paired-runner startup, both child processes, aggregate output, and honest pass/fail exit;
+  and
+- a negative dependency case in which only the script is copied, causing startup to fail
+  non-zero when its repository runtime modules cannot import.
+
+An import failure, constructor-contract drift, or failure to reach a required benchmark
+phase prevents the corresponding completion assertion.
+
+**QR-031-02 is closed.**
+
+## R6.4 QR-031-03 — paired protocol and retained evidence
+
+The paired protocol itself is architecturally valid. It uses:
+
+- the same copied regression harness for candidate and baseline;
+- the same deterministic synthetic fixture generator;
+- the same note count, query, warm-up count, measured-run count, percentile estimator, and
+  construction-plus-query boundary;
+- the same Python executable and machine within each paired attempt;
+- back-to-back candidate/baseline measurements; and
+- alternating candidate-first and baseline-first order.
+
+The reported per-attempt summary is arithmetically consistent:
+
+| Attempt | Order | Candidate p95 | Baseline p95 | Regression |
+|---:|---|---:|---:|---:|
+| 0 | candidate first | 37.373 ms | 32.824 ms | 13.86% |
+| 1 | baseline first | 37.065 ms | 35.733 ms | 3.73% |
+| 2 | candidate first | 36.683 ms | 35.149 ms | 4.36% |
+| 3 | baseline first | 37.211 ms | 33.070 ms | 12.52% |
+| 4 | candidate first | 37.282 ms | 33.658 ms | 10.77% |
+
+The sorted regression values yield the reported 3.73% minimum, 13.86% maximum, and 10.77%
+median, all below the 20% threshold.
+
+However, the raw sample arrays from the cited five-attempt, 30-run execution are not
+contained in the reviewed repository or in the Rev 6 engineering handover. The
+implementation can retain them when `--out` is supplied, but the reported evidence only
+states that capability and presents derived p95 summaries. No committed or otherwise
+identified evidence artifact contains the 30 candidate and 30 baseline samples for each
+attempt.
+
+Consequently, this review can verify the protocol and the arithmetic from reported p95
+values, but cannot independently:
+
+- recompute each p95 from the claimed raw observations;
+- confirm that every attempt contains exactly 30 observations per version;
+- inspect outliers, truncation, or sample substitution; or
+- bind the reported summary to a retained output from the exact command and candidate.
+
+The QA return explicitly required reproducible paired baseline/candidate **raw performance
+evidence**, and the renewed CTO request requires independent verification that raw samples
+support the reported range and median. A facility capable of producing evidence is not the
+same as retaining the evidence used for clearance.
+
+**QR-031-03 remains open as an evidence-integrity finding.**
+
+## R6.5 Previously closed findings
+
+The executable correction scope does not modify any trust-contract or product behavior.
+No regression was found in:
+
+- authorization-before-retrieval/graph ordering or excluded-source non-disclosure;
+- canonical authorization, traversal rejection, or duplicate-ID fail-closed handling;
+- mandatory current-source roots, exact-byte validation, path/symlink confinement, or
+  stale-source handling;
+- citation locator, excerpt, heading hierarchy, claim-binding, and coverage semantics;
+- incomplete-evidence text/JSON/exit behavior;
+- hard context-budget accounting;
+- relevance versus answer-confidence separation;
+- strict legacy-reader behavior; or
+- ADR-0012 and ADR-0014 through ADR-0017.
+
+The accepted performance ceiling is unchanged. Its renewed paired protocol reports a pass,
+but final closure of the remediated evidence package requires the missing raw observations
+described in R6.4.
+
+## R6.6 Required evidence correction
+
+Return a documentation/evidence-only correction that:
+
+1. reruns the paired command against the exact v0.3 baseline and exact candidate with
+   `--out` enabled;
+2. retains the complete generated JSON, including all candidate and baseline raw samples
+   for every attempt, at a stable repository evidence path or embeds an exact,
+   independently inspectable equivalent in the engineering handover;
+3. records the baseline commit/tree identity, candidate commit, command, Python version,
+   machine/environment identity, note count, query, warm-ups, runs, attempts, and
+   percentile method alongside the raw samples;
+4. recomputes and records every per-attempt p95/regression and the aggregate minimum,
+   maximum, and median from that retained artifact;
+5. adds an integrity binding such as the artifact's SHA-256 digest to Rev 6's superseding
+   evidence revision; and
+6. makes no implementation, test, trust-contract, or benchmark-protocol change.
+
+The future CTO review may be limited to the evidence artifact, its arithmetic, its binding
+to the exact candidate/baseline, and confirmation that no executable files changed.
+
+## R6.7 Explicit architecture disposition
+
+**EVIDENCE CORRECTION REQUIRED.**
+
+QR-031-01 and QR-031-02 are closed. The paired/interleaved protocol is acceptable and its
+reported summary is within the 20% gate, but QR-031-03 is not independently closed because
+the raw observations underlying the reported p95 values were not retained in the reviewed
+evidence package.
+
+Commit `956c2ed1dd1144e836014b049a89c47e971818a0` is returned for the narrowly bounded
+evidence correction in R6.6.
+
+## R6.8 Quality & Release status
+
+**Quality & Release is not yet authorized to rerun.**
+
+The affected A, G, and H matrix areas are not activated for this HEAD because the
+performance evidence package remains incomplete. After a future exact-HEAD CTO clearance,
+Quality & Release must rerun A, G, and H plus any evidence directly affected by the
+correction and append a superseding revision to:
+
+```text
+docs/handovers/v0.3.1/05-quality-to-product-owner-release-review.md
+```
+
+Stop after this CTO disposition. Do not perform the Quality & Release role.

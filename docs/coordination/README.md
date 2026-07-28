@@ -39,21 +39,21 @@ governance document, follow the order of precedence in
 | Product Owner decision | [Architecture approval](../handovers/v0.3.1/01-product-owner-to-cto-architecture-approval.md) |
 | Implementation brief | [CTO implementation brief](../handovers/v0.3.1/02-cto-to-principal-engineer-implementation-brief.md) — validated |
 | Engineer prompt package | [Chief of Staff validation and prompt](../handovers/v0.3.1/02-chief-of-staff-to-principal-engineer-validated-prompt.md) |
-| Principal Engineer work | Returned for benchmark-only QA remediation |
-| CTO disposition | Exact HEAD `09a4ca5…` was cleared for QA; clearance is superseded for any changed candidate |
+| Principal Engineer work | Returned for documentation/evidence-only correction |
+| CTO disposition | QR-031-01/02 closed; QR-031-03 requires retained raw evidence |
 | QA review | [Refactor first](../handovers/v0.3.1/05-quality-to-product-owner-release-review.md) |
-| Remediation prompt | [Chief of Staff QA remediation](../handovers/v0.3.1/05-chief-of-staff-to-principal-engineer-qa-remediation.md) |
+| Evidence prompt | [Chief of Staff performance evidence correction](../handovers/v0.3.1/06-chief-of-staff-to-principal-engineer-evidence-correction.md) |
 | Librarian pass | Not started |
 | Primary gate | Close ARB conditions C1–C5 before conversational/generated-answer release |
 
-**Next responsible role:** Principal Engineer / Claude — benchmark-only QA remediation
+**Next responsible role:** Principal Engineer / Claude — evidence correction only
 
 **Required next actions:**
 
-1. Correct direct benchmark startup and process-boundary smoke coverage.
-2. Produce stable paired/interleaved performance evidence.
-3. Append Rev 6 to the Engineering Review.
-4. Return changed benchmark/test scope to CTO, then affected QA areas A, G, and H.
+1. Rerun the accepted paired protocol with complete JSON retention.
+2. Bind raw samples, execution identities, recomputed results, and SHA-256.
+3. Append the Evidence Addendum to Engineering Review Rev 6.
+4. Return only the evidence artifact and arithmetic to CTO before QA reruns A, G, and H.
 
 ### Parked candidate: conversational implementation currently named v0.4
 

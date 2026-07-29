@@ -16,22 +16,65 @@ The supported A12 reference path is a clean Windows environment with:
 - Git available only when local repository activity is being tested; and
 - a clean checkout of this repository at the documentation commit under review.
 
-Runtime installation may obtain the declared PyYAML dependency from the configured Python
-package source. Runtime use itself requires no network, provider, API key, or credential.
-Do not set `PYTHONPATH`; that is a developer convenience, not the supported installed path.
+Runtime installation obtains the declared PyYAML dependency and installs the candidate from
+an integrity-bound prebuilt wheel. Runtime use itself requires no network, provider, API
+key, or credential. Do not set `PYTHONPATH`; that is a developer convenience, not the
+supported installed path.
 
-## Clean installation
+A clean supported environment created by recent Python (3.12+) contains `pip` but **no
+build backend** (`setuptools`/`setuptools.build_meta`). A source build (`pip install .`)
+therefore fails in the non-author environment with `build_backend_unavailable`. The
+supported non-author A12 installation is the prebuilt wheel below, which installs without
+any build backend. The CTO exception authorizes acquiring PyYAML only; it does not
+authorize acquiring `setuptools`.
 
-From the repository root in PowerShell:
+## Integrity-bound candidate wheel
+
+The engineering-built, non-editable wheel is the supported non-author install artifact.
+
+| Field | Value |
+|---|---|
+| Executable source | `014076c429d47de83be4ca6543264082aa62633f` (wheel `jarvis_core/` payload is byte-identical to this commit's `src/jarvis_core/`) |
+| Package | `jarvis-core` 0.1.0 |
+| Wheel filename | `jarvis_core-0.1.0-py3-none-any.whl` |
+| Wheel SHA-256 | `7253e0b938433d7e393d186a3006c971b576381f6518fe986154d162fe0b3662` |
+| Compatibility tag | `py3-none-any` (pure-Python, interpreter-independent for Python 3.10+) |
+| Declared runtime dependency | `PyYAML>=6.0` |
+
+The wheel is a private, ignored release artifact (`dist/`, gitignored). It is delivered to
+the independent reviewer out-of-band; only its digest is bound publicly here. The reviewer
+must verify the SHA-256 before use and must not rebuild it.
+
+## Clean installation (non-author wheel path — no build backend)
+
+From the reviewer's working directory in PowerShell, with the delivered wheel present:
 
 ```powershell
+# 1. Verify the integrity-bound wheel BEFORE anything else.
+(Get-FileHash -Algorithm SHA256 .\jarvis_core-0.1.0-py3-none-any.whl).Hash.ToLower()
+# Expected: 7253e0b938433d7e393d186a3006c971b576381f6518fe986154d162fe0b3662
+
+# 2. Create the clean isolated environment (no build backend required).
 py -3.12 -m venv .venv-a12
 .\.venv-a12\Scripts\Activate.ps1
-python -m pip install .
+
+# 3. Acquire the declared PyYAML runtime dependency under the CTO Section 3 exception,
+#    then prove network denial. Install PyYAML offline from its verified local wheel:
+python -m pip install --no-index --find-links <pyyaml-wheel-dir> "PyYAML>=6.0"
+
+# 4. Install the candidate with no index, no dependency resolution, and no build backend:
+python -m pip install --no-index --no-deps .\jarvis_core-0.1.0-py3-none-any.whl
 ```
 
 If Python 3.10 or 3.11 is the installed supported interpreter, replace `-3.12` with that
-version. Do not install the development extra for the non-author packaging review.
+version; the wheel is `py3-none-any` and interpreter-independent within the supported
+range. Do not use editable mode, `PYTHONPATH`, an index, dependency resolution, or a build
+backend. If installing the candidate requires any download beyond the authorized PyYAML
+wheel, stop and report A12 as `Blocked`.
+
+A source build (`python -m pip install .`) is the engineering/developer path only and
+requires an approved environment that already provides `setuptools>=68`. It is not the
+supported non-author A12 install.
 
 ### Installed-command verification
 
@@ -76,18 +119,19 @@ jarvis --help
 ```
 
 The second command must no longer resolve or must fail because Jarvis is not installed.
-Then reinstall and repeat installed-command verification and the deterministic fixture
-rerun:
+Then reinstall from the **same integrity-bound wheel** (network still denied) and repeat
+installed-command verification and the deterministic fixture rerun:
 
 ```powershell
-python -m pip install .
+python -m pip install --no-index --no-deps .\jarvis_core-0.1.0-py3-none-any.whl
 jarvis --help
 jarvis resume-doctor --path tests/fixtures/fileorbit --format json
 ```
 
-Record the interpreter version, package version, install source commit, commands, exit
-statuses, and changed paths inside the isolated environment. Uninstall must not alter a
-vault, fixture, pilot, or repository.
+Reinstall must use the same wheel file whose SHA-256 was verified above; do not fetch,
+rebuild, or substitute another artifact. Record the interpreter version, package version,
+wheel SHA-256, commands, exit statuses, and changed paths inside the isolated environment.
+Uninstall must not alter a vault, fixture, pilot, or repository.
 
 ## Sensitivity-classification onboarding
 
@@ -222,15 +266,19 @@ runbook:
 
 1. Pin the documentation commit and verify it declares executable `014076c`.
 2. Record the clean environment, interpreter, platform, checkout status, and artifact
-   hashes without private values.
+   hashes without private values. Verify the candidate wheel SHA-256 equals
+   `7253e0b938433d7e393d186a3006c971b576381f6518fe986154d162fe0b3662` before installing it.
 3. Snapshot fixture/pilot canonical state, Git integrity, no-Git state, and the approved
    private evidence destination.
-4. Perform clean installation without editable mode, `PYTHONPATH`, or author help.
+4. Install the integrity-bound wheel: acquire and install PyYAML offline under the CTO
+   Section 3 exception, then `python -m pip install --no-index --no-deps` the verified
+   wheel — without editable mode, `PYTHONPATH`, an index, dependency resolution, a build
+   backend, or author help.
 5. Run installed help, deterministic fixture resume, healthy doctor, invalid-path,
    no-Git, optional approved-Git, partial/degraded, and redacted-diagnostic cases.
 6. Exercise missing/corrupt derived-state recovery without changing canonical sources.
-7. Uninstall, prove the command is removed, reinstall, and repeat the deterministic
-   fixture result.
+7. Uninstall, prove the command is removed, reinstall from the same integrity-bound wheel,
+   and repeat the deterministic fixture result.
 8. Compare all before/after inventories. Report valid unreachable drift separately under
    the rules above.
 9. Record each command, expected/actual result, exit status, created/changed path,

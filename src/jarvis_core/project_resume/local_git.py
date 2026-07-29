@@ -11,10 +11,13 @@ an installed Git. It is deliberately narrow and is not reusable authority for fu
   proxy, pager, editor, SSH, and Git directory/worktree/alternates overrides cannot leak in;
 - when a grant is present, the invocation points ``GIT_CONFIG_GLOBAL`` at a process-owned,
   single-entry, ephemeral config declaring *exactly the granted root* as ``safe.directory`` so
-  an explicitly granted repository owned by a different identity is readable; system config
-  stays disabled (``GIT_CONFIG_NOSYSTEM``), the ambient ``~/.gitconfig`` is never trusted, the
-  repository's own config/ownership is never altered, the opt-out is never the ``*`` wildcard,
-  and the file is deleted immediately after the invocation;
+  an explicitly granted repository owned by a different identity is readable; the config lives
+  under a controlled temp root proven outside the repository, carries an established-and-verified
+  owner-only permission boundary before the root is written, holds one literal value (never a
+  wildcard/comment/newline/include), and is created/verified/removed fail-closed — a snapshot is
+  never returned when secure cleanup cannot be proven; system config stays disabled
+  (``GIT_CONFIG_NOSYSTEM``), the ambient ``~/.gitconfig`` is never trusted, and the repository's
+  own config/ownership is never altered;
 - records/timeout/stdout/stderr are hard-capped; overflow and timeout return typed
   ``unavailable`` rather than partial data;
 - ``rev-parse --show-toplevel`` must canonicalize to exactly the granted root, so parent,
@@ -28,8 +31,10 @@ an installed Git. It is deliberately narrow and is not reusable authority for fu
 from __future__ import annotations
 
 import contextlib
+import ctypes
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import tempfile
@@ -169,26 +174,348 @@ def build_git_env(git_executable: str, *, tmp_dir: str | None = None) -> dict[st
     return env
 
 
-def _write_safe_directory_config(safe_root: Path) -> str:
-    """Write a process-owned, single-entry global config marking exactly ``safe_root`` safe.
+# --------------------------------------------------- request-scoped safe.directory (Handoff 15)
+#
+# Git honors ``safe.directory`` only from system/global config — never from ``-c`` or the
+# environment — so an explicitly granted repository owned by a different identity can be read
+# only through a global config file we control. That file is a request-scoped security
+# exception, so its whole lifecycle must be fail-closed: it is created under a controlled temp
+# root proven outside the repository, with an owner-only permission boundary established AND
+# verified before the private root is written, holds exactly one literal ``safe.directory``
+# value (never a wildcard/comment/newline/include), and its deletion is proven — a snapshot is
+# never returned when secure cleanup cannot be confirmed. ``GIT_CONFIG_NOSYSTEM`` stays set and
+# the ambient ``~/.gitconfig`` is never consulted.
 
-    Git only honors ``safe.directory`` from system/global config — never from ``-c`` or the
-    environment — so an explicitly granted repository owned by a different identity can only be
-    made readable through a global config file we control. The file declares that one root and
-    nothing else (never the ``*`` wildcard), is owned by the running process, and is deleted by
-    the caller immediately after the invocation. ``GIT_CONFIG_NOSYSTEM`` stays set, so no
-    system config and no ambient ``~/.gitconfig`` is consulted. The path is written in git's
-    forward-slash form so backslashes are never misread as config escapes on Windows.
+# Redacted, allowlisted codes for the two request-scoped security-lifecycle failures. Neither
+# message ever contains the temp path, the repository root, or a raw OS error.
+CODE_UNAVAILABLE_SECURITY_SETUP = "unavailable_security_setup"
+CODE_UNAVAILABLE_CLEANUP_INCOMPLETE = "unavailable_cleanup_incomplete"
+
+_CONFIG_UNSAFE_CHARS = frozenset('"\\\n\r\x00')
+
+
+class SecureConfigError(Exception):
+    """A request-scoped safe.directory config could not be securely created or removed.
+
+    Raised for containment, permission, serialization, and deletion failures. The message is
+    internal only and is mapped by the adapter to a redacted, typed unavailable result; it is
+    never surfaced to a caller or logged with a private path.
     """
-    fd, path = tempfile.mkstemp(prefix="jarvis-safe-dir-", suffix=".gitconfig")
+
+
+class EphemeralSafeDirectoryStore(Protocol):
+    """Injected boundary that owns the request-scoped safe.directory config lifecycle."""
+
+    def create(self, *, safe_root: Path) -> str:
+        """Create the owner-only ephemeral config and return its path, or raise on any failure."""
+        ...
+
+    def remove(self, config_path: str) -> None:
+        """Remove the config and its controlled temp root; raise if deletion cannot be proven."""
+        ...
+
+
+def _safe_config_value(safe_root: Path) -> str:
+    """Return a git-config-safe literal for ``safe_root`` or raise for adversarial roots.
+
+    The value is emitted forward-slashed and double-quoted so ``#``/``;``/spaces are literal.
+    Roots that could introduce an escape, newline, extra value, or wildcard semantics are
+    rejected rather than serialized.
+    """
     try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(f"[safe]\n\tdirectory = {safe_root.resolve().as_posix()}\n")
-    except OSError:
+        value = safe_root.resolve().as_posix()
+    except (OSError, ValueError) as exc:
+        raise SecureConfigError("repository root could not be resolved") from exc
+    if not value:
+        raise SecureConfigError("empty repository root")
+    if any(ch in value for ch in _CONFIG_UNSAFE_CHARS):
+        raise SecureConfigError("repository root contains config-unsafe characters")
+    if value == "*" or value.endswith(("/*", "/**")):
+        raise SecureConfigError("repository root has wildcard semantics")
+    return value
+
+
+def _within(child: Path, parent: Path) -> bool:
+    try:
+        child.relative_to(parent)
+    except ValueError:
+        return False
+    return True
+
+
+# ------------------------------------------------------------- owner-only permission boundary
+
+if os.name == "nt":  # pragma: no cover - exercised on the Windows reference platform
+    _advapi32 = ctypes.WinDLL("advapi32", use_last_error=True)
+    _kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+
+    _SE_FILE_OBJECT = 1
+    _OWNER_SECURITY_INFORMATION = 0x00000001
+    _DACL_SECURITY_INFORMATION = 0x00000004
+    _PROTECTED_DACL_SECURITY_INFORMATION = 0x80000000
+    _TOKEN_QUERY = 0x0008
+    _TokenUser = 1
+    _GENERIC_ALL = 0x10000000
+    _SET_ACCESS = 2
+    _NO_INHERITANCE = 0x0
+    _TRUSTEE_IS_SID = 0
+    _TRUSTEE_IS_USER = 1
+    _ACCESS_ALLOWED_ACE_TYPE = 0
+    _SE_DACL_PROTECTED = 0x1000
+
+    class _TRUSTEE_W(ctypes.Structure):
+        _fields_ = [
+            ("pMultipleTrustee", ctypes.c_void_p),
+            ("MultipleTrusteeOperation", ctypes.c_ulong),
+            ("TrusteeForm", ctypes.c_ulong),
+            ("TrusteeType", ctypes.c_ulong),
+            ("ptstrName", ctypes.c_void_p),
+        ]
+
+    class _EXPLICIT_ACCESS_W(ctypes.Structure):
+        _fields_ = [
+            ("grfAccessPermissions", ctypes.c_ulong),
+            ("grfAccessMode", ctypes.c_ulong),
+            ("grfInheritance", ctypes.c_ulong),
+            ("Trustee", _TRUSTEE_W),
+        ]
+
+    class _ACE_HEADER(ctypes.Structure):
+        _fields_ = [("AceType", ctypes.c_ubyte), ("AceFlags", ctypes.c_ubyte),
+                    ("AceSize", ctypes.c_ushort)]
+
+    class _ACCESS_ALLOWED_ACE(ctypes.Structure):
+        _fields_ = [("Header", _ACE_HEADER), ("Mask", ctypes.c_ulong),
+                    ("SidStart", ctypes.c_ulong)]
+
+    class _ACL(ctypes.Structure):
+        _fields_ = [("AclRevision", ctypes.c_ubyte), ("Sbz1", ctypes.c_ubyte),
+                    ("AclSize", ctypes.c_ushort), ("AceCount", ctypes.c_ushort),
+                    ("Sbz2", ctypes.c_ushort)]
+
+    class _ACL_SIZE_INFORMATION(ctypes.Structure):
+        _fields_ = [("AceCount", ctypes.c_ulong), ("AclBytesInUse", ctypes.c_ulong),
+                    ("AclBytesFree", ctypes.c_ulong)]
+
+    # Explicit prototypes so 64-bit HANDLE/PSID/PACL values are never truncated to c_int.
+    _PVOID = ctypes.c_void_p
+    _kernel32.GetCurrentProcess.restype = _PVOID
+    _kernel32.GetCurrentProcess.argtypes = []
+    _kernel32.CloseHandle.restype = ctypes.c_int
+    _kernel32.CloseHandle.argtypes = [_PVOID]
+    _kernel32.LocalFree.restype = _PVOID
+    _kernel32.LocalFree.argtypes = [_PVOID]
+    _advapi32.OpenProcessToken.restype = ctypes.c_int
+    _advapi32.OpenProcessToken.argtypes = [_PVOID, ctypes.c_ulong, ctypes.POINTER(_PVOID)]
+    _advapi32.GetTokenInformation.restype = ctypes.c_int
+    _advapi32.GetTokenInformation.argtypes = [
+        _PVOID, ctypes.c_int, _PVOID, ctypes.c_ulong, ctypes.POINTER(ctypes.c_ulong),
+    ]
+    _advapi32.GetLengthSid.restype = ctypes.c_ulong
+    _advapi32.GetLengthSid.argtypes = [_PVOID]
+    _advapi32.CopySid.restype = ctypes.c_int
+    _advapi32.CopySid.argtypes = [ctypes.c_ulong, _PVOID, _PVOID]
+    _advapi32.SetEntriesInAclW.restype = ctypes.c_ulong
+    _advapi32.SetEntriesInAclW.argtypes = [
+        ctypes.c_ulong, ctypes.POINTER(_EXPLICIT_ACCESS_W), _PVOID, ctypes.POINTER(_PVOID),
+    ]
+    _advapi32.SetNamedSecurityInfoW.restype = ctypes.c_ulong
+    _advapi32.SetNamedSecurityInfoW.argtypes = [
+        ctypes.c_wchar_p, ctypes.c_int, ctypes.c_ulong, _PVOID, _PVOID, _PVOID, _PVOID,
+    ]
+    _advapi32.GetNamedSecurityInfoW.restype = ctypes.c_ulong
+    _advapi32.GetNamedSecurityInfoW.argtypes = [
+        ctypes.c_wchar_p, ctypes.c_int, ctypes.c_ulong, ctypes.POINTER(_PVOID),
+        ctypes.POINTER(_PVOID), ctypes.POINTER(_PVOID), ctypes.POINTER(_PVOID),
+        ctypes.POINTER(_PVOID),
+    ]
+    _advapi32.GetSecurityDescriptorControl.restype = ctypes.c_int
+    _advapi32.GetSecurityDescriptorControl.argtypes = [
+        _PVOID, ctypes.POINTER(ctypes.c_ushort), ctypes.POINTER(ctypes.c_ulong),
+    ]
+    _advapi32.GetAclInformation.restype = ctypes.c_int
+    _advapi32.GetAclInformation.argtypes = [_PVOID, _PVOID, ctypes.c_ulong, ctypes.c_int]
+    _advapi32.GetAce.restype = ctypes.c_int
+    _advapi32.GetAce.argtypes = [_PVOID, ctypes.c_ulong, ctypes.POINTER(_PVOID)]
+    _advapi32.EqualSid.restype = ctypes.c_int
+    _advapi32.EqualSid.argtypes = [_PVOID, _PVOID]
+
+    def _current_user_sid() -> bytes:
+        token = ctypes.c_void_p()
+        if not _advapi32.OpenProcessToken(
+            _kernel32.GetCurrentProcess(), _TOKEN_QUERY, ctypes.byref(token)
+        ):
+            raise SecureConfigError("could not open process token")
+        try:
+            size = ctypes.c_ulong(0)
+            _advapi32.GetTokenInformation(token, _TokenUser, None, 0, ctypes.byref(size))
+            buf = ctypes.create_string_buffer(size.value)
+            if not _advapi32.GetTokenInformation(
+                token, _TokenUser, buf, size, ctypes.byref(size)
+            ):
+                raise SecureConfigError("could not read token user")
+            sid_ptr = ctypes.cast(buf, ctypes.POINTER(ctypes.c_void_p))[0]
+            length = _advapi32.GetLengthSid(sid_ptr)
+            sid = ctypes.create_string_buffer(length)
+            if not _advapi32.CopySid(length, sid, sid_ptr):
+                raise SecureConfigError("could not copy sid")
+            return sid.raw
+        finally:
+            _kernel32.CloseHandle(token)
+
+    def _win_set_owner_only(path: str) -> None:
+        # No inheritance: the directory and the file are each hardened explicitly, so each object
+        # carries exactly one owner-only ACE and no inherited or inherit-only entries.
+        sid = ctypes.create_string_buffer(_current_user_sid())
+        ea = _EXPLICIT_ACCESS_W()
+        ea.grfAccessPermissions = _GENERIC_ALL
+        ea.grfAccessMode = _SET_ACCESS
+        ea.grfInheritance = _NO_INHERITANCE
+        ea.Trustee.TrusteeForm = _TRUSTEE_IS_SID
+        ea.Trustee.TrusteeType = _TRUSTEE_IS_USER
+        ea.Trustee.ptstrName = ctypes.cast(sid, ctypes.c_void_p)
+        new_acl = ctypes.c_void_p()
+        if _advapi32.SetEntriesInAclW(1, ctypes.byref(ea), None, ctypes.byref(new_acl)) != 0:
+            raise SecureConfigError("could not build owner-only acl")
+        try:
+            status = _advapi32.SetNamedSecurityInfoW(
+                ctypes.c_wchar_p(path), _SE_FILE_OBJECT,
+                _DACL_SECURITY_INFORMATION | _PROTECTED_DACL_SECURITY_INFORMATION,
+                None, None, new_acl, None,
+            )
+            if status != 0:
+                raise SecureConfigError("could not apply owner-only acl")
+        finally:
+            _kernel32.LocalFree(new_acl)
+
+    def _win_verify_owner_only(path: str) -> None:
+        expected = ctypes.create_string_buffer(_current_user_sid())
+        owner = ctypes.c_void_p()
+        dacl = ctypes.c_void_p()
+        sd = ctypes.c_void_p()
+        status = _advapi32.GetNamedSecurityInfoW(
+            ctypes.c_wchar_p(path), _SE_FILE_OBJECT,
+            _DACL_SECURITY_INFORMATION | _OWNER_SECURITY_INFORMATION,
+            ctypes.byref(owner), None, ctypes.byref(dacl), None, ctypes.byref(sd),
+        )
+        if status != 0:
+            raise SecureConfigError("could not read security descriptor")
+        try:
+            if not dacl.value:
+                raise SecureConfigError("null dacl grants everyone")  # NULL DACL == full access
+            control = ctypes.c_ushort(0)
+            revision = ctypes.c_ulong(0)
+            if not _advapi32.GetSecurityDescriptorControl(
+                sd, ctypes.byref(control), ctypes.byref(revision)
+            ):
+                raise SecureConfigError("could not read descriptor control")
+            if not control.value & _SE_DACL_PROTECTED:
+                raise SecureConfigError("dacl is not protected from inheritance")
+            info = _ACL_SIZE_INFORMATION()
+            if not _advapi32.GetAclInformation(
+                dacl, ctypes.byref(info), ctypes.sizeof(info), 2  # AclSizeInformation
+            ):
+                raise SecureConfigError("could not read acl information")
+            if info.AceCount != 1:
+                raise SecureConfigError("dacl grants more than the owner")
+            ace_ptr = ctypes.c_void_p()
+            if not _advapi32.GetAce(dacl, 0, ctypes.byref(ace_ptr)):
+                raise SecureConfigError("could not read ace")
+            ace = ctypes.cast(ace_ptr, ctypes.POINTER(_ACCESS_ALLOWED_ACE)).contents
+            if ace.Header.AceType != _ACCESS_ALLOWED_ACE_TYPE:
+                raise SecureConfigError("dacl contains a non-allow ace")
+            ace_address = ace_ptr.value
+            if ace_address is None:
+                raise SecureConfigError("could not read ace address")
+            # SID begins immediately after the ACE header and the 32-bit access mask.
+            sid_offset = ctypes.sizeof(_ACE_HEADER) + ctypes.sizeof(ctypes.c_ulong)
+            sid_ptr = ctypes.c_void_p(ace_address + sid_offset)
+            if not _advapi32.EqualSid(sid_ptr, ctypes.cast(expected, ctypes.c_void_p)):
+                raise SecureConfigError("dacl grants an identity other than the owner")
+        finally:
+            if sd.value:
+                _kernel32.LocalFree(sd)
+
+
+def _establish_owner_only(path: Path) -> None:
+    """Establish an owner-only permission boundary on ``path`` (dir or file)."""
+    if os.name == "nt":
+        _win_set_owner_only(str(path))
+        return
+    os.chmod(path, 0o700 if path.is_dir() else 0o600)
+
+
+def _verify_owner_only(path: Path) -> None:
+    """Verify the owner-only boundary; raise :class:`SecureConfigError` if it cannot be proven."""
+    if os.name == "nt":
+        _win_verify_owner_only(str(path))
+        return
+    mode = stat.S_IMODE(os.stat(path).st_mode)
+    if mode & 0o077:
+        raise SecureConfigError("permissions are not owner-only")
+
+
+def _exclusive_write(path: Path, content: str) -> None:
+    """Create ``path`` exclusively (never following an existing link) and write ``content``."""
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    flags |= getattr(os, "O_BINARY", 0)
+    fd = os.open(path, flags, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as handle:
+        handle.write(content)
+
+
+class LocalSecureConfigStore:
+    """Default :class:`EphemeralSafeDirectoryStore`: owner-only config under a confined temp root.
+
+    ``create`` proves the temp root resolves outside the granted repository (defeating symlink/
+    junction/reparse escape), establishes and verifies an owner-only permission boundary before
+    writing the single literal ``safe.directory`` value, and creates the file exclusively.
+    ``remove`` proves both the file and the temp root are gone, raising otherwise.
+    """
+
+    def create(self, *, safe_root: Path) -> str:
+        value = _safe_config_value(safe_root)
+        temp_dir = Path(tempfile.mkdtemp(prefix="jarvis-safe-dir-"))
+        try:
+            real_temp = temp_dir.resolve(strict=True)
+            real_repo = safe_root.resolve(strict=True)
+            if _within(real_temp, real_repo) or _within(real_repo, real_temp):
+                raise SecureConfigError("temporary root resolves within the repository")
+            _establish_owner_only(real_temp)
+            _verify_owner_only(real_temp)
+            config_path = real_temp / "safe.gitconfig"
+            _exclusive_write(config_path, f'[safe]\n\tdirectory = "{value}"\n')
+            _establish_owner_only(config_path)
+            _verify_owner_only(config_path)
+            return str(config_path)
+        except SecureConfigError:
+            _best_effort_rmtree(temp_dir)
+            raise
+        except OSError as exc:
+            _best_effort_rmtree(temp_dir)
+            raise SecureConfigError("could not create the secure config") from exc
+
+    def remove(self, config_path: str) -> None:
+        path = Path(config_path)
+        parent = path.parent
         with contextlib.suppress(OSError):
-            os.unlink(path)
-        raise
-    return path
+            if path.is_symlink() or path.exists():
+                os.unlink(path)
+        if path.exists() or path.is_symlink():
+            raise SecureConfigError("ephemeral config could not be removed")
+        with contextlib.suppress(OSError):
+            os.rmdir(parent)
+        if parent.exists():
+            raise SecureConfigError("ephemeral temp root could not be removed")
+
+
+def _best_effort_rmtree(path: Path) -> None:
+    with contextlib.suppress(OSError):
+        for child in path.glob("*"):
+            with contextlib.suppress(OSError):
+                child.unlink()
+        os.rmdir(path)
 
 
 # ------------------------------------------------------------------ fixed command shapes
@@ -272,11 +599,15 @@ class LocalGitRepositoryActivityAdapter:
         *,
         git_executable: str | None = None,
         staleness_threshold_days: int = DEFAULT_STALENESS_THRESHOLD_DAYS,
+        secure_config_store: EphemeralSafeDirectoryStore | None = None,
     ) -> None:
         self._runner = runner
         self._git = git_executable if git_executable is not None else resolve_git_executable()
         self._threshold_days = staleness_threshold_days
         self._env = build_git_env(self._git) if self._git else {}
+        self._secure_config: EphemeralSafeDirectoryStore = (
+            secure_config_store if secure_config_store is not None else LocalSecureConfigStore()
+        )
 
     def load_activity(
         self,
@@ -304,26 +635,45 @@ class LocalGitRepositoryActivityAdapter:
         if self._git is None:
             return RepositoryActivityUnavailable(CODE_UNAVAILABLE_NO_GIT, "git is not available")
 
-        # Request-scoped ownership safety: declare exactly the granted root as safe.directory in
-        # a process-owned, ephemeral global config; system/ambient config stay untrusted. The
-        # file is deleted in the finally below, regardless of outcome.
+        # Request-scoped ownership safety (Handoff 15): establish an owner-only ephemeral config
+        # declaring exactly the granted root as safe.directory. Setup is fail-closed: any
+        # containment/permission/serialization failure returns a typed, redacted result before
+        # Git runs, and no config file remains.
         try:
-            global_config = _write_safe_directory_config(requested)
-        except OSError:
+            config_path = self._secure_config.create(safe_root=requested)
+        except SecureConfigError:
             return RepositoryActivityUnavailable(
-                CODE_UNAVAILABLE_PROCESS_ERROR, "could not prepare the git environment"
+                CODE_UNAVAILABLE_SECURITY_SETUP, "could not establish the secure git environment"
             )
-        invocation_env = {**self._env, "GIT_CONFIG_GLOBAL": global_config}
+        invocation_env = {**self._env, "GIT_CONFIG_GLOBAL": config_path}
         try:
-            return self._load_activity_with_env(
+            result = self._load_activity_with_env(
                 requested=requested,
                 grant=grant,
                 evaluation_time=evaluation_time,
                 env=invocation_env,
             )
-        finally:
-            with contextlib.suppress(OSError):
-                os.unlink(global_config)
+        except Exception:
+            # A raised runner/unexpected error must still remove the exception and never leak.
+            try:
+                self._secure_config.remove(config_path)
+            except SecureConfigError:
+                return RepositoryActivityUnavailable(
+                    CODE_UNAVAILABLE_CLEANUP_INCOMPLETE,
+                    "secure git cleanup could not be verified",
+                )
+            return RepositoryActivityUnavailable(
+                CODE_UNAVAILABLE_PROCESS_ERROR, "repository activity failed"
+            )
+        # Cleanup is part of the security result: a snapshot is returned only when secure
+        # cleanup is proven; otherwise the result is downgraded to a typed, redacted unavailable.
+        try:
+            self._secure_config.remove(config_path)
+        except SecureConfigError:
+            return RepositoryActivityUnavailable(
+                CODE_UNAVAILABLE_CLEANUP_INCOMPLETE, "secure git cleanup could not be verified"
+            )
+        return result
 
     def _load_activity_with_env(
         self,

@@ -7,22 +7,30 @@ unchanged before/after.
 """
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import os
 import shutil
 import subprocess
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
 from jarvis_core.project_resume.local_git import (
+    CODE_UNAVAILABLE_CLEANUP_INCOMPLETE,
+    CODE_UNAVAILABLE_SECURITY_SETUP,
     LocalGitRepositoryActivityAdapter,
+    LocalSecureConfigStore,
     ProcessResult,
+    SecureConfigError,
     SubprocessProcessRunner,
     _cmd_head,
     _cmd_log,
     _cmd_toplevel,
+    _safe_config_value,
+    _verify_owner_only,
     build_git_env,
     parse_log_records,
 )
@@ -34,6 +42,7 @@ from jarvis_core.project_resume.repository_activity import (
     CODE_UNAVAILABLE_NO_GIT,
     CODE_UNAVAILABLE_NOT_A_REPO,
     CODE_UNAVAILABLE_OUTPUT_OVERFLOW,
+    CODE_UNAVAILABLE_PROCESS_ERROR,
     CODE_UNAVAILABLE_TIMEOUT,
     RepositoryActivityGrant,
     RepositoryActivitySnapshot,
@@ -299,6 +308,196 @@ def test_base_env_without_root_does_not_trust_a_global_config() -> None:
     assert env["GIT_CONFIG_NOSYSTEM"] == "1"
 
 
+# ---------------------------------------------------------------- fail-closed config lifecycle
+
+
+class RecordingStore:
+    """A deterministic EphemeralSafeDirectoryStore double.
+
+    Creates a real (non-hardened) config file so the injected runner can observe the env, and
+    can force create/remove failures to exercise the fail-closed lifecycle without real ACLs.
+    """
+
+    def __init__(self, *, fail_create: bool = False, fail_remove: bool = False) -> None:
+        self.creates = 0
+        self.removes = 0
+        self.fail_create = fail_create
+        self.fail_remove = fail_remove
+        self.created_paths: list[str] = []
+
+    def create(self, *, safe_root: Path) -> str:
+        self.creates += 1
+        if self.fail_create:
+            raise SecureConfigError("forced setup failure")
+        d = Path(tempfile.mkdtemp(prefix="rec-safe-dir-"))
+        p = d / "safe.gitconfig"
+        p.write_text(
+            f'[safe]\n\tdirectory = "{safe_root.resolve().as_posix()}"\n', encoding="utf-8"
+        )
+        self.created_paths.append(str(p))
+        return str(p)
+
+    def remove(self, config_path: str) -> None:
+        self.removes += 1
+        if self.fail_remove:
+            raise SecureConfigError("forced cleanup failure")
+        Path(config_path).unlink(missing_ok=True)
+        with contextlib.suppress(OSError):
+            os.rmdir(Path(config_path).parent)
+
+
+class _RaisingRunner:
+    def run(self, argv, *, cwd, env, timeout_seconds, stdout_cap_bytes, stderr_cap_bytes):
+        raise RuntimeError("unexpected runner failure")
+
+
+def test_pre_git_denials_never_create_a_config(tmp_path: Path) -> None:
+    other = tmp_path / "other"
+    other.mkdir()
+    missing = tmp_path / "missing"
+    cases = [
+        (None, tmp_path),  # no grant
+        (_grant(other), tmp_path),  # root mismatch
+        (_grant(missing), missing),  # missing root (also mismatch-free)
+    ]
+    for grant, root in cases:
+        store = RecordingStore()
+        runner = _ok_runner(tmp_path)
+        _adapter(runner, secure_config_store=store).load_activity(
+            project_id="project-alpha", repository_root=root, grant=grant, evaluation_time=EVAL,
+        )
+        assert store.creates == 0, "no ephemeral config before grant/root/git checks pass"
+        assert runner.calls == [], "git must not run"
+
+
+def test_missing_git_creates_no_config(tmp_path: Path) -> None:
+    store = RecordingStore()
+    adapter = _adapter(_ok_runner(tmp_path), secure_config_store=store)
+    adapter._git = None
+    out = adapter.load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert out.code == CODE_UNAVAILABLE_NO_GIT
+    assert store.creates == 0
+
+
+def test_security_setup_failure_blocks_git(tmp_path: Path) -> None:
+    store = RecordingStore(fail_create=True)
+    runner = _ok_runner(tmp_path)
+    out = _adapter(runner, secure_config_store=store).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert out.code == CODE_UNAVAILABLE_SECURITY_SETUP
+    assert runner.calls == [], "git must never run when the secure config cannot be established"
+
+
+def test_cleanup_failure_downgrades_snapshot_to_unavailable(tmp_path: Path) -> None:
+    store = RecordingStore(fail_remove=True)
+    out = _adapter(_ok_runner(tmp_path), secure_config_store=store).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert not isinstance(out, RepositoryActivitySnapshot)
+    assert out.code == CODE_UNAVAILABLE_CLEANUP_INCOMPLETE
+    assert store.creates == 1 and store.removes == 1
+
+
+def test_success_removes_config_before_returning(tmp_path: Path) -> None:
+    store = RecordingStore()
+    out = _adapter(_ok_runner(tmp_path), secure_config_store=store).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert isinstance(out, RepositoryActivitySnapshot)
+    assert store.removes == 1
+    assert store.created_paths and not Path(store.created_paths[0]).exists()
+
+
+def test_raised_runner_exception_removes_config(tmp_path: Path) -> None:
+    store = RecordingStore()
+    out = _adapter(_RaisingRunner(), secure_config_store=store).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert out.code == CODE_UNAVAILABLE_PROCESS_ERROR
+    assert store.removes == 1
+    assert store.created_paths and not Path(store.created_paths[0]).exists()
+
+
+@pytest.mark.parametrize(
+    "runner_factory",
+    [
+        lambda p: FakeRunner(  # not-a-repository
+            toplevel=ProcessResult(128, b"", b"fatal"),
+            head=ProcessResult(0, b"", b""), log=ProcessResult(0, b"", b""),
+        ),
+        lambda p: FakeRunner(  # root escape
+            toplevel=ProcessResult(0, str(p.parent).encode(), b""),
+            head=ProcessResult(0, ("a" * 40).encode(), b""), log=ProcessResult(0, b"", b""),
+        ),
+        lambda p: FakeRunner(  # timeout
+            toplevel=ProcessResult(-1, b"", b"", timed_out=True),
+            head=ProcessResult(0, b"", b""), log=ProcessResult(0, b"", b""),
+        ),
+        lambda p: FakeRunner(  # overflow
+            toplevel=ProcessResult(0, str(p.resolve()).encode(), b""),
+            head=ProcessResult(0, ("a" * 40).encode(), b""),
+            log=ProcessResult(0, b"x", b"", stdout_overflow=True),
+        ),
+        lambda p: FakeRunner(  # malformed log
+            toplevel=ProcessResult(0, str(p.resolve()).encode(), b""),
+            head=ProcessResult(0, ("a" * 40).encode(), b""),
+            log=ProcessResult(0, b"deadbeef\x00not-a-date\x00Dev\x00s\x00", b""),
+        ),
+    ],
+)
+def test_every_degradation_path_removes_the_config(tmp_path: Path, runner_factory) -> None:
+    store = RecordingStore()
+    out = _adapter(runner_factory(tmp_path), secure_config_store=store).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert not isinstance(out, RepositoryActivitySnapshot)
+    assert store.creates == 1 and store.removes == 1
+    assert store.created_paths and not Path(store.created_paths[0]).exists()
+
+
+def test_command_arrays_never_carry_safe_directory(tmp_path: Path) -> None:
+    """The fix is environment-only: safe.directory never enters an argv (fixed shapes intact)."""
+    runner = _ok_runner(tmp_path)
+    _adapter(runner, secure_config_store=RecordingStore()).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    for argv in runner.calls:
+        assert not any("safe.directory" in part for part in argv)
+
+
+# ---------------------------------------------------------------- config serialization
+
+
+def test_safe_config_value_accepts_plain_root(tmp_path: Path) -> None:
+    assert _safe_config_value(tmp_path) == tmp_path.resolve().as_posix()
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "C:/repo/with\nnewline",
+        'C:/repo/with"quote',
+        "C:/repo/*",
+        "C:/repo/**",
+        "*",
+        "C:/repo/with\x00nul",
+    ],
+)
+def test_safe_config_value_rejects_adversarial_roots(raw: str) -> None:
+    with pytest.raises(SecureConfigError):
+        _safe_config_value(Path(raw))
+
+
 # ---------------------------------------------------------------- command shapes
 
 
@@ -489,3 +688,68 @@ def test_real_git_process_boundary_dubious_ownership_without_grant_scope_is_reje
         evaluation_time=datetime.now(timezone.utc),
     )
     assert out.code == CODE_UNAVAILABLE_NOT_A_REPO
+
+
+# ------------------------------------------------- real secure-config store (process boundary)
+
+
+def test_secure_store_config_parses_to_exactly_one_literal(tmp_path: Path) -> None:
+    """Git parses the generated config to exactly one literal safe.directory == granted root."""
+    git = shutil.which("git")
+    if not git:
+        pytest.skip("git not installed")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    store = LocalSecureConfigStore()
+    path = store.create(safe_root=repo)
+    try:
+        listed = subprocess.run(
+            [git, "config", "--file", path, "--list"],
+            capture_output=True, text=True, check=True,
+        )
+        entries = [line for line in listed.stdout.splitlines() if line.strip()]
+        assert entries == [f"safe.directory={repo.resolve().as_posix()}"]
+        values = subprocess.run(
+            [git, "config", "--file", path, "--get-all", "safe.directory"],
+            capture_output=True, text=True, check=True,
+        )
+        got = [line for line in values.stdout.splitlines() if line.strip()]
+        assert got == [repo.resolve().as_posix()]
+    finally:
+        store.remove(path)
+    assert not Path(path).exists()
+
+
+def test_secure_store_establishes_and_verifies_owner_only_permissions(tmp_path: Path) -> None:
+    if os.name != "nt":
+        pytest.skip("Windows ACL boundary is the supported reference platform")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    store = LocalSecureConfigStore()
+    path = store.create(safe_root=repo)
+    try:
+        # create() already verified; re-verify independently that the property holds on disk.
+        _verify_owner_only(Path(path))
+        _verify_owner_only(Path(path).parent)
+    finally:
+        store.remove(path)
+
+
+def test_secure_store_rejects_temp_root_resolving_into_repository(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    sneaky = repo / "sneaky-temp"
+
+    def _fake_mkdtemp(*args: object, **kwargs: object) -> str:
+        sneaky.mkdir()
+        return str(sneaky)
+
+    monkeypatch.setattr(
+        "jarvis_core.project_resume.local_git.tempfile.mkdtemp", _fake_mkdtemp
+    )
+    store = LocalSecureConfigStore()
+    with pytest.raises(SecureConfigError):
+        store.create(safe_root=repo)
+    assert not sneaky.exists(), "the rejected temp root must be cleaned up"

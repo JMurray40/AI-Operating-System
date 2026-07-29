@@ -152,6 +152,17 @@ rebuild explicitly (reporting index version and workspace fingerprint) and diagn
 vault, Git availability/version, and an optional repository root — all strictly read-only. No
 diagnostic or recovery step writes to, repairs, or migrates canonical sources.
 
+Real-vault use has an explicit onboarding prerequisite: every eligible note must have a
+recognized `sensitivity`. Missing or unknown sensitivity is excluded before project
+selection and may yield `not_found`; there is no implicit local-vault default. Jarvis
+never assigns classifications or edits canonical notes. Classification is a separate
+Product Owner-controlled inventory, approval, backup, exact edit, validation, rollback,
+and post-classification baseline process.
+
+The complete clean-install, uninstall/reinstall, fixture rerun, `resume-doctor`,
+missing/corrupt derived-state recovery, reachability-based Git-integrity, A12, and evidence
+procedure is [Project Resume Installation, Onboarding, and Recovery](PROJECT_RESUME_INSTALLATION_AND_RECOVERY.md).
+
 ## Read-only and security invariants
 
 The command never changes vault files, metadata, timestamps, Git worktree/HEAD/refs/config/index/

@@ -33,6 +33,10 @@ no writes to any source it reads.
 - [QUERYING.md](QUERYING.md) — `jarvis ask`: offline, deterministic vault queries.
 - [QUERY_TRUST_CONTRACTS.md](QUERY_TRUST_CONTRACTS.md) — v0.3.1 public trust and
   compatibility contracts.
+- [PROJECT_RESUME.md](PROJECT_RESUME.md) — v0.4 Project Resume feature and trust
+  contracts.
+- [PROJECT_RESUME_INSTALLATION_AND_RECOVERY.md](PROJECT_RESUME_INSTALLATION_AND_RECOVERY.md)
+  — clean installation, sensitivity onboarding, diagnostics, recovery, A12, and evidence.
 
 ## Governing documents
 

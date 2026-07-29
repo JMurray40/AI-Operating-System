@@ -29,3 +29,9 @@ Functional limitations of the current implementation:
   every elementary cycle, and is advisory only.
 - **Performance** is single-threaded; parsing is the dominant cost. No caching between
   runs (each run re-parses).
+- **Project Resume classification is owner-managed.** Notes with missing or unknown
+  `sensitivity` are excluded before project selection and may cause `not_found`. Jarvis
+  does not infer or add classifications.
+- **Derived-state recovery is rebuild-only.** Project Resume persists no index and never
+  repairs canonical Markdown or Git. See
+  [Project Resume Installation, Onboarding, and Recovery](PROJECT_RESUME_INSTALLATION_AND_RECOVERY.md).

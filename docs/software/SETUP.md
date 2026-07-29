@@ -1,5 +1,9 @@
 # Local Setup
 
+For the supported non-author Project Resume installation, uninstall/reinstall,
+classification onboarding, recovery, and A12 procedure, use
+[Project Resume Installation, Onboarding, and Recovery](PROJECT_RESUME_INSTALLATION_AND_RECOVERY.md).
+
 ## Requirements
 - Python 3.10+ (3.12+ recommended; see ADR-0006). No network or API keys required at runtime.
 
@@ -28,3 +32,18 @@ jarvis load-project "AI Operating System" --format json
 jarvis summarize-project "FileOrbit" --provider mock
 ```
 The default input is the bundled sample fixture — never a live vault.
+
+## Installed Project Resume verification
+
+An installed candidate must work without `PYTHONPATH` or editable mode:
+
+```bash
+jarvis --help
+jarvis resume --help
+jarvis resume-doctor --help
+jarvis resume "FileOrbit" --path tests/fixtures/fileorbit --format json \
+  --as-of 2026-07-28T00:00:00Z
+```
+
+The frozen executable documented for v0.4 onboarding is
+`014076c429d47de83be4ca6543264082aa62633f`.

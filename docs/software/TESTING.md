@@ -49,3 +49,13 @@ commit on the same machine.
 - **Evaluation**: `python scripts/evaluate_project_resume.py [log.tsv]` aggregates the offline
   dogfood scorecard (`evaluations/v0.4-project-resume-dogfood-template.tsv`); no telemetry. The
   A11 usefulness/time-saved/sourcing gate is validated on real dogfood data and remains PENDING.
+
+### Packaging and recovery evidence
+
+Independent A12 uses a clean supported environment and the published
+[Project Resume Installation, Onboarding, and Recovery](PROJECT_RESUME_INSTALLATION_AND_RECOVERY.md).
+It verifies non-editable installation without `PYTHONPATH`, installed help, deterministic
+fixture reruns, `resume-doctor`, invalid/degraded cases, derived-state recovery,
+uninstall/reinstall, canonical-source immutability, reachability-based Git integrity, and
+redacted evidence. A skipped or unavailable step is not a pass. A12 must not classify
+notes, repair canonical sources, or fix the candidate while reviewing it.

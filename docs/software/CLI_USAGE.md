@@ -131,6 +131,14 @@ jarvis resume-doctor --path /path/to/vault
 jarvis resume-doctor --path /path/to/vault --repository-root /path/to/local/git/repo --format json
 ```
 
+Every eligible Project Resume note requires an explicit recognized `sensitivity`.
+Missing or unknown sensitivity is excluded before project selection and can therefore
+produce `not_found` without disclosing excluded candidates. Jarvis never assigns a
+classification or edits canonical notes. See
+[Project Resume Installation, Onboarding, and Recovery](PROJECT_RESUME_INSTALLATION_AND_RECOVERY.md)
+for owner-controlled onboarding, troubleshooting, safe recovery, Git-integrity evidence,
+and the independent A12 procedure.
+
 ## v0.3.1 query trust contracts
 
 `ask`, `search`, `summarize`, and `explain` run under an explicit local authorization scope

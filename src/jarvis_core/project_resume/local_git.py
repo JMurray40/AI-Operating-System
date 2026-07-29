@@ -9,6 +9,12 @@ an installed Git. It is deliberately narrow and is not reusable authority for fu
   passed as an argument;
 - the child environment is built from an allowlist, never inherited, so credential, config,
   proxy, pager, editor, SSH, and Git directory/worktree/alternates overrides cannot leak in;
+- when a grant is present, the invocation points ``GIT_CONFIG_GLOBAL`` at a process-owned,
+  single-entry, ephemeral config declaring *exactly the granted root* as ``safe.directory`` so
+  an explicitly granted repository owned by a different identity is readable; system config
+  stays disabled (``GIT_CONFIG_NOSYSTEM``), the ambient ``~/.gitconfig`` is never trusted, the
+  repository's own config/ownership is never altered, the opt-out is never the ``*`` wildcard,
+  and the file is deleted immediately after the invocation;
 - records/timeout/stdout/stderr are hard-capped; overflow and timeout return typed
   ``unavailable`` rather than partial data;
 - ``rev-parse --show-toplevel`` must canonicalize to exactly the granted root, so parent,
@@ -21,10 +27,12 @@ an installed Git. It is deliberately narrow and is not reusable authority for fu
 """
 from __future__ import annotations
 
+import contextlib
 import os
 import shutil
 import subprocess
 import sys
+import tempfile
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -161,6 +169,28 @@ def build_git_env(git_executable: str, *, tmp_dir: str | None = None) -> dict[st
     return env
 
 
+def _write_safe_directory_config(safe_root: Path) -> str:
+    """Write a process-owned, single-entry global config marking exactly ``safe_root`` safe.
+
+    Git only honors ``safe.directory`` from system/global config — never from ``-c`` or the
+    environment — so an explicitly granted repository owned by a different identity can only be
+    made readable through a global config file we control. The file declares that one root and
+    nothing else (never the ``*`` wildcard), is owned by the running process, and is deleted by
+    the caller immediately after the invocation. ``GIT_CONFIG_NOSYSTEM`` stays set, so no
+    system config and no ambient ``~/.gitconfig`` is consulted. The path is written in git's
+    forward-slash form so backslashes are never misread as config escapes on Windows.
+    """
+    fd, path = tempfile.mkstemp(prefix="jarvis-safe-dir-", suffix=".gitconfig")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(f"[safe]\n\tdirectory = {safe_root.resolve().as_posix()}\n")
+    except OSError:
+        with contextlib.suppress(OSError):
+            os.unlink(path)
+        raise
+    return path
+
+
 # ------------------------------------------------------------------ fixed command shapes
 
 
@@ -274,8 +304,39 @@ class LocalGitRepositoryActivityAdapter:
         if self._git is None:
             return RepositoryActivityUnavailable(CODE_UNAVAILABLE_NO_GIT, "git is not available")
 
+        # Request-scoped ownership safety: declare exactly the granted root as safe.directory in
+        # a process-owned, ephemeral global config; system/ambient config stay untrusted. The
+        # file is deleted in the finally below, regardless of outcome.
+        try:
+            global_config = _write_safe_directory_config(requested)
+        except OSError:
+            return RepositoryActivityUnavailable(
+                CODE_UNAVAILABLE_PROCESS_ERROR, "could not prepare the git environment"
+            )
+        invocation_env = {**self._env, "GIT_CONFIG_GLOBAL": global_config}
+        try:
+            return self._load_activity_with_env(
+                requested=requested,
+                grant=grant,
+                evaluation_time=evaluation_time,
+                env=invocation_env,
+            )
+        finally:
+            with contextlib.suppress(OSError):
+                os.unlink(global_config)
+
+    def _load_activity_with_env(
+        self,
+        *,
+        requested: Path,
+        grant: RepositoryActivityGrant,
+        evaluation_time: datetime,
+        env: dict[str, str],
+    ) -> RepositoryActivityResult:
+        assert self._git is not None  # guarded by the caller
+
         # 1) Repository-root verification: toplevel must canonicalize to exactly the grant root.
-        top = self._invoke(_cmd_toplevel(self._git, requested), grant)
+        top = self._invoke(_cmd_toplevel(self._git, requested), env, grant)
         if not isinstance(top, ProcessResult):
             return top  # already a typed degradation
         if top.returncode != 0:
@@ -294,7 +355,7 @@ class LocalGitRepositoryActivityAdapter:
             )
 
         # 2) Current HEAD object identity.
-        head = self._invoke(_cmd_head(self._git, requested), grant)
+        head = self._invoke(_cmd_head(self._git, requested), env, grant)
         if not isinstance(head, ProcessResult):
             return head
         if head.returncode != 0:
@@ -306,7 +367,7 @@ class LocalGitRepositoryActivityAdapter:
             return RepositoryActivityMalformed(CODE_MALFORMED_RECORD, "invalid HEAD object id")
 
         # 3) Bounded first-parent commit activity.
-        log = self._invoke(_cmd_log(self._git, requested, grant.max_records), grant)
+        log = self._invoke(_cmd_log(self._git, requested, grant.max_records), env, grant)
         if not isinstance(log, ProcessResult):
             return log
         if log.returncode != 0:
@@ -332,14 +393,14 @@ class LocalGitRepositoryActivityAdapter:
         return snapshot
 
     def _invoke(
-        self, argv: list[str], grant: RepositoryActivityGrant
+        self, argv: list[str], env: dict[str, str], grant: RepositoryActivityGrant
     ) -> ProcessResult | RepositoryActivityUnavailable:
         """Run one fixed command; map timeout/overflow to typed, redacted unavailable results."""
         cwd = grant.repository_root.resolve()
         result = self._runner.run(
             argv,
             cwd=cwd,
-            env=self._env,
+            env=env,
             timeout_seconds=min(grant.timeout_seconds, 10.0),
             stdout_cap_bytes=grant.stdout_cap_bytes,
             stderr_cap_bytes=grant.stderr_cap_bytes,

@@ -8,6 +8,7 @@ unchanged before/after.
 from __future__ import annotations
 
 import hashlib
+import os
 import shutil
 import subprocess
 from datetime import datetime, timezone
@@ -60,10 +61,21 @@ class FakeRunner:
         self._toplevel, self._head, self._log = toplevel, head, log
         self.calls: list[list[str]] = []
         self.envs: list[dict[str, str]] = []
+        # Capture the request-scoped global-config path and its content *at call time*
+        # (the adapter deletes the ephemeral file after the invocation completes).
+        self.global_config_paths: list[str | None] = []
+        self.global_config_contents: list[str] = []
 
     def run(self, argv, *, cwd, env, timeout_seconds, stdout_cap_bytes, stderr_cap_bytes):
         self.calls.append(argv)
         self.envs.append(env)
+        gc = env.get("GIT_CONFIG_GLOBAL")
+        self.global_config_paths.append(gc)
+        self.global_config_contents.append(
+            Path(gc).read_text(encoding="utf-8")
+            if gc and gc != os.devnull and Path(gc).is_file()
+            else ""
+        )
         if "--show-toplevel" in argv:
             return self._toplevel
         if "--verify" in argv:
@@ -241,6 +253,52 @@ def test_runner_receives_allowlisted_env(tmp_path: Path) -> None:
     assert runner.envs[0]["GIT_CONFIG_NOSYSTEM"] == "1"
 
 
+# ---------------------------------------------------------------- request-scoped safe.directory
+
+
+def test_granted_root_injects_request_scoped_safe_directory(tmp_path: Path) -> None:
+    """A granted invocation carries a process-owned global config declaring exactly the
+    granted root as safe, while system/ambient-global config stay untrusted."""
+    runner = _ok_runner(tmp_path)
+    out = _adapter(runner).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert isinstance(out, RepositoryActivitySnapshot)
+    # Every invocation saw a real, process-owned global config file (not os.devnull).
+    assert runner.global_config_paths and all(
+        p and p != os.devnull for p in runner.global_config_paths
+    )
+    content = runner.global_config_contents[0]
+    assert "safe" in content and "directory" in content
+    # Scoped to exactly the granted root, written with forward slashes (git config safe form).
+    assert tmp_path.resolve().as_posix() in content
+    # The ownership opt-out is NOT the broad wildcard.
+    assert "directory = *" not in content
+    # Ambient system/global config remain untrusted.
+    for env in runner.envs:
+        assert env["GIT_CONFIG_NOSYSTEM"] == "1"
+
+
+def test_safe_directory_config_is_ephemeral_and_cleaned_up(tmp_path: Path) -> None:
+    runner = _ok_runner(tmp_path)
+    _adapter(runner).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    seen = {p for p in runner.global_config_paths if p}
+    assert seen, "a request-scoped global config was used"
+    for path in seen:
+        assert not Path(path).exists(), "ephemeral safe.directory config must be removed"
+
+
+def test_base_env_without_root_does_not_trust_a_global_config() -> None:
+    """The rootless base env (used e.g. for `git --version`) still neutralizes global config."""
+    env = build_git_env(_GIT)
+    assert env["GIT_CONFIG_GLOBAL"] == os.devnull
+    assert env["GIT_CONFIG_NOSYSTEM"] == "1"
+
+
 # ---------------------------------------------------------------- command shapes
 
 
@@ -348,3 +406,86 @@ def test_real_git_process_boundary_reads_and_does_not_mutate(tmp_path: Path) -> 
 
     after = _git_dir_inventory(git_dir)
     assert before == after  # read-only: HEAD/config/index/refs unchanged
+
+
+def _init_repo(git: str, repo: Path) -> None:
+    repo.mkdir()
+
+    def _git(*args: str) -> None:
+        subprocess.run(
+            [git, "-c", "user.name=Dev", "-c", "user.email=dev@example.com",
+             "-c", "commit.gpgsign=false", "-C", str(repo), *args],
+            check=True, capture_output=True,
+        )
+
+    _git("init", "-q")
+    (repo / "f.txt").write_text("hello\n", encoding="utf-8")
+    _git("add", "f.txt")
+    _git("commit", "-q", "-m", "initial commit")
+
+
+class _AssumeDifferentOwnerRunner(SubprocessProcessRunner):
+    """Forces Git's dubious-ownership path (owner != caller) via its test hook, and can
+    optionally override the request-scoped global config back to devnull to model the
+    pre-fix rejection."""
+
+    def __init__(self, *, drop_safe_directory: bool = False) -> None:
+        self._drop = drop_safe_directory
+
+    def run(self, argv, *, cwd, env, timeout_seconds, stdout_cap_bytes, stderr_cap_bytes):
+        forced = {**env, "GIT_TEST_ASSUME_DIFFERENT_OWNER": "1"}
+        if self._drop:
+            forced["GIT_CONFIG_GLOBAL"] = os.devnull
+        return super().run(
+            argv, cwd=cwd, env=forced, timeout_seconds=timeout_seconds,
+            stdout_cap_bytes=stdout_cap_bytes, stderr_cap_bytes=stderr_cap_bytes,
+        )
+
+
+def test_real_git_process_boundary_granted_root_readable_under_dubious_ownership(
+    tmp_path: Path,
+) -> None:
+    """Ownership-safe success path: a repository the runtime identity does not own is still
+    readable because the invocation declares exactly the granted root as safe."""
+    git = shutil.which("git")
+    if not git:
+        pytest.skip("git not installed")
+    repo = tmp_path / "repo"
+    _init_repo(git, repo)
+    git_dir = repo / ".git"
+    before = _git_dir_inventory(git_dir)
+
+    adapter = LocalGitRepositoryActivityAdapter(
+        _AssumeDifferentOwnerRunner(), git_executable=git
+    )
+    out = adapter.load_activity(
+        project_id="project-alpha", repository_root=repo, grant=_grant(repo),
+        evaluation_time=datetime.now(timezone.utc),
+    )
+    assert isinstance(out, RepositoryActivitySnapshot)
+    assert out.records[0].subject == "initial commit"
+    # Ownership handling must not mutate the repository or its config.
+    assert _git_dir_inventory(git_dir) == before
+    cfg = (git_dir / "config").read_text(encoding="utf-8")
+    assert "safe" not in cfg and "directory" not in cfg  # never persisted to repo config
+
+
+def test_real_git_process_boundary_dubious_ownership_without_grant_scope_is_rejected(
+    tmp_path: Path,
+) -> None:
+    """Rejection path: with the request-scoped safe.directory removed, a non-owned repo is
+    still rejected as not-a-repository — the ownership check is not globally disabled."""
+    git = shutil.which("git")
+    if not git:
+        pytest.skip("git not installed")
+    repo = tmp_path / "repo"
+    _init_repo(git, repo)
+
+    adapter = LocalGitRepositoryActivityAdapter(
+        _AssumeDifferentOwnerRunner(drop_safe_directory=True), git_executable=git
+    )
+    out = adapter.load_activity(
+        project_id="project-alpha", repository_root=repo, grant=_grant(repo),
+        evaluation_time=datetime.now(timezone.utc),
+    )
+    assert out.code == CODE_UNAVAILABLE_NOT_A_REPO

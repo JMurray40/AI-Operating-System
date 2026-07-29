@@ -558,44 +558,62 @@ def _remove_tree_proven(path: Path) -> bool:
     return not path.exists()
 
 
-def _sweep_stale_configs(base: Path) -> None:
-    """Bounded recovery: remove leftover request dirs an interrupted run may have stranded."""
-    now = time.time()
-    with contextlib.suppress(OSError):
-        for entry in base.glob("jarvis-safe-dir-*"):
-            with contextlib.suppress(OSError):
-                if entry.is_dir() and (now - entry.stat().st_mtime) > _STALE_CONFIG_MAX_AGE_SECONDS:
-                    _remove_tree_proven(entry)
+def _identity_token() -> str:
+    """A stable, filename-safe token scoped to the current OS identity (not a secret).
+
+    Derived from the current-user SID on Windows (the identity that actually runs the process),
+    so each identity gets its own request-directory namespace and never shares a fixed directory
+    with another identity.
+    """
+    if os.name == "nt":
+        raw = _current_user_sid()
+    else:
+        raw = os.path.expanduser("~").encode("utf-8", "surrogatepass")
+    return hashlib.sha256(raw).hexdigest()[:16]
 
 
-def _owner_controlled_base(real_repo: Path) -> Path:
-    """Return an explicit, validated, owner-only temp base proven outside the repository.
+def _config_dir_prefix() -> str:
+    """Per-identity request-directory prefix; no cross-identity fixed shared name is ever used."""
+    return f"jarvis-safe-{_identity_token()}-"
 
-    The base is validated (and re-hardened) *before* any per-request directory is created, so
-    a hostile ambient ``TMP``/``TEMP`` pointing inside the repository fails closed without any
-    repository-local write. Symlink/junction/reparse escape is defeated by ``resolve(strict)``.
+
+def _validated_temp_base(real_repo: Path) -> Path:
+    """Return the ambient temp base, resolved and proven to be outside the repository.
+
+    No shared child directory is created or reused. The only owned artifact is the per-request
+    directory that the current identity creates via ``mkdtemp`` (fresh, unique, exclusive), so
+    behavior never depends on a fixed directory a different Windows identity may already own.
+    Symlink/junction/reparse escape is defeated by ``resolve(strict=True)``; the base must not
+    live inside the repository (that would turn the per-request directory into a repo write).
     """
     try:
         real_base = Path(tempfile.gettempdir()).resolve(strict=True)
     except OSError as exc:
         raise SecureConfigError("temporary base is unavailable") from exc
-    # The base must not live inside the repository (that would make the per-request dir a
-    # repository write). The repository legitimately may live under the system temp base, so the
-    # reverse containment is not an error; per-request-directory confinement is checked in create.
+    if not real_base.is_dir():
+        raise SecureConfigError("temporary base is not a directory")
     if _within(real_base, real_repo):
         raise SecureConfigError("temporary base resolves within the repository")
-    root = real_base / "jarvis-safe-root"
-    with contextlib.suppress(FileExistsError):
-        root.mkdir(mode=0o700)
-    try:
-        real_root = root.resolve(strict=True)
-    except OSError as exc:
-        raise SecureConfigError("controlled temporary root is unavailable") from exc
-    if _within(real_root, real_repo):
-        raise SecureConfigError("controlled temporary root resolves within the repository")
-    _establish_owner_only(real_root)  # re-assert owner-only ownership (defeats squatting)
-    _verify_owner_only(real_root)
-    return real_root
+    return real_base
+
+
+def _sweep_stale_configs(base: Path, prefix: str) -> None:
+    """Bounded recovery limited to the current identity's own namespace.
+
+    Only directories matching this identity's prefix, provably owner-only for the current
+    identity, and older than the bound are removed. A directory that cannot be verified as ours
+    (foreign-owned, inaccessible, or substituted) is skipped and never modified.
+    """
+    now = time.time()
+    with contextlib.suppress(OSError):
+        for entry in base.glob(prefix + "*"):
+            with contextlib.suppress(OSError, SecureConfigError):
+                if not entry.is_dir() or entry.is_symlink():
+                    continue
+                if (now - entry.stat().st_mtime) <= _STALE_CONFIG_MAX_AGE_SECONDS:
+                    continue
+                _verify_owner_only(entry)  # ours only; foreign/inaccessible raises -> skipped
+                _remove_tree_proven(entry)
 
 
 def _fingerprint(path: Path, content: str) -> _ConfigRecord:
@@ -608,10 +626,12 @@ def _fingerprint(path: Path, content: str) -> _ConfigRecord:
 
 
 class LocalSecureConfigStore:
-    """Default :class:`EphemeralSafeDirectoryStore` (Handoff 17).
+    """Default :class:`EphemeralSafeDirectoryStore` (Handoffs 17/18).
 
-    ``create`` selects an explicit owner-controlled temp base proven outside the repository,
-    creates a per-request directory inside it, establishes+verifies an owner-only Windows ACL
+    ``create`` validates the ambient temp base is outside the repository, then creates a fresh,
+    unique, current-identity-owned per-request directory under a per-identity namespace prefix
+    (never a shared fixed directory another identity may own), establishes+verifies an owner-only
+    Windows ACL
     (owner SID == current user; one protected ACCESS_ALLOWED ACE with the exact rights, no
     inheritance) before writing exactly one literal ``safe.directory`` value, creates the file
     exclusively, and records an identity/content fingerprint. ``verify`` re-proves that
@@ -629,9 +649,10 @@ class LocalSecureConfigStore:
             real_repo = safe_root.resolve(strict=True)
         except OSError as exc:
             raise SecureConfigError("repository root could not be resolved") from exc
-        base = _owner_controlled_base(real_repo)
-        _sweep_stale_configs(base)
-        temp_dir = Path(tempfile.mkdtemp(prefix="jarvis-safe-dir-", dir=str(base)))
+        real_base = _validated_temp_base(real_repo)
+        prefix = _config_dir_prefix()
+        _sweep_stale_configs(real_base, prefix)
+        temp_dir = Path(tempfile.mkdtemp(prefix=prefix, dir=str(real_base)))
         try:
             real_temp = temp_dir.resolve(strict=True)
             if _within(real_temp, real_repo) or _within(real_repo, real_temp):

@@ -13,11 +13,13 @@ import os
 import shutil
 import subprocess
 import tempfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
+import jarvis_core.project_resume.local_git as local_git
 from jarvis_core.project_resume.local_git import (
     CODE_UNAVAILABLE_CLEANUP_INCOMPLETE,
     CODE_UNAVAILABLE_SECURITY_INTEGRITY,
@@ -32,6 +34,7 @@ from jarvis_core.project_resume.local_git import (
     _cmd_head,
     _cmd_log,
     _cmd_toplevel,
+    _config_dir_prefix,
     _safe_config_value,
     _verify_owner_only,
     build_git_env,
@@ -940,5 +943,55 @@ def test_independent_owner_only_via_get_acl(tmp_path: Path) -> None:
         assert inherited.strip() == "False"
         assert inherit_flags.strip() == "None"
         assert "FullControl" in rights
+    finally:
+        store.remove(path)
+
+
+# --------------------------------------------- Handoff 18: independent-identity temp namespace
+
+
+def test_per_identity_prefix_is_not_a_shared_fixed_name() -> None:
+    """The request-directory namespace is identity-scoped and carries no shared fixed child."""
+    prefix = _config_dir_prefix()
+    assert prefix.startswith("jarvis-safe-") and prefix.endswith("-")
+    assert "jarvis-safe-root" not in prefix  # the old cross-identity fixed name is gone
+
+
+def test_foreign_owned_shared_namespace_is_not_used_or_modified(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Regression for the independent-identity gate: a pre-existing, non-verifiable directory
+    sharing the namespace prefix must neither block creation nor be modified. The product uses
+    its own fresh identity-owned directory and leaves the foreign artifact untouched."""
+    base = tmp_path / "base"
+    base.mkdir()
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(local_git.tempfile, "gettempdir", lambda: str(base))
+
+    prefix = _config_dir_prefix()
+    foreign = base / (prefix + "FOREIGN")
+    foreign.mkdir()
+    marker = foreign / "marker.txt"
+    marker.write_text("do-not-touch", encoding="utf-8")
+    old = time.time() - (local_git._STALE_CONFIG_MAX_AGE_SECONDS * 2)  # old enough for the sweep
+    os.utime(foreign, (old, old))
+
+    real_verify = local_git._verify_owner_only
+
+    def _verify_but_reject_foreign(path: object) -> None:
+        p = Path(str(path))
+        if p == foreign or foreign in p.parents:
+            raise SecureConfigError("foreign-owned or inaccessible")
+        real_verify(p)
+
+    monkeypatch.setattr(local_git, "_verify_owner_only", _verify_but_reject_foreign)
+
+    store = LocalSecureConfigStore()
+    path = store.create(safe_root=repo)  # must succeed using its own identity-owned namespace
+    try:
+        assert foreign not in Path(path).parents, "must not reuse a foreign-owned directory"
+        assert foreign.exists(), "the foreign artifact must be left in place"
+        assert marker.read_text(encoding="utf-8") == "do-not-touch", "foreign artifact untouched"
     finally:
         store.remove(path)

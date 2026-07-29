@@ -32,12 +32,14 @@ from __future__ import annotations
 
 import contextlib
 import ctypes
+import hashlib
 import os
 import shutil
 import stat
 import subprocess
 import sys
 import tempfile
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -190,17 +192,39 @@ def build_git_env(git_executable: str, *, tmp_dir: str | None = None) -> dict[st
 # message ever contains the temp path, the repository root, or a raw OS error.
 CODE_UNAVAILABLE_SECURITY_SETUP = "unavailable_security_setup"
 CODE_UNAVAILABLE_CLEANUP_INCOMPLETE = "unavailable_cleanup_incomplete"
+CODE_UNAVAILABLE_SECURITY_INTEGRITY = "unavailable_security_integrity"
 
 _CONFIG_UNSAFE_CHARS = frozenset('"\\\n\r\x00')
+_STALE_CONFIG_MAX_AGE_SECONDS = 3600.0
 
 
 class SecureConfigError(Exception):
-    """A request-scoped safe.directory config could not be securely created or removed.
+    """A request-scoped safe.directory config could not be securely created, verified, or removed.
 
-    Raised for containment, permission, serialization, and deletion failures. The message is
-    internal only and is mapped by the adapter to a redacted, typed unavailable result; it is
-    never surfaced to a caller or logged with a private path.
+    Raised for containment, permission, serialization, integrity, and deletion failures. The
+    message is internal only and is mapped by the adapter to a redacted, typed unavailable
+    result; it is never surfaced to a caller or logged with a private path.
     """
+
+
+class SecureConfigCleanupError(SecureConfigError):
+    """Removal of a request-scoped config or its temp root could not be proven.
+
+    Distinct from a plain setup failure: a security exception (possibly holding the private
+    canonical root) may remain on disk, so the adapter reports ``unavailable_cleanup_incomplete``
+    rather than ``unavailable_security_setup``.
+    """
+
+
+@dataclass(frozen=True)
+class _ConfigRecord:
+    """The at-creation identity/content fingerprint used to detect substitution before use."""
+
+    dev: int
+    ino: int
+    parent_dev: int
+    parent_ino: int
+    sha256: str
 
 
 class EphemeralSafeDirectoryStore(Protocol):
@@ -208,6 +232,10 @@ class EphemeralSafeDirectoryStore(Protocol):
 
     def create(self, *, safe_root: Path) -> str:
         """Create the owner-only ephemeral config and return its path, or raise on any failure."""
+        ...
+
+    def verify(self, config_path: str) -> None:
+        """Re-prove file/parent identity, exact bytes, owner, and ACL; raise on any mismatch."""
         ...
 
     def remove(self, config_path: str) -> None:
@@ -243,6 +271,43 @@ def _within(child: Path, parent: Path) -> bool:
     return True
 
 
+# The exact intended owner-only security descriptor (platform-independent predicate below).
+_OWNER_ONLY_ACE_TYPE = 0  # ACCESS_ALLOWED_ACE_TYPE
+_OWNER_ONLY_ACE_MASK = 0x1F01FF  # FILE_ALL_ACCESS — explicit specific rights
+_OWNER_ONLY_ACE_FLAGS = 0  # no inheritance
+
+
+def _check_owner_only(
+    *,
+    owner_matches: bool,
+    dacl_protected: bool,
+    ace_count: int,
+    ace_type: int,
+    ace_flags: int,
+    ace_mask: int,
+    trustee_matches: bool,
+) -> None:
+    """Raise :class:`SecureConfigError` unless the descriptor is exactly the owner-only form.
+
+    Pure and platform-independent so the owner-SID, protection, ACE count/type/flags/mask, and
+    trustee predicates are directly and deterministically testable without real ACLs.
+    """
+    if not owner_matches:
+        raise SecureConfigError("owner is not the current user")
+    if not dacl_protected:
+        raise SecureConfigError("dacl is not protected from inheritance")
+    if ace_count != 1:
+        raise SecureConfigError("dacl does not grant exactly the owner")
+    if ace_type != _OWNER_ONLY_ACE_TYPE:
+        raise SecureConfigError("dacl contains a non-allow ace")
+    if ace_flags != _OWNER_ONLY_ACE_FLAGS:
+        raise SecureConfigError("ace carries inheritance flags")
+    if ace_mask != _OWNER_ONLY_ACE_MASK:
+        raise SecureConfigError("ace access mask is not the intended owner-only rights")
+    if not trustee_matches:
+        raise SecureConfigError("dacl grants an identity other than the owner")
+
+
 # ------------------------------------------------------------- owner-only permission boundary
 
 if os.name == "nt":  # pragma: no cover - exercised on the Windows reference platform
@@ -255,7 +320,7 @@ if os.name == "nt":  # pragma: no cover - exercised on the Windows reference pla
     _PROTECTED_DACL_SECURITY_INFORMATION = 0x80000000
     _TOKEN_QUERY = 0x0008
     _TokenUser = 1
-    _GENERIC_ALL = 0x10000000
+    _FILE_ALL_ACCESS = 0x1F01FF  # explicit specific rights (no generic mapping ambiguity)
     _SET_ACCESS = 2
     _NO_INHERITANCE = 0x0
     _TRUSTEE_IS_SID = 0
@@ -368,7 +433,7 @@ if os.name == "nt":  # pragma: no cover - exercised on the Windows reference pla
         # carries exactly one owner-only ACE and no inherited or inherit-only entries.
         sid = ctypes.create_string_buffer(_current_user_sid())
         ea = _EXPLICIT_ACCESS_W()
-        ea.grfAccessPermissions = _GENERIC_ALL
+        ea.grfAccessPermissions = _FILE_ALL_ACCESS
         ea.grfAccessMode = _SET_ACCESS
         ea.grfInheritance = _NO_INHERITANCE
         ea.Trustee.TrusteeForm = _TRUSTEE_IS_SID
@@ -378,10 +443,13 @@ if os.name == "nt":  # pragma: no cover - exercised on the Windows reference pla
         if _advapi32.SetEntriesInAclW(1, ctypes.byref(ea), None, ctypes.byref(new_acl)) != 0:
             raise SecureConfigError("could not build owner-only acl")
         try:
+            # Set both OWNER (to the current user) and a PROTECTED owner-only DACL in one call.
             status = _advapi32.SetNamedSecurityInfoW(
                 ctypes.c_wchar_p(path), _SE_FILE_OBJECT,
-                _DACL_SECURITY_INFORMATION | _PROTECTED_DACL_SECURITY_INFORMATION,
-                None, None, new_acl, None,
+                _OWNER_SECURITY_INFORMATION
+                | _DACL_SECURITY_INFORMATION
+                | _PROTECTED_DACL_SECURITY_INFORMATION,
+                ctypes.cast(sid, ctypes.c_void_p), None, new_acl, None,
             )
             if status != 0:
                 raise SecureConfigError("could not apply owner-only acl")
@@ -401,6 +469,9 @@ if os.name == "nt":  # pragma: no cover - exercised on the Windows reference pla
         if status != 0:
             raise SecureConfigError("could not read security descriptor")
         try:
+            owner_matches = bool(owner.value) and bool(
+                _advapi32.EqualSid(owner, ctypes.cast(expected, ctypes.c_void_p))
+            )
             if not dacl.value:
                 raise SecureConfigError("null dacl grants everyone")  # NULL DACL == full access
             control = ctypes.c_ushort(0)
@@ -409,29 +480,38 @@ if os.name == "nt":  # pragma: no cover - exercised on the Windows reference pla
                 sd, ctypes.byref(control), ctypes.byref(revision)
             ):
                 raise SecureConfigError("could not read descriptor control")
-            if not control.value & _SE_DACL_PROTECTED:
-                raise SecureConfigError("dacl is not protected from inheritance")
+            dacl_protected = bool(control.value & _SE_DACL_PROTECTED)
             info = _ACL_SIZE_INFORMATION()
             if not _advapi32.GetAclInformation(
                 dacl, ctypes.byref(info), ctypes.sizeof(info), 2  # AclSizeInformation
             ):
                 raise SecureConfigError("could not read acl information")
-            if info.AceCount != 1:
-                raise SecureConfigError("dacl grants more than the owner")
-            ace_ptr = ctypes.c_void_p()
-            if not _advapi32.GetAce(dacl, 0, ctypes.byref(ace_ptr)):
-                raise SecureConfigError("could not read ace")
-            ace = ctypes.cast(ace_ptr, ctypes.POINTER(_ACCESS_ALLOWED_ACE)).contents
-            if ace.Header.AceType != _ACCESS_ALLOWED_ACE_TYPE:
-                raise SecureConfigError("dacl contains a non-allow ace")
-            ace_address = ace_ptr.value
-            if ace_address is None:
-                raise SecureConfigError("could not read ace address")
-            # SID begins immediately after the ACE header and the 32-bit access mask.
-            sid_offset = ctypes.sizeof(_ACE_HEADER) + ctypes.sizeof(ctypes.c_ulong)
-            sid_ptr = ctypes.c_void_p(ace_address + sid_offset)
-            if not _advapi32.EqualSid(sid_ptr, ctypes.cast(expected, ctypes.c_void_p)):
-                raise SecureConfigError("dacl grants an identity other than the owner")
+            ace_count = int(info.AceCount)
+            ace_type = ace_flags = -1
+            ace_mask = 0
+            trustee_matches = False
+            if ace_count >= 1:
+                ace_ptr = ctypes.c_void_p()
+                if not _advapi32.GetAce(dacl, 0, ctypes.byref(ace_ptr)):
+                    raise SecureConfigError("could not read ace")
+                ace = ctypes.cast(ace_ptr, ctypes.POINTER(_ACCESS_ALLOWED_ACE)).contents
+                ace_type = int(ace.Header.AceType)
+                ace_flags = int(ace.Header.AceFlags)
+                ace_mask = int(ace.Mask)
+                ace_address = ace_ptr.value
+                if ace_address is None:
+                    raise SecureConfigError("could not read ace address")
+                # SID begins immediately after the ACE header and the 32-bit access mask.
+                sid_offset = ctypes.sizeof(_ACE_HEADER) + ctypes.sizeof(ctypes.c_ulong)
+                sid_ptr = ctypes.c_void_p(ace_address + sid_offset)
+                trustee_matches = bool(
+                    _advapi32.EqualSid(sid_ptr, ctypes.cast(expected, ctypes.c_void_p))
+                )
+            _check_owner_only(
+                owner_matches=owner_matches, dacl_protected=dacl_protected, ace_count=ace_count,
+                ace_type=ace_type, ace_flags=ace_flags, ace_mask=ace_mask,
+                trustee_matches=trustee_matches,
+            )
         finally:
             if sd.value:
                 _kernel32.LocalFree(sd)
@@ -465,57 +545,153 @@ def _exclusive_write(path: Path, content: str) -> None:
         handle.write(content)
 
 
-class LocalSecureConfigStore:
-    """Default :class:`EphemeralSafeDirectoryStore`: owner-only config under a confined temp root.
+def _remove_tree_proven(path: Path) -> bool:
+    """Remove ``path`` and its immediate children; return whether it is provably gone."""
+    with contextlib.suppress(OSError):
+        for child in path.glob("*"):
+            with contextlib.suppress(OSError):
+                if child.is_dir() and not child.is_symlink():
+                    _remove_tree_proven(child)
+                else:
+                    child.unlink()
+        os.rmdir(path)
+    return not path.exists()
 
-    ``create`` proves the temp root resolves outside the granted repository (defeating symlink/
-    junction/reparse escape), establishes and verifies an owner-only permission boundary before
-    writing the single literal ``safe.directory`` value, and creates the file exclusively.
-    ``remove`` proves both the file and the temp root are gone, raising otherwise.
+
+def _sweep_stale_configs(base: Path) -> None:
+    """Bounded recovery: remove leftover request dirs an interrupted run may have stranded."""
+    now = time.time()
+    with contextlib.suppress(OSError):
+        for entry in base.glob("jarvis-safe-dir-*"):
+            with contextlib.suppress(OSError):
+                if entry.is_dir() and (now - entry.stat().st_mtime) > _STALE_CONFIG_MAX_AGE_SECONDS:
+                    _remove_tree_proven(entry)
+
+
+def _owner_controlled_base(real_repo: Path) -> Path:
+    """Return an explicit, validated, owner-only temp base proven outside the repository.
+
+    The base is validated (and re-hardened) *before* any per-request directory is created, so
+    a hostile ambient ``TMP``/``TEMP`` pointing inside the repository fails closed without any
+    repository-local write. Symlink/junction/reparse escape is defeated by ``resolve(strict)``.
     """
+    try:
+        real_base = Path(tempfile.gettempdir()).resolve(strict=True)
+    except OSError as exc:
+        raise SecureConfigError("temporary base is unavailable") from exc
+    # The base must not live inside the repository (that would make the per-request dir a
+    # repository write). The repository legitimately may live under the system temp base, so the
+    # reverse containment is not an error; per-request-directory confinement is checked in create.
+    if _within(real_base, real_repo):
+        raise SecureConfigError("temporary base resolves within the repository")
+    root = real_base / "jarvis-safe-root"
+    with contextlib.suppress(FileExistsError):
+        root.mkdir(mode=0o700)
+    try:
+        real_root = root.resolve(strict=True)
+    except OSError as exc:
+        raise SecureConfigError("controlled temporary root is unavailable") from exc
+    if _within(real_root, real_repo):
+        raise SecureConfigError("controlled temporary root resolves within the repository")
+    _establish_owner_only(real_root)  # re-assert owner-only ownership (defeats squatting)
+    _verify_owner_only(real_root)
+    return real_root
+
+
+def _fingerprint(path: Path, content: str) -> _ConfigRecord:
+    st = path.stat()
+    pst = path.parent.stat()
+    return _ConfigRecord(
+        dev=st.st_dev, ino=st.st_ino, parent_dev=pst.st_dev, parent_ino=pst.st_ino,
+        sha256=hashlib.sha256(content.encode("utf-8")).hexdigest(),
+    )
+
+
+class LocalSecureConfigStore:
+    """Default :class:`EphemeralSafeDirectoryStore` (Handoff 17).
+
+    ``create`` selects an explicit owner-controlled temp base proven outside the repository,
+    creates a per-request directory inside it, establishes+verifies an owner-only Windows ACL
+    (owner SID == current user; one protected ACCESS_ALLOWED ACE with the exact rights, no
+    inheritance) before writing exactly one literal ``safe.directory`` value, creates the file
+    exclusively, and records an identity/content fingerprint. ``verify`` re-proves that
+    fingerprint plus the owner/ACL at the process boundary and again before cleanup, so a
+    same-owner substitution between creation and Git consumption is detected and stops the
+    result. ``create`` and ``remove`` prove deletion or raise :class:`SecureConfigCleanupError`.
+    """
+
+    def __init__(self) -> None:
+        self._records: dict[str, _ConfigRecord] = {}
 
     def create(self, *, safe_root: Path) -> str:
         value = _safe_config_value(safe_root)
-        temp_dir = Path(tempfile.mkdtemp(prefix="jarvis-safe-dir-"))
+        try:
+            real_repo = safe_root.resolve(strict=True)
+        except OSError as exc:
+            raise SecureConfigError("repository root could not be resolved") from exc
+        base = _owner_controlled_base(real_repo)
+        _sweep_stale_configs(base)
+        temp_dir = Path(tempfile.mkdtemp(prefix="jarvis-safe-dir-", dir=str(base)))
         try:
             real_temp = temp_dir.resolve(strict=True)
-            real_repo = safe_root.resolve(strict=True)
             if _within(real_temp, real_repo) or _within(real_repo, real_temp):
                 raise SecureConfigError("temporary root resolves within the repository")
             _establish_owner_only(real_temp)
             _verify_owner_only(real_temp)
             config_path = real_temp / "safe.gitconfig"
-            _exclusive_write(config_path, f'[safe]\n\tdirectory = "{value}"\n')
+            content = f'[safe]\n\tdirectory = "{value}"\n'
+            _exclusive_write(config_path, content)
             _establish_owner_only(config_path)
             _verify_owner_only(config_path)
+            self._records[str(config_path)] = _fingerprint(config_path, content)
             return str(config_path)
         except SecureConfigError:
-            _best_effort_rmtree(temp_dir)
+            if not _remove_tree_proven(temp_dir):
+                raise SecureConfigCleanupError("secure config artifact could not be removed") \
+                    from None
             raise
         except OSError as exc:
-            _best_effort_rmtree(temp_dir)
+            if not _remove_tree_proven(temp_dir):
+                raise SecureConfigCleanupError("secure config artifact could not be removed") \
+                    from exc
             raise SecureConfigError("could not create the secure config") from exc
+
+    def verify(self, config_path: str) -> None:
+        record = self._records.get(config_path)
+        if record is None:
+            raise SecureConfigError("unknown secure config")
+        path = Path(config_path)
+        try:
+            st = path.stat()
+            pst = path.parent.stat()
+        except OSError as exc:
+            raise SecureConfigError("secure config is not accessible") from exc
+        if (st.st_dev, st.st_ino) != (record.dev, record.ino):
+            raise SecureConfigError("secure config identity changed")
+        if (pst.st_dev, pst.st_ino) != (record.parent_dev, record.parent_ino):
+            raise SecureConfigError("secure config parent identity changed")
+        try:
+            data = path.read_bytes()
+        except OSError as exc:
+            raise SecureConfigError("secure config is not readable") from exc
+        if hashlib.sha256(data).hexdigest() != record.sha256:
+            raise SecureConfigError("secure config content changed")
+        _verify_owner_only(path)
+        _verify_owner_only(path.parent)
 
     def remove(self, config_path: str) -> None:
         path = Path(config_path)
         parent = path.parent
+        self._records.pop(config_path, None)
         with contextlib.suppress(OSError):
             if path.is_symlink() or path.exists():
                 os.unlink(path)
         if path.exists() or path.is_symlink():
-            raise SecureConfigError("ephemeral config could not be removed")
+            raise SecureConfigCleanupError("ephemeral config could not be removed")
         with contextlib.suppress(OSError):
             os.rmdir(parent)
         if parent.exists():
-            raise SecureConfigError("ephemeral temp root could not be removed")
-
-
-def _best_effort_rmtree(path: Path) -> None:
-    with contextlib.suppress(OSError):
-        for child in path.glob("*"):
-            with contextlib.suppress(OSError):
-                child.unlink()
-        os.rmdir(path)
+            raise SecureConfigCleanupError("ephemeral temp root could not be removed")
 
 
 # ------------------------------------------------------------------ fixed command shapes
@@ -635,38 +811,51 @@ class LocalGitRepositoryActivityAdapter:
         if self._git is None:
             return RepositoryActivityUnavailable(CODE_UNAVAILABLE_NO_GIT, "git is not available")
 
-        # Request-scoped ownership safety (Handoff 15): establish an owner-only ephemeral config
-        # declaring exactly the granted root as safe.directory. Setup is fail-closed: any
-        # containment/permission/serialization failure returns a typed, redacted result before
-        # Git runs, and no config file remains.
+        # Request-scoped ownership safety (Handoffs 15/17): establish an owner-only ephemeral
+        # config declaring exactly the granted root as safe.directory, under a controlled temp
+        # root proven outside the repository. Setup is fail-closed: a proven-clean setup failure
+        # returns unavailable_security_setup; a setup failure whose artifact could not be proven
+        # removed returns the distinct unavailable_cleanup_incomplete.
         try:
             config_path = self._secure_config.create(safe_root=requested)
+        except SecureConfigCleanupError:
+            return RepositoryActivityUnavailable(
+                CODE_UNAVAILABLE_CLEANUP_INCOMPLETE, "secure git cleanup could not be verified"
+            )
         except SecureConfigError:
             return RepositoryActivityUnavailable(
                 CODE_UNAVAILABLE_SECURITY_SETUP, "could not establish the secure git environment"
             )
         invocation_env = {**self._env, "GIT_CONFIG_GLOBAL": config_path}
+        integrity_failed = False
         try:
-            result = self._load_activity_with_env(
+            self._secure_config.verify(config_path)  # process boundary: pre-Git identity/ACL proof
+            result: RepositoryActivityResult = self._load_activity_with_env(
                 requested=requested,
                 grant=grant,
                 evaluation_time=evaluation_time,
                 env=invocation_env,
             )
-        except Exception:
-            # A raised runner/unexpected error must still remove the exception and never leak.
-            try:
-                self._secure_config.remove(config_path)
-            except SecureConfigError:
-                return RepositoryActivityUnavailable(
-                    CODE_UNAVAILABLE_CLEANUP_INCOMPLETE,
-                    "secure git cleanup could not be verified",
-                )
-            return RepositoryActivityUnavailable(
+        except SecureConfigError:
+            integrity_failed = True
+            result = RepositoryActivityUnavailable(
+                CODE_UNAVAILABLE_SECURITY_INTEGRITY, "secure git environment integrity check failed"
+            )
+        except Exception:  # any raised runner/unexpected error must not leak; still clean up
+            integrity_failed = True
+            result = RepositoryActivityUnavailable(
                 CODE_UNAVAILABLE_PROCESS_ERROR, "repository activity failed"
             )
-        # Cleanup is part of the security result: a snapshot is returned only when secure
-        # cleanup is proven; otherwise the result is downgraded to a typed, redacted unavailable.
+        # Re-prove identity/content/owner/ACL before cleanup: a same-owner substitution during
+        # Git consumption is detected here and must stop the snapshot from being returned.
+        if not integrity_failed:
+            try:
+                self._secure_config.verify(config_path)
+            except SecureConfigError:
+                result = RepositoryActivityUnavailable(
+                    CODE_UNAVAILABLE_SECURITY_INTEGRITY,
+                    "secure git environment integrity check failed",
+                )
         try:
             self._secure_config.remove(config_path)
         except SecureConfigError:

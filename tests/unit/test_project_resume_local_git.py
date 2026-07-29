@@ -20,12 +20,15 @@ import pytest
 
 from jarvis_core.project_resume.local_git import (
     CODE_UNAVAILABLE_CLEANUP_INCOMPLETE,
+    CODE_UNAVAILABLE_SECURITY_INTEGRITY,
     CODE_UNAVAILABLE_SECURITY_SETUP,
     LocalGitRepositoryActivityAdapter,
     LocalSecureConfigStore,
     ProcessResult,
+    SecureConfigCleanupError,
     SecureConfigError,
     SubprocessProcessRunner,
+    _check_owner_only,
     _cmd_head,
     _cmd_log,
     _cmd_toplevel,
@@ -318,15 +321,27 @@ class RecordingStore:
     can force create/remove failures to exercise the fail-closed lifecycle without real ACLs.
     """
 
-    def __init__(self, *, fail_create: bool = False, fail_remove: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        fail_create: bool = False,
+        fail_create_cleanup: bool = False,
+        fail_remove: bool = False,
+        fail_verify_on_call: int | None = None,
+    ) -> None:
         self.creates = 0
+        self.verifies = 0
         self.removes = 0
         self.fail_create = fail_create
+        self.fail_create_cleanup = fail_create_cleanup
         self.fail_remove = fail_remove
+        self.fail_verify_on_call = fail_verify_on_call
         self.created_paths: list[str] = []
 
     def create(self, *, safe_root: Path) -> str:
         self.creates += 1
+        if self.fail_create_cleanup:
+            raise SecureConfigCleanupError("forced setup cleanup failure")
         if self.fail_create:
             raise SecureConfigError("forced setup failure")
         d = Path(tempfile.mkdtemp(prefix="rec-safe-dir-"))
@@ -337,10 +352,15 @@ class RecordingStore:
         self.created_paths.append(str(p))
         return str(p)
 
+    def verify(self, config_path: str) -> None:
+        self.verifies += 1
+        if self.fail_verify_on_call is not None and self.verifies >= self.fail_verify_on_call:
+            raise SecureConfigError("forced integrity mismatch")
+
     def remove(self, config_path: str) -> None:
         self.removes += 1
         if self.fail_remove:
-            raise SecureConfigError("forced cleanup failure")
+            raise SecureConfigCleanupError("forced cleanup failure")
         Path(config_path).unlink(missing_ok=True)
         with contextlib.suppress(OSError):
             os.rmdir(Path(config_path).parent)
@@ -753,3 +773,172 @@ def test_secure_store_rejects_temp_root_resolving_into_repository(
     with pytest.raises(SecureConfigError):
         store.create(safe_root=repo)
     assert not sneaky.exists(), "the rejected temp root must be cleaned up"
+
+
+# --------------------------------------------------- Handoff 17: owner/ACL predicate + lifecycle
+
+_VALID_DESCRIPTOR = {
+    "owner_matches": True, "dacl_protected": True, "ace_count": 1,
+    "ace_type": 0, "ace_flags": 0, "ace_mask": 0x1F01FF, "trustee_matches": True,
+}
+
+
+def test_owner_only_predicate_accepts_exact_form() -> None:
+    _check_owner_only(**_VALID_DESCRIPTOR)  # must not raise
+
+
+@pytest.mark.parametrize(
+    "override",
+    [
+        {"owner_matches": False},   # owner SID mismatch
+        {"dacl_protected": False},  # inheritable / not protected
+        {"ace_count": 0},
+        {"ace_count": 2},
+        {"ace_type": 1},            # non-allow (deny) ace
+        {"ace_flags": 0x10},        # inheritance flags present
+        {"ace_mask": 0x1F0000},     # wrong access mask
+        {"trustee_matches": False}, # ace grants another identity
+    ],
+)
+def test_owner_only_predicate_rejects_deviations(override: dict[str, object]) -> None:
+    with pytest.raises(SecureConfigError):
+        _check_owner_only(**{**_VALID_DESCRIPTOR, **override})
+
+
+def test_setup_cleanup_incomplete_maps_to_adapter_code(tmp_path: Path) -> None:
+    store = RecordingStore(fail_create_cleanup=True)
+    out = _adapter(_ok_runner(tmp_path), secure_config_store=store).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert out.code == CODE_UNAVAILABLE_CLEANUP_INCOMPLETE
+
+
+def test_pre_git_integrity_failure_blocks_git(tmp_path: Path) -> None:
+    store = RecordingStore(fail_verify_on_call=1)  # process-boundary verify fails before Git
+    runner = _ok_runner(tmp_path)
+    out = _adapter(runner, secure_config_store=store).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert out.code == CODE_UNAVAILABLE_SECURITY_INTEGRITY
+    assert runner.calls == [], "git must not run when the pre-Git integrity check fails"
+    assert store.removes == 1
+
+
+def test_substitution_during_consumption_blocks_snapshot(tmp_path: Path) -> None:
+    store = RecordingStore(fail_verify_on_call=2)  # pre-Git verify ok, pre-cleanup verify fails
+    out = _adapter(_ok_runner(tmp_path), secure_config_store=store).load_activity(
+        project_id="project-alpha", repository_root=tmp_path, grant=_grant(tmp_path),
+        evaluation_time=EVAL,
+    )
+    assert not isinstance(out, RepositoryActivitySnapshot)
+    assert out.code == CODE_UNAVAILABLE_SECURITY_INTEGRITY
+    assert store.removes == 1
+
+
+def _boom(*args: object, **kwargs: object) -> object:
+    raise OSError("forced setup failure after write")
+
+
+def test_store_setup_failure_after_write_escalates_to_cleanup_incomplete(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr("jarvis_core.project_resume.local_git._fingerprint", _boom)
+    monkeypatch.setattr(
+        "jarvis_core.project_resume.local_git._remove_tree_proven", lambda path: False
+    )
+    with pytest.raises(SecureConfigCleanupError):
+        LocalSecureConfigStore().create(safe_root=repo)
+
+
+def test_store_setup_failure_after_write_with_proven_removal_is_setup_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr("jarvis_core.project_resume.local_git._fingerprint", _boom)
+    with pytest.raises(SecureConfigError) as excinfo:
+        LocalSecureConfigStore().create(safe_root=repo)
+    assert not isinstance(excinfo.value, SecureConfigCleanupError)
+
+
+def test_store_rejects_ambient_temp_inside_repository(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    monkeypatch.setattr(
+        "jarvis_core.project_resume.local_git.tempfile.gettempdir", lambda: str(repo)
+    )
+    with pytest.raises(SecureConfigError):
+        LocalSecureConfigStore().create(safe_root=repo)
+    assert not (repo / "jarvis-safe-root").exists(), "nothing may be created inside the repository"
+
+
+def test_store_verify_detects_content_substitution(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    store = LocalSecureConfigStore()
+    path = store.create(safe_root=repo)
+    try:
+        Path(path).write_text('[safe]\n\tdirectory = "C:/evil"\n', encoding="utf-8")
+        with pytest.raises(SecureConfigError):
+            store.verify(path)
+    finally:
+        with contextlib.suppress(SecureConfigError, OSError):
+            store.remove(path)
+
+
+def test_store_verify_detects_identity_substitution(tmp_path: Path) -> None:
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    store = LocalSecureConfigStore()
+    path = store.create(safe_root=repo)
+    try:
+        original = Path(path)
+        replacement = original.parent / "replacement.tmp"
+        replacement.write_text(original.read_text(encoding="utf-8"), encoding="utf-8")
+        os.replace(replacement, original)  # identical bytes, different file identity (inode)
+        with pytest.raises(SecureConfigError):
+            store.verify(path)
+    finally:
+        with contextlib.suppress(SecureConfigError, OSError):
+            store.remove(path)
+
+
+def test_independent_owner_only_via_get_acl(tmp_path: Path) -> None:
+    if os.name != "nt":
+        pytest.skip("Windows ACL boundary is the supported reference platform")
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    store = LocalSecureConfigStore()
+    path = store.create(safe_root=repo)
+    try:
+        script = (
+            "$ErrorActionPreference='Stop';"
+            "$a=Get-Acl -LiteralPath '" + path + "';"
+            "Write-Output ('OWNER=' + $a.Owner);"
+            "foreach($r in $a.Access){Write-Output ('ACE=' + $r.IdentityReference + '|' + "
+            "$r.FileSystemRights + '|' + $r.AccessControlType + '|' + $r.IsInherited + '|' + "
+            "$r.InheritanceFlags)}"
+        )
+        out = subprocess.run(
+            ["powershell", "-NoProfile", "-Command", script],
+            capture_output=True, text=True, check=True,
+        ).stdout
+        me = subprocess.run(["whoami"], capture_output=True, text=True, check=True).stdout.strip()
+        owner = next(x for x in out.splitlines() if x.startswith("OWNER="))[6:].strip().lower()
+        aces = [x for x in out.splitlines() if x.startswith("ACE=")]
+        assert owner == me.lower(), "filesystem owner must be the current user"
+        assert len(aces) == 1, "exactly one ACE"
+        ident, rights, actype, inherited, inherit_flags = aces[0][4:].split("|")
+        assert ident.strip().lower() == me.lower()
+        assert actype.strip() == "Allow"
+        assert inherited.strip() == "False"
+        assert inherit_flags.strip() == "None"
+        assert "FullControl" in rights
+    finally:
+        store.remove(path)

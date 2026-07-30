@@ -1,9 +1,9 @@
 # v0.4 Quality & Release Review — exact executable `ff402d7`
 
-**From:** Independent Quality & Release Manager  
-**To:** Product Owner  
-**Date:** 2026-07-30  
-**Scope:** Handoff 32 Areas A–J and all stop conditions  
+**From:** Independent Quality & Release Manager
+**To:** Product Owner
+**Date:** 2026-07-30
+**Scope:** Handoff 32 Areas A–J and all stop conditions
 **Review posture:** adversarial, read-only except for this artifact
 
 ## 1. Bound identities and review views
@@ -357,5 +357,240 @@ QF-01 triggers Handoff 32's materially incomplete/unreproducible-evidence stop c
 QF-02 prevents the required future sourcing metric. Quality performed no repair, merge,
 push, tag, release, publication, A11 collection, pilot/classification change, unrelated
 work, or v0.5 work.
+
+Not ready
+
+---
+
+# Superseding Revision — Handoff 39 Limited Revalidation
+
+**From:** Independent Quality & Release Manager
+**To:** Product Owner
+**Date:** 2026-07-30
+**Scope:** QF-01, QF-02, QF-03, and affected Areas A, H, I, and J only
+
+## 17. Supersession and activation boundary
+
+This revision preserves the original review above and supersedes its findings only to the
+extent independently revalidated here. Unaffected Quality evidence was reused exactly as
+authorized; Areas B–G, pilots, A12, local-Git architecture, CS-01 through CS-22,
+classifications, and private baselines were not rerun or reopened.
+
+The remediation itself conforms and closes QF-01, QF-02, and QF-03. A separate governance
+identity stop condition remains: Handoff 39 is present in the coordination worktree only
+as an untracked file. It has SHA-256
+`b3d0023f30755a70deb8fb11c2475523fbeae47550860c4c0f635b83c2112c23`,
+but `git ls-files` and `git log --all -- <path>` prove it has no committed Git identity.
+Quality did not stage or commit that CTO-owned artifact. Handoff 39 Section 11 requires
+the committed identity of the CTO disposition to be bound, and Section 12 makes an
+identity mismatch a blocking stop condition.
+
+## 18. Exact identities
+
+| Item | Limited-revalidation result |
+|---|---|
+| Remediation commit | `2c0e1204fb47d81fe8c7b873c973dd8c6026201b` — exact |
+| Remediation tree | `567adee29e72955febbefd7a9d3e77b7d0a71f67` — exact |
+| Remediation parent | `61734825be2cf096608ade0fd6eefc2c731ede68` — exact |
+| Branch | `feature/v0.4-project-resume` — exact |
+| Frozen executable | `ff402d7f82c061426a5e960f7177d916c355bbf2` — unchanged |
+| Frozen executable tree | `a7ff2c023b0e59df1f8bbc2ad05a3af843a5e344` — unchanged |
+| Accepted wheel SHA-256 / size | `8dcc1378a1ac4c3b96dbfea94c0443e92ffaec54fafeb1db5aa73e449a768cd3` / 126,683 bytes |
+| Updated performance JSON SHA-256 | `f125771887f2a544ca2cae3e7aa04305e47bffb362f75ffef8b48eae1666b956` |
+| Updated private A10 manifest SHA-256 | `e16fef556408cfde4013c253e2940e8fd6fb6650336d079fee91efcc1ba948b9` |
+| Private synthetic raw SHA-256 | `ccace5f5623bddede54435e3e8184c720371d4336c390cdec1fceadcc36fa73a` |
+| Pilot-evaluation JSON SHA-256 | `d26a66a98b3e9dc40fdc86119d578f27191cacf2c8d93a7a95b3bfe7ec9aef1e` — unchanged |
+| Updated Engineering review SHA-256 | `01c915d307eaded727507be753ff2a3220981387cf15c33ecdf4310df753d98b` |
+| A12 public evidence SHA-256 | `42cf72981537a41cf84a38c381b321d58a78bc2c80770fc72d0150b0341e2fb9` — unchanged |
+| Release-staging manifest SHA-256 | `76fc1ca29325aace9b55491e715b262cd9e2108953b32f74731fb922563932ca` |
+| Handoff 39 file SHA-256 | `b3d0023f30755a70deb8fb11c2475523fbeae47550860c4c0f635b83c2112c23` |
+| Handoff 39 committed identity | **Missing — blocking identity stop condition** |
+
+The remediation worktree started clean at the exact commit. Its parent and tree matched.
+`git diff-tree` returned exactly the six authorized paths:
+
+- `docs/evidence/v0.4/project-resume-performance-ff402d7.json`;
+- `docs/handovers/v0.4/02-principal-engineer-to-cto-engineering-review.md`;
+- `docs/software/PROJECT_RESUME.md`;
+- `evaluations/v0.4-project-resume-dogfood-template.tsv`;
+- `scripts/evaluate_project_resume.py`; and
+- `tests/unit/test_evaluate_project_resume.py`.
+
+No `src`, packaging metadata, runtime test, pilot, classification, local-Git,
+authorization, citation, budget, ADR, or private-baseline path changed.
+
+## 19. QF-01 limited decision — closed
+
+Quality independently rehashed the updated public performance artifact, private synthetic
+raw artifact, private manifest, and unchanged pilot-evaluation artifact. All 11 private
+manifest entries matched filename, size, and digest.
+
+Independent array and arithmetic review established:
+
+| Notes | Launched / completed / failed | Timing observations | Total p50 ms |
+|---:|---:|---:|---:|
+| 100 | 30 / 30 / 0 | 120 | 54.246 |
+| 500 | 30 / 30 / 0 | 120 | 61.711 |
+| 1,000 | 30 / 30 / 0 | 120 | 87.740 |
+| 5,000 | 30 / 30 / 0 | 120 | 269.607 |
+
+Totals are 120 launched, 120 completed, zero failed, and 480 retained timing observations.
+Every public raw array was identical in value and order to its private counterpart.
+Quality independently applied median p50 and released nearest-index p95/p99 arithmetic;
+all published values matched within the authorized 0.001 ms serialized-value bound.
+Peak memory is bound as `tracemalloc.peak`, 34.554 MB at 5,000 notes. Protocol identities
+bind one warm-up and 30 measurements per size, the frozen linked-chain generator,
+repository-disabled request, frozen evaluation time, and unchanged timing stages.
+
+The updated public privacy scan found no absolute path, username, credential, raw error,
+pilot passage, Git author/subject/remote value, classification value, or private source
+content. The pilot-evaluation digest is unchanged. No pilot was rerun.
+
+QF-01 is closed.
+
+## 20. QF-02 limited decision — closed
+
+The template now contains `material_claims_reviewed`,
+`material_claims_correctly_sourced`, `sampling_procedure`, and `sampling_size`. Static
+review and 17 focused tests confirm sum-over-sum weighting:
+
+```text
+sum(material_claims_correctly_sourced) / sum(material_claims_reviewed)
+```
+
+The evaluator rejects negative, missing, non-integer, over-correct, and sampling-
+inconsistent rows; requires a non-empty procedure; keeps citation defects separate;
+excludes example, comment, and blank rows; returns null rate/threshold when the reviewed
+denominator is zero; distinguishes no rows, zero denominator, below 0.90, 0.90–0.95, and
+above 0.95; and treats above 0.95 as passing the minimum rather than failing the target.
+Its public sampling output contains counts only, not procedure or source text.
+
+Running the evaluator against the unchanged template returned zero rows, null sourcing
+rate, `no_rows`, and no sourcing threshold claim. No A11 event was collected. The
+eight-week outcomes, ≥80% usefulness, 15–30 minute time-saved target, and 90–95% sourcing
+target remain pending and unproven.
+
+QF-02 is closed.
+
+## 21. QF-03 limited decision — closed
+
+`dist/release/ff402d7/` contains exactly:
+
+1. `artifact-identity.json`, 876 bytes, SHA-256
+   `76fc1ca29325aace9b55491e715b262cd9e2108953b32f74731fb922563932ca`;
+2. `jarvis_core-0.1.0-py3-none-any.whl`, 126,683 bytes, SHA-256
+   `8dcc1378a1ac4c3b96dbfea94c0443e92ffaec54fafeb1db5aa73e449a768cd3`.
+
+The manifest binds staging path, filename, size, full digest, executable commit/tree,
+package/version/tag, source-wheel digest, and the rule that filename alone is not
+identity. Independent ZIP inspection found 68 runtime entries and six distribution
+metadata entries; all 68 runtime files are byte-identical to the frozen executable tree.
+
+Recursive review found one non-quarantined release-eligible wheel. Two superseded
+same-named wheels remain recoverably retained under the explicit
+`from-engineering-dist-root` and `from-a12-worktree-root` quarantine categories. Each is
+124,678 bytes with SHA-256
+`7253e0b938433d7e393d186a3006c971b576381f6518fe986154d162fe0b3662`.
+No wheel was deleted or modified.
+
+QF-03 is closed.
+
+## 22. Affected Area A — identity, ancestry, artifacts, and scope
+
+**Result:** affected rows pass except for the missing committed Handoff 39 identity.
+
+Commit, tree, parent, branch, six-path diff, artifact hashes, accepted wheel, runtime
+payload, evidence scope, unchanged executable, unchanged pilot artifact, and unchanged A12
+artifact all matched. The only identity failure is the untracked CTO disposition described
+in Section 17.
+
+## 23. Affected Area H — regression, formatting, links, wheel, and A12
+
+**Result:** behavior and remediation gates pass.
+
+| Command | Result |
+|---|---|
+| `python -m pytest -q --basetemp <reviewer-temp>` | 421 passed, 2 skipped, 37.59 s |
+| `python -m pytest -q tests/unit/test_evaluate_project_resume.py --basetemp <reviewer-temp>` | 17 passed |
+| `python -m ruff check src tests scripts` | pass |
+| `python -m ruff format --check scripts/evaluate_project_resume.py tests/unit/test_evaluate_project_resume.py` | two files already formatted |
+| `python -m mypy src scripts/evaluate_project_resume.py` | success, 68 files |
+| `git diff --check 6173482..2c0e120` | pass |
+| read-only relative-link validation for the two changed Markdown files | two targets checked, none missing |
+
+The first full-suite invocation was invalid because pytest attempted to scan a pre-existing
+inaccessible global temporary directory and raised fixture-setup `PermissionError`s.
+Quality reran with a new explicit reviewer-owned base outside all designated views; that
+valid run produced 421 passes. A stray PowerShell attempt to invoke numeric exit code `0`
+also emitted a command-not-found diagnostic after Ruff had passed; the independently
+executed formatting and mypy commands then passed. Neither operator error is a product
+failure or affected repository state.
+
+The two unchanged skips are:
+
+1. the Windows symlink-capability skip in citation currentness, still environment-
+   justified; and
+2. the CS-21 separate-logon placeholder, still independently covered by Handoffs 24/25.
+
+The four original Quality-artifact hard-break defects on lines 3–6 were repaired. The
+complete resulting Markdown change must pass `git diff --check` before commit.
+
+Repository-wide Ruff 0.16.0 formatting debt is pre-existing and outside this release
+remediation. Only the two Python files changed by `2c0e120` were formatting-gated. No mass
+formatting or unrelated mechanical edit was performed.
+
+The wheel and A12 identities are unchanged; A12 was not rerun.
+
+## 24. Affected Area I — synthetic evidence, privacy, and pilot boundary
+
+**Result:** pass.
+
+The complete 480-observation arithmetic, 120/120 attempt accounting, peak-memory binding,
+protocol identity, public/private arrays, manifest contents, public digest, private
+digest, and privacy boundary passed. The pilot-evaluation digest remained exact. Private
+files were read only for identity, schema, counts, and arithmetic; no private path or
+source content is reproduced here. A10-12 and A10-19 remain accepted disclosed
+limitations. No pilot, cyclic timing, or A12 execution was performed.
+
+## 25. Affected Area J — metric, sampling, privacy, and strategic boundary
+
+**Result:** pass.
+
+Weighted arithmetic, threshold states, zero-denominator nulls, malformed-row failures,
+sampling reconciliation, count-only public sampling metadata, example exclusion,
+citation-defect separation, and strategic-pending wording passed. The candidate is
+technically ready for Product Owner release decision while A11 strategic outcomes remain
+pending and unproven.
+
+## 26. Limited command ledger and boundaries
+
+Quality used only:
+
+- Git identity, tree, parent, status, branch, ancestry, six-path diff, tracked-path, log,
+  and whitespace commands;
+- SHA-256 and size checks for all Handoff 39 identities, all 11 private manifest entries,
+  staging, quarantine, pilot evaluation, and A12;
+- independent private/public synthetic-array comparison and percentile recomputation;
+- exact staging enumeration and wheel ZIP/runtime byte comparison;
+- the full regression and 17 directly affected evaluator tests;
+- repository-wide Ruff lint, scoped two-file Ruff formatting, mypy, changed-file
+  whitespace, and changed-document relative-link checks;
+- static A11 formula/schema/privacy inspection and a template-only evaluator run; and
+- final clean-state and unchanged-identity checks.
+
+Reviewer pytest temporary directories were outside candidate, evidence, staging, pilots,
+and private baselines and were removed after use. No broader QA, pilot/A12 rerun, A11
+collection, implementation repair, merge, push, tag, release, or publication occurred.
+
+## 27. Final limited disposition
+
+QF-01, QF-02, and QF-03 are closed. The exact executable, tree, and wheel remain
+technically suitable for Product Owner release decision, with A11 strategic outcomes
+pending and unproven.
+
+Quality cannot advance the package because the activating CTO disposition has no committed
+identity to bind. Closure requires the authorized governance owner to commit the exact
+Handoff 39 file without changing its content, then reactivate Quality to verify that
+commit identity and the unchanged Quality artifact lineage. Quality grants no waiver.
 
 Not ready

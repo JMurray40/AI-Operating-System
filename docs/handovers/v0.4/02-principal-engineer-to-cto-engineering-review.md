@@ -1,0 +1,86 @@
+# Handoff 02 — Principal Engineer to CTO: v0.4 Engineering Review (A10 bound)
+
+**Date:** 2026-07-29
+**From:** Principal Engineer
+**To:** CTO; Chief of Staff (validation first)
+**Disposition:** **A10 EXECUTED AND FROZEN — returned for Chief-of-Staff validation, then CTO architecture/evidence review**
+**Authority:** Handoff 28 (A12 acceptance + A10 activation), Handoff 29 (A10 execution activation)
+
+## 1. Bound identities
+
+| Item | Identity |
+|---|---|
+| Executable | `ff402d7f82c061426a5e960f7177d916c355bbf2` |
+| Executable tree | `a7ff2c023b0e59df1f8bbc2ad05a3af843a5e344` |
+| Branch | `feature/v0.4-project-resume` |
+| Wheel (A10 execution identity) | `jarvis_core-0.1.0-py3-none-any.whl`, SHA-256 `8dcc1378a1ac4c3b96dbfea94c0443e92ffaec54fafeb1db5aa73e449a768cd3` |
+| PyYAML runtime dep | 6.0.3, SHA-256 `4a2e8cebe2ff6ab7d1050ecd59c25d4c8bd7e6f400f5f82b96557ac0abafd0ac` |
+
+The bound executable independently resolves to the bound tree; the candidate wheel rehashes to the bound SHA-256. The superseded `014076c` wheel was neither reused nor cited as evidence for this candidate.
+
+## 2. Committed evidence artifacts
+
+| Path | SHA-256 (committed content) |
+|---|---|
+| `docs/evidence/v0.4/project-resume-performance-ff402d7.json` | `f7c999244d8aed56363e5a0e0fc2b7c8708bd442c963923b51ca0682d8882d5f` |
+| `docs/evidence/v0.4/pilot-evaluation-ff402d7.json` | `4d79d74b96c3e2720a2328885e7be536f1267d74f570a86d9483cca30147e420` |
+
+(Digests are of committed content, reproducible via `git show HEAD:<path>` piped to SHA-256.)
+
+Private raw evidence, the redacted-field manifest, the measured runner, the artifact generator, per-mode representative briefings, and the synthetic capture live only under `data/v0.4-evidence/ff402d7/a10/` (gitignored). The manifest (`a10-manifest.json`) binds every private artifact by filename, size, and SHA-256, and contains no pilot or candidate copy.
+
+## 3. Execution identity and method
+
+A10 used one execution identity per reported mode: the installed candidate wheel (`8dcc…`) driven as the installed command for pilot timing/counts, and the same installed wheel's library API for in-process peak memory. Synthetic scale used the exact clean source checkout at `ff402d7` (worktree verified clean). No execution identities were mixed within a reported mode. The candidate, tests, tracked scripts, benchmark protocol, pilots, and classifications were not modified; measurement was performed by a private evidence runner and generator under the private evidence directory (the established A12 pattern).
+
+## 4. Reference profile (A10-02, actual current-PC conditions; no equivalence claim)
+
+Windows 11 (10.0.26200); Intel64 Family 6 Model 183 (16 logical CPUs); 31.74 GiB physical memory (4.12 GiB available, 87% load at run time); Python 3.14.4; Git 2.55.0.windows.1. Storage media type and power state were not instrumented and are recorded as such. The run was a dedicated evidence run.
+
+## 5. Predeclared protocol (A10-03)
+
+Declared before measured samples: three warm-ups then thirty measured attempts per warm mode; cold sample recorded separately; released nearest-index percentile estimator (`index = round(q·(n-1))`, `p50 = median`), identical to the frozen `scripts/benchmark_project_resume.py`; installed-CLI wall-clock total plus the candidate's native trace stage timings; complete raw arrays retained. Modes: Survivor Group Tracker denied and exact-grant; AI Prompt Suite explicit no-Git/unavailable.
+
+## 6. Measured pilot results (warm, milliseconds)
+
+| Mode | completed | p50 | p95 | p99 | max | <30 s | repo citations | peak heap (MiB) |
+|---|---|---|---|---|---|---|---|---|
+| Survivor — denied | 30/30 | 532.482 | 575.008 | 590.165 | 590.165 | yes | 0 | 0.567 |
+| Survivor — exact grant | 30/30 | 655.480 | 788.337 | 793.643 | 793.643 | yes | 10 | 0.773 |
+| AI Prompt Suite — no-Git | 30/30 | 307.189 | 337.360 | 357.402 | 357.402 | yes | 0 | 0.731 |
+
+Every valid warm pilot total is far below the 30-second gate (max 793.643 ms). Independent percentile recomputation from the retained raw arrays equals the reported values. All three pilots produced valid `partial`-coverage briefings (produced sections and citations); none returned `not_found`. Denied mode yields no repository citations and no Git-derived claim; exact-grant yields ten snapshot/object-bound repository citations; the non-Git pilot degrades explicitly with zero repository citations.
+
+Instrumented stages (native trace): selection, discovery (retrieval), citation binding, and repository, plus measured total. The exact-grant repository stage dominates (~150 ms) and is absent in the no-Git mode, as expected.
+
+## 7. Synthetic scale (A10-19)
+
+Deterministic synthetic vaults via the frozen harness at 100 / 500 / 1,000 / 5,000 notes (30 runs + warm-up each): total p50 46.5 / 62.7 / 85.3 / 269.5 ms; 5,000-note p99 316.9 ms; peak memory 34.554 MB at 5,000 notes. All sizes terminate well within budget with retained timing and counts. High fan-out and cycles are not generated by the frozen harness; see limitations.
+
+## 8. Integrity (A10-21/22/23/24) — before/after, exact
+
+Survivor Group Tracker (Git-enabled): canonical worktree manifest, HEAD, symbolic HEAD, refs, packed-refs, reflogs, index, local config, remotes (count and content digest), porcelain status, reachable-object manifest and count, count-objects, and ACL are all equal before and after; no new unreachable loose objects (`ambient_unreachable_object_drift: none`). AI Prompt Suite: worktree manifest and ACL equal; non-Git before and after. No canonical or reachable mutation occurred.
+
+## 9. Boundary results
+
+No provider, network, telemetry, remote-Git, or credential activity (A10-25). Public artifacts are redacted (A10-26/30): a self-scan confirms no absolute path, pilot passage, private note name, Git subject/author/remote, username, classification, or raw error. Every launched attempt has a recorded outcome; 30/30 completed per mode with no failures (A10-27). The candidate, wheel, tests, scripts, benchmark protocol, pilots, and classifications are unmodified (A10-29).
+
+## 10. A10-01 through A10-30 disposition
+
+Pass: A10-01, 02, 03, 04, 05, 06, 07, 08, 09, 10, 11, 13, 14, 15, 16, 17, 18, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30. Explicit **unavailable** (raised for governance, not worked around): **A10-12** — the frozen candidate natively instruments selection/discovery/binding/repository + total, but authorization, identity, graph, authority-conflict, and rendering are not separately instrumented and cannot be measured without changing the frozen candidate; **A10-19** — scale points pass, but high fan-out and cycles are not produced by the frozen benchmark harness and cannot be added without modifying it. Per-row evidence is in `pilot-evaluation-ff402d7.json` (`a10_matrix`).
+
+## 11. Reused prior evidence (Handoff 28 §10, cited by identity)
+
+Architecture clearance and CS-01…CS-22 for `ff402d7` (Handoff 25); independent Windows-identity CS-21 (Handoff 24); exact-candidate A12 acceptance and evidence (Handoff 28 §§2–5; `docs/evidence/v0.4/a12-ff402d7-packaging-recovery.md`); Product Owner pilot substitution and classification approvals; accepted pre-edit/apply/post-classification evidence digests and the post-classification canonical/reachable baseline under the Handoff 06 boundary; documentation-only ancestry unchanged by `ff402d7`; the verified retained PyYAML wheel identity; and privacy/no-provider/no-telemetry policy evidence. A1–A9 technical evidence maps to `ff402d7` ancestry, with all local-Git-affected portions replaced by Handoffs 24/25/27 and this A10. The superseded `014076c` wheel/installed-candidate/local-Git/doctor/payload/A12 results and any pre-`ff402d7` A10 timings are not reused.
+
+## 12. Consolidated limitations and blockers
+
+1. **A10-12 extended per-stage instrumentation — unavailable.** Measuring authorization/identity/graph/authority-conflict/rendering as separate stages requires adding instrumentation to the frozen candidate, which is prohibited. Recommend the CTO either accept the instrumented-stage subset for v0.4 or authorize a separately reviewed instrumentation change in a later candidate.
+2. **A10-19 high fan-out and cycles — unavailable.** The frozen benchmark harness generates a linked-chain synthetic vault only; fan-out/cycle topologies would require modifying the tracked harness. Recommend accepting the linear scale evidence for v0.4 or authorizing a harness extension separately.
+3. **Reference vs current PC.** Per Handoff 28 §6 the current PC is the approved reference profile; actual conditions (including 87% memory load at run time) are disclosed with no equivalence claim. Latencies are hundreds of milliseconds with wide headroom under the 30 s gate, so the conclusion is robust to load.
+4. **A11 eight-week dogfood outcome collection remains explicitly pending** and is out of A10 scope.
+5. Storage media type and power state were not instrumented (recorded as such).
+
+## 13. Requested routing
+
+Chief of Staff to validate exact candidate, tree, wheel, documentation, evidence digests, protocol completeness, privacy, and worktree scope; then CTO to conduct the final v0.4 architecture/A1–A10/A12 evidence review, resolve the two unavailable rows, and issue an exact-candidate disposition. Quality & Release remains unauthorized until that disposition. A10 evidence is frozen; no QA, merge, push, tag, release, publication, or v0.5 work was performed.

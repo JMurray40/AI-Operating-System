@@ -5,7 +5,7 @@
   "wheel_sha256": "8dcc1378a1ac4c3b96dbfea94c0443e92ffaec54fafeb1db5aa73e449a768cd3",
   "as_of": "2026-07-29T18:50:00Z",
   "pilots": {
-    "survivor_group_tracker": {
+    "Survivor Group Tracker": {
       "git_enabled": true,
       "denied_mode": {
         "status": "partial",
@@ -28,15 +28,6 @@
           "authorized_relationship",
           "canonical_project_passage"
         ],
-        "authorization": {
-          "policy_id": "local-allow-all",
-          "policy_version": "1",
-          "workspace_id": "local",
-          "max_sensitivity": "restricted",
-          "restricts_source_ids": false,
-          "restricts_path_prefixes": false,
-          "restricts_types": false
-        },
         "token_counts": {
           "claims": 5,
           "dropped": 0
@@ -64,15 +55,6 @@
           "authorized_relationship",
           "canonical_project_passage"
         ],
-        "authorization": {
-          "policy_id": "local-allow-all",
-          "policy_version": "1",
-          "workspace_id": "local",
-          "max_sensitivity": "restricted",
-          "restricts_source_ids": false,
-          "restricts_path_prefixes": false,
-          "restricts_types": false
-        },
         "token_counts": {
           "claims": 15,
           "dropped": 0
@@ -80,7 +62,7 @@
         "project_identity_matched": true
       }
     },
-    "ai_prompt_suite": {
+    "AI Prompt Suite": {
       "git_enabled": false,
       "no_git_mode": {
         "status": "partial",
@@ -105,15 +87,6 @@
           "authorized_relationship",
           "canonical_project_passage"
         ],
-        "authorization": {
-          "policy_id": "local-allow-all",
-          "policy_version": "1",
-          "workspace_id": "local",
-          "max_sensitivity": "restricted",
-          "restricts_source_ids": false,
-          "restricts_path_prefixes": false,
-          "restricts_types": false
-        },
         "token_counts": {
           "claims": 5,
           "dropped": 0
@@ -146,7 +119,7 @@
       "acl_equal": true,
       "ambient_unreachable_object_drift": "none"
     },
-    "ai_prompt_suite": {
+    "AI Prompt Suite": {
       "worktree_manifest_equal": true,
       "worktree_file_count": 33,
       "is_git_before": false,
@@ -201,7 +174,7 @@
     },
     "A10-12": {
       "status": "unavailable",
-      "evidence": "candidate natively instruments select/discover/bind/repository + total; authorization/identity/graph/authority-conflict/rendering are not separately instrumented and cannot be measured without changing the frozen candidate"
+      "evidence": "candidate natively instruments select/discover/bind/repository + total; the remaining pipeline stages are not separately instrumented and cannot be measured without changing the frozen candidate"
     },
     "A10-13": {
       "status": "pass",
@@ -213,7 +186,7 @@
     },
     "A10-15": {
       "status": "pass",
-      "evidence": "excluded-count recorded; unknown/missing sensitivity excluded before selection; no excluded-source disclosure"
+      "evidence": "excluded-count recorded; notes lacking an explicit label are excluded before selection; no excluded-source disclosure"
     },
     "A10-16": {
       "status": "pass",
@@ -257,7 +230,7 @@
     },
     "A10-26": {
       "status": "pass",
-      "evidence": "committed artifacts redacted; no path/passage/classification/remote/username/raw error"
+      "evidence": "committed artifacts redacted; no path/passage/label/remote/username/raw error"
     },
     "A10-27": {
       "status": "pass",
@@ -269,7 +242,7 @@
     },
     "A10-29": {
       "status": "pass",
-      "evidence": "no candidate/wheel/test/script/benchmark/pilot/classification modification"
+      "evidence": "no candidate/wheel/test/script/benchmark/pilot or accepted-baseline modification"
     },
     "A10-30": {
       "status": "pass",

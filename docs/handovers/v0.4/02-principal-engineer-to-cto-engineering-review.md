@@ -20,12 +20,12 @@ The bound executable independently resolves to the bound tree; the candidate whe
 
 ## 2. Committed evidence artifacts
 
-| Path | SHA-256 (committed content) |
-|---|---|
-| `docs/evidence/v0.4/project-resume-performance-ff402d7.json` | `f7c999244d8aed56363e5a0e0fc2b7c8708bd442c963923b51ca0682d8882d5f` |
-| `docs/evidence/v0.4/pilot-evaluation-ff402d7.json` | `4d79d74b96c3e2720a2328885e7be536f1267d74f570a86d9483cca30147e420` |
+| Path | Size (bytes) | SHA-256 (committed blob) |
+|---|---:|---|
+| `docs/evidence/v0.4/project-resume-performance-ff402d7.json` | 15,280 | `dc16254ab231560be851cce0714af2e4fd99a16f9d9370e484f672df73a7dad8` |
+| `docs/evidence/v0.4/pilot-evaluation-ff402d7.json` | 8,474 | `d26a66a98b3e9dc40fdc86119d578f27191cacf2c8d93a7a95b3bfe7ec9aef1e` |
 
-(Digests are of committed content, reproducible via `git show HEAD:<path>` piped to SHA-256.)
+Identities are the exact committed blob bytes, computed binary-safe via `git cat-file blob <commit>:<path>`. Under Handoff 30 the pilot-evaluation artifact was corrected to remove per-mode policy metadata; the performance JSON is unchanged from parent `65264af`.
 
 Private raw evidence, the redacted-field manifest, the measured runner, the artifact generator, per-mode representative briefings, and the synthetic capture live only under `data/v0.4-evidence/ff402d7/a10/` (gitignored). The manifest (`a10-manifest.json`) binds every private artifact by filename, size, and SHA-256, and contains no pilot or candidate copy.
 

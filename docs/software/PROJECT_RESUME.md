@@ -172,6 +172,34 @@ post-discovery byte mutation, prompt injection in vault or Git text, and hostile
 config/environment — are handled as inert data or fail closed for the affected capability while
 preserving safe local-vault completion.
 
+## A11 dogfood sourcing metric (offline evaluation)
+
+`scripts/evaluate_project_resume.py` reads a local dogfood TSV and reports a **weighted**
+correctly-sourced rate for manually reviewed material claims, never an average of per-row
+percentages:
+
+```text
+correctly_sourced_rate = sum(material_claims_correctly_sourced) / sum(material_claims_reviewed)
+```
+
+Each collected (non-`EXAMPLE`, non-`#`) row records `material_claims_reviewed`,
+`material_claims_correctly_sourced`, `sampling_procedure`, and `sampling_size`. Validation is
+offline and fail-closed: reviewed and correctly-sourced are required non-negative integers,
+correctly-sourced may not exceed reviewed, the sampling procedure is required and non-empty, and
+`material_claims_reviewed` may not exceed the declared `sampling_size`; a malformed, negative,
+inconsistent, or over-numerator row produces a clear error and no threshold result.
+
+A zero reviewed-claim denominator yields JSON `null` for the rate and threshold result — valid
+evidence of no review, never a pass or fail. The tool distinguishes five states: no collected
+rows, a zero-denominator, a valid rate below 0.90, a valid rate in the 0.90–0.95 band, and a
+valid rate above 0.95 (not treated as a failure). The minimum technical threshold is 0.90 and the
+0.90–0.95 target band is reported only after a non-zero denominator exists. `citation_defects`
+remains a separate diagnostic and never contributes to the numerator or denominator. Sampling
+metadata is emitted only as counts (declared sample total and procedure count); no claim text,
+citation text, note names, or private paths leave the tool. The eight-week A11 outcome remains
+**PENDING** until Product Owner-approved collection completes; this tool only summarizes given
+data and never asserts the release gate.
+
 ## References
 
 ADR-0018 (identity), ADR-0019 (authority/temporal/conflict), ADR-0020 (claims/citations/budgets),

@@ -84,3 +84,58 @@ Architecture clearance and CS-01…CS-22 for `ff402d7` (Handoff 25); independent
 ## 13. Requested routing
 
 Chief of Staff to validate exact candidate, tree, wheel, documentation, evidence digests, protocol completeness, privacy, and worktree scope; then CTO to conduct the final v0.4 architecture/A1–A10/A12 evidence review, resolve the two unavailable rows, and issue an exact-candidate disposition. Quality & Release remains unauthorized until that disposition. A10 evidence is frozen; no QA, merge, push, tag, release, publication, or v0.5 work was performed.
+
+---
+
+## Remediation revision — QF-01 / QF-02 / QF-03 (Handoff 36 / 37)
+
+One consolidated documentation/evidence/evaluation-tool remediation, parent `61734825be2cf096608ade0fd6eefc2c731ede68`, branch `feature/v0.4-project-resume`. No `src/`, packaging metadata, accepted-wheel, ADR, pilot, classification, local-Git, authorization, citation, budget, or private-baseline change.
+
+### Changed files by QF
+
+- **QF-01** (synthetic evidence): `docs/evidence/v0.4/project-resume-performance-ff402d7.json` (only `synthetic_scale`); this handoff revision.
+- **QF-02** (A11 metric): `evaluations/v0.4-project-resume-dogfood-template.tsv`, `scripts/evaluate_project_resume.py`, `tests/unit/test_evaluate_project_resume.py`, `docs/software/PROJECT_RESUME.md`.
+- **QF-03** (staging/quarantine): out-of-band under ignored `dist/release/ff402d7/` and `dist/quarantine/`; not committed.
+
+### Binary-safe committed identities (`git cat-file blob <commit>:<path>`)
+
+| Path | Size | Old SHA-256 | New SHA-256 |
+|---|---:|---|---|
+| `project-resume-performance-ff402d7.json` | 26,188 | `dc16254ab231560be851cce0714af2e4fd99a16f9d9370e484f672df73a7dad8` | `f125771887f2a544ca2cae3e7aa04305e47bffb362f75ffef8b48eae1666b956` |
+| `pilot-evaluation-ff402d7.json` | 8,474 | `d26a66a98b3e9dc40fdc86119d578f27191cacf2c8d93a7a95b3bfe7ec9aef1e` | unchanged |
+| `evaluate_project_resume.py` | 10,455 | — | `ac3e4e2dfedcef4eae7b7bfe2a440ba330a3f27b67b29cc59508858c09b10839` |
+| `v0.4-project-resume-dogfood-template.tsv` | 720 | — | `13b0e5a6cf9c4ae383bbb3143aa373714551e32fa254897b8729ca5a594e46b1` |
+| `test_evaluate_project_resume.py` | 6,436 | — | `1df2649cb59f186c1ea11f0068be4a6cb7a37ba9f00899192dda141247405eec` |
+| `PROJECT_RESUME.md` | 13,185 | — | `49a05fe0a096c2d2a2ff1f7bf5a5365829a8511be84604f94ec7ae62138e96a8` |
+
+Private A10 manifest: old `7aa4402fd960198bed343969aa38ef0eb25b0dc7c4b70fa43e796c92ff218e1b`; new digest bound in the return. A12 public evidence unchanged: `42cf72981537a41cf84a38c381b321d58a78bc2c80770fc72d0150b0341e2fb9`.
+
+### QF-01 synthetic evidence (supersedes Section 7 numbers)
+
+A private ignored driver invoked the frozen harness's own functions (no protocol change) and retained every observation: **120 launched, 120 completed, 0 failed, 480 timing values** (30 × select/discover/bind/total × four sizes), plus the frozen 5,000-note peak memory **34.554 MB** (`tracemalloc`). Independent recomputation of p50/p95/p99 from the retained arrays reproduces every published aggregate (`independent_recompute_ok = true`). New total_ms p50: 100 → 54.246, 500 → 61.711, 1,000 → 87.740, 5,000 → 269.607 ms. The public artifact embeds the raw arrays and binds the private raw file `a10-synthetic-raw.json` (`ccace5f5623bddede54435e3e8184c720371d4336c390cdec1fceadcc36fa73a`, 15,739 bytes). Pilots were not rerun.
+
+### QF-02 A11 sourcing metric
+
+Schema adds `material_claims_reviewed`, `material_claims_correctly_sourced`, `sampling_procedure`, `sampling_size`. Weighted rate (never an average of per-row rates):
+`correctly_sourced_rate = sum(material_claims_correctly_sourced) / sum(material_claims_reviewed)`. A zero reviewed-claim denominator yields JSON `null` for the rate and threshold; five states are distinguished (no rows, zero-denominator, below 0.90, 0.90-0.95 band, above 0.95 — not a failure); minimum technical threshold 0.90. `citation_defects` stays a separate diagnostic (never numerator/denominator). Per-row validation rejects malformed, negative, over-numerator, missing-procedure, and reviewed>sampling-size rows with a clear offline error and no threshold claim. Sampling metadata is emitted as counts only (no claim/citation/procedure text). Eight-week outcome remains PENDING. Tests (`test_evaluate_project_resume.py`, 17 cases) map: weighting (`test_weighted_rate_is_sum_over_sum_not_average_of_rates`), five states (`test_no_rows_state`/`test_zero_denominator_state`/`test_below_target_state`/`test_090_boundary_in_band_and_meets`/`test_095_boundary_in_band_and_meets`/`test_above_095_not_a_failure`), rejection (`test_invalid_rows_raise_sourcing_error` ×5, `test_missing_required_field_raises`), defect separation (`test_citation_defects_do_not_affect_sourcing`), privacy (`test_sampling_metadata_is_counts_only_no_text`), example exclusion (`test_examples_and_comments_skipped`), absent-columns (`test_sourcing_absent_columns_is_zero_denominator`).
+
+### QF-03 staging and quarantine (categories only, no private absolute paths)
+
+Staging `dist/release/ff402d7/` contains exactly `jarvis_core-0.1.0-py3-none-any.whl` (SHA-256 `8dcc1378a1ac4c3b96dbfea94c0443e92ffaec54fafeb1db5aa73e449a768cd3`, 126,683 bytes) and `artifact-identity.json` (`76fc1ca29325aace9b55491e715b262cd9e2108953b32f74731fb922563932ca`). Two stale same-named wheels (SHA-256 `7253e0b938433d7e393d186a3006c971b576381f6518fe986154d162fe0b3662`, 124,678 bytes) were recoverably quarantined by prior-location category `engineering-dist-root` and `a12-worktree-root` into `dist/quarantine/from-<category>/`; no wheel was deleted. Recursive enumeration across the v0.4 worktrees finds exactly one non-quarantined release-eligible wheel — the staged accepted artifact. Release selection binds staging path + size + SHA-256, never filename alone.
+
+### Preservation proof (Section 7)
+
+Accepted wheel rehashes to `8dcc…cd3` (126,683 bytes); 74 entries (68 runtime payload + 6 metadata); all 68 payload files byte-identical to `ff402d7:src/jarvis_core/*`; the 6 metadata entries are byte-identical to the accepted wheel (identical wheel bytes). Package `jarvis-core` 0.1.0, `Requires-Python >=3.10`, sole runtime dependency `PyYAML>=6.0`, console entry `jarvis = jarvis_core.cli:main`, tag `py3-none-any` — unchanged. The remediation diff contains no `src/`, build-config, packaging-metadata, entry-point, dependency, or candidate-wheel change. A12 public and pilot A10 evidence are byte-identical.
+
+### Regression gate
+
+Full tests: **421 passed, 2 skipped** — the two skips are the pre-existing symlink integration test (unsupported filesystem) and the CS-21 in-suite placeholder (independent Windows-identity, satisfied by Handoff 24); both named and unchanged. `ruff check src tests scripts`: clean. `mypy` (67 source files) and the evaluator: clean. `git diff --check`: clean. Repository-relative Markdown links in the changed docs resolve.
+
+### Residual limitations
+
+1. **`ruff format --check` (repo-wide) is a pre-existing failure.** This repository has never been ruff-*formatted*: 108 of 152 Python files (all of `src/` and prior CTO-accepted test files) would be reformatted; the repository's active style gate is `ruff check`, which passes. Making `ruff format --check` pass repo-wide requires reformatting `src/`, a Handoff 36 §13 stop condition and out of scope. The remediation's two changed Python files pass `ruff format --check`.
+2. The accepted **A10-12** (extended per-stage instrumentation) and **A10-19** (fan-out/cycles) unavailabilities are carried unchanged.
+
+### Proposed applicability statement (for the exact-commit CTO review)
+
+The accepted wheel `8dcc…cd3` and the existing A12 evidence `42cf7298…` appear applicable to executable `ff402d7` (this remediation touches no packaged-runtime path; the wheel rehashes exactly and its 68 payload files are byte-identical to `ff402d7:src`). This is proposed only; per Handoff 36 §7 and §10, only the next exact-commit CTO review may accept it. Freeze; stop for Chief-of-Staff validation. No QA, merge, push, tag, release, publication, A11 collection, or v0.5 work was performed.

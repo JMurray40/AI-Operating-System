@@ -594,3 +594,26 @@ Handoff 39 file without changing its content, then reactivate Quality to verify 
 commit identity and the unchanged Quality artifact lineage. Quality grants no waiver.
 
 Not ready
+
+---
+
+## 28. Final identity correction — superseding revision
+
+Handoff 39 is now committed as
+`34592d80b8188d9507bd9bb7c2ad1d55825e6009`. That commit directly descends from the
+completed limited Quality revalidation commit
+`e444722bc140375b9dff3f9dc5dd798998100d7f` and adds only
+`docs/handovers/v0.4/39-cto-exact-commit-qa-remediation-disposition.md`.
+
+The sole identity blocker recorded in Sections 17, 18, 22, and 27 is therefore closed.
+Quality reuses the completed **421 passed, 2 unchanged justified skips** revalidation and
+its QF-01, QF-02, and QF-03 closures without rerunning tests, pilots, A10, or A12. The
+exact executable `ff402d7f82c061426a5e960f7177d916c355bbf2`, executable tree
+`a7ff2c023b0e59df1f8bbc2ad05a3af843a5e344`, and accepted wheel SHA-256
+`8dcc1378a1ac4c3b96dbfea94c0443e92ffaec54fafeb1db5aa73e449a768cd3` remain the
+technical release identities. A11 strategic outcomes remain pending and unproven.
+
+This revision supersedes the operative `Not ready` disposition in Section 27. The exact
+technical candidate is ready for Product Owner release decision.
+
+Ready

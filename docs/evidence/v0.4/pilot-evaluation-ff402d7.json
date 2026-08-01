@@ -1,0 +1,253 @@
+{
+  "schema": "v0.4-a10-pilot-evaluation/1",
+  "executable": "ff402d7f82c061426a5e960f7177d916c355bbf2",
+  "executable_tree": "a7ff2c023b0e59df1f8bbc2ad05a3af843a5e344",
+  "wheel_sha256": "8dcc1378a1ac4c3b96dbfea94c0443e92ffaec54fafeb1db5aa73e449a768cd3",
+  "as_of": "2026-07-29T18:50:00Z",
+  "pilots": {
+    "Survivor Group Tracker": {
+      "git_enabled": true,
+      "denied_mode": {
+        "status": "partial",
+        "coverage_label": "partial",
+        "coverage_supported": 2,
+        "coverage_conflicting": 3,
+        "coverage_incomplete": 0,
+        "citations": 4,
+        "repository_citations": 0,
+        "conflicts": 1,
+        "limitations": 0,
+        "limitation_codes": [],
+        "omissions": 0,
+        "sections": 10,
+        "candidates": 0,
+        "excluded_count": 44,
+        "selection_tier": "title",
+        "repository_kind": null,
+        "channels_used": [
+          "authorized_relationship",
+          "canonical_project_passage"
+        ],
+        "token_counts": {
+          "claims": 5,
+          "dropped": 0
+        },
+        "project_identity_matched": true
+      },
+      "exact_grant_mode": {
+        "status": "partial",
+        "coverage_label": "partial",
+        "coverage_supported": 12,
+        "coverage_conflicting": 3,
+        "coverage_incomplete": 0,
+        "citations": 4,
+        "repository_citations": 10,
+        "conflicts": 1,
+        "limitations": 0,
+        "limitation_codes": [],
+        "omissions": 0,
+        "sections": 10,
+        "candidates": 0,
+        "excluded_count": 44,
+        "selection_tier": "title",
+        "repository_kind": "snapshot",
+        "channels_used": [
+          "authorized_relationship",
+          "canonical_project_passage"
+        ],
+        "token_counts": {
+          "claims": 15,
+          "dropped": 0
+        },
+        "project_identity_matched": true
+      }
+    },
+    "AI Prompt Suite": {
+      "git_enabled": false,
+      "no_git_mode": {
+        "status": "partial",
+        "coverage_label": "partial",
+        "coverage_supported": 2,
+        "coverage_conflicting": 3,
+        "coverage_incomplete": 0,
+        "citations": 4,
+        "repository_citations": 0,
+        "conflicts": 1,
+        "limitations": 1,
+        "limitation_codes": [
+          "unavailable_not_a_repository"
+        ],
+        "omissions": 0,
+        "sections": 10,
+        "candidates": 0,
+        "excluded_count": 29,
+        "selection_tier": "title",
+        "repository_kind": "unavailable",
+        "channels_used": [
+          "authorized_relationship",
+          "canonical_project_passage"
+        ],
+        "token_counts": {
+          "claims": 5,
+          "dropped": 0
+        },
+        "project_identity_matched": true
+      }
+    }
+  },
+  "integrity": {
+    "survivor": {
+      "worktree_manifest_equal": true,
+      "worktree_file_count": 24914,
+      "git_state_equal": true,
+      "git_field_equality": {
+        "head": true,
+        "head_symbolic": true,
+        "refs_sha": true,
+        "packed_refs_sha": true,
+        "reflogs_sha": true,
+        "index_sha": true,
+        "config_local_sha": true,
+        "remotes_count": true,
+        "remotes_sha": true,
+        "status_entries": true,
+        "status_sha": true,
+        "reachable_objects_sha": true,
+        "reachable_objects_count": true,
+        "count_objects_sha": true
+      },
+      "acl_equal": true,
+      "ambient_unreachable_object_drift": "none"
+    },
+    "AI Prompt Suite": {
+      "worktree_manifest_equal": true,
+      "worktree_file_count": 33,
+      "is_git_before": false,
+      "is_git_after": false,
+      "acl_equal": true
+    }
+  },
+  "a10_matrix": {
+    "A10-01": {
+      "status": "pass",
+      "evidence": "executable/tree/wheel bound to Handoff 28 Section 2 identities"
+    },
+    "A10-02": {
+      "status": "pass",
+      "evidence": "current-PC reference profile recorded (OS/CPU/mem/python/git/affinity)"
+    },
+    "A10-03": {
+      "status": "pass",
+      "evidence": "protocol predeclared before measured samples (see protocol block)"
+    },
+    "A10-04": {
+      "status": "pass",
+      "evidence": "survivor_denied: partial briefing, 0 repository citations, no Git-derived claim"
+    },
+    "A10-05": {
+      "status": "pass",
+      "evidence": "survivor_granted: partial briefing, 10 bounded repository citations"
+    },
+    "A10-06": {
+      "status": "pass",
+      "evidence": "ai_nogit: partial briefing, 0 repository citations, explicit no-Git degradation"
+    },
+    "A10-07": {
+      "status": "pass",
+      "evidence": "cold sample recorded separately from warm samples per mode"
+    },
+    "A10-08": {
+      "status": "pass",
+      "evidence": "3 warm-ups then 30 measured attempts per warm mode; warm-ups excluded"
+    },
+    "A10-09": {
+      "status": "pass",
+      "evidence": "complete raw retrieval-stage and total arrays retained; none deleted"
+    },
+    "A10-10": {
+      "status": "pass",
+      "evidence": "independent percentile recomputation equals reported: True"
+    },
+    "A10-11": {
+      "status": "pass",
+      "evidence": "every warm pilot total < 30s; max 793.643 ms"
+    },
+    "A10-12": {
+      "status": "unavailable",
+      "evidence": "candidate natively instruments select/discover/bind/repository + total; the remaining pipeline stages are not separately instrumented and cannot be measured without changing the frozen candidate"
+    },
+    "A10-13": {
+      "status": "pass",
+      "evidence": "peak memory via tracemalloc per mode (method+units recorded); synthetic 34.55 MB @5000"
+    },
+    "A10-14": {
+      "status": "pass",
+      "evidence": "discovered/authorized/excluded/selected/claim/citation/conflict/coverage counts recorded"
+    },
+    "A10-15": {
+      "status": "pass",
+      "evidence": "excluded-count recorded; notes lacking an explicit label are excluded before selection; no excluded-source disclosure"
+    },
+    "A10-16": {
+      "status": "pass",
+      "evidence": "exact approved project selected (project_identity matched); no fuzzy/substitute"
+    },
+    "A10-17": {
+      "status": "pass",
+      "evidence": "current citations present; granted-mode repository citations snapshot/object-bound"
+    },
+    "A10-18": {
+      "status": "pass",
+      "evidence": "conflicts/coverage/limitations recorded; non-zero exit encodes partial coverage"
+    },
+    "A10-19": {
+      "status": "unavailable",
+      "evidence": "scale points 100/500/1000/5000 terminate within budget with retained timing/counts; high fan-out and cycles are not generated by the frozen benchmark harness and cannot be added without modifying it (prohibited)"
+    },
+    "A10-20": {
+      "status": "pass",
+      "evidence": "synthetic scale uses fixtures only; no repository activity"
+    },
+    "A10-21": {
+      "status": "pass",
+      "evidence": "before/after canonical-byte manifests equal for both pilots"
+    },
+    "A10-22": {
+      "status": "pass",
+      "evidence": "survivor before/after HEAD/refs/index/reflogs/config/remotes/status/reachable/acl equal"
+    },
+    "A10-23": {
+      "status": "pass",
+      "evidence": "no new unreachable loose objects: reachable count and count-objects unchanged"
+    },
+    "A10-24": {
+      "status": "pass",
+      "evidence": "AI Prompt Suite remains non-Git before and after"
+    },
+    "A10-25": {
+      "status": "pass",
+      "evidence": "offline run; candidate performs no provider/network/telemetry/remote-Git egress"
+    },
+    "A10-26": {
+      "status": "pass",
+      "evidence": "committed artifacts redacted; no path/passage/label/remote/username/raw error"
+    },
+    "A10-27": {
+      "status": "pass",
+      "evidence": "every launched attempt has an outcome; 30/30 completed per mode; no failures"
+    },
+    "A10-28": {
+      "status": "pass",
+      "evidence": "successful briefings (partial coverage with produced sections); never not_found"
+    },
+    "A10-29": {
+      "status": "pass",
+      "evidence": "no candidate/wheel/test/script/benchmark/pilot or accepted-baseline modification"
+    },
+    "A10-30": {
+      "status": "pass",
+      "evidence": "committed artifacts redacted; private manifest binds artifacts by size+sha256"
+    }
+  },
+  "disposition": "A10 executed; all pilot briefings valid and under budget; state immutable. A10-12 (extended per-stage instrumentation) and A10-19 (fan-out/cycles) are explicitly unavailable under the frozen-candidate/frozen-harness constraint and are raised for governance review, not worked around."
+}

@@ -13,6 +13,43 @@ This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) an
 
 ## [Unreleased]
 
+### Added — Read-only Project Resume (v0.4, in progress)
+
+Read-only, offline project briefing assembled over the v0.3.1 trust pipeline (ADR-0018–0021).
+Release evidence — reference-hardware benchmarks, the 30s pilot latency gate, non-author
+clean-Windows packaging, and the eight-week dogfood scorecard — remains **PENDING**; the
+mechanisms are built and tested, results are not fabricated.
+
+- Exact tiered project selection (ADR-0018): canonical id → title → alias → filename stem; the
+  first matching tier controls; exactly one match selects, ambiguity returns safe candidates
+  without choosing, no match returns not-found without substitution, duplicate/malformed
+  identity fails closed. `jarvis_core.project_resume.identity`.
+- Typed evidence discovery over the authorized view — canonical passage, `projects` metadata,
+  authorized relationships (bounded BFS), and project-bound retrieval — with dedup by identity +
+  fingerprint, cycle termination, configured caps, and bounded non-disclosing omissions.
+- Explicit authority/temporal/supersession/conflict ordering (ADR-0019): typed authority class
+  and dated/undated/stale state from explicit dates and the request evaluation time; supersession
+  only via an explicit resolved reference; materially conflicting top-class claims are retained
+  and marked, never merged or silently chosen.
+- Claim-to-current-citation binding and coverage (ADR-0020) through the reusable query-layer
+  citation service; supported vs incomplete are distinct; metadata claims cite the metadata
+  locator.
+- Two hard budgets (ADR-0020): evidence and full-output, measured on the final serialization,
+  shedding lowest-priority claims or failing closed with `budget_error`; trace charged to a
+  sub-budget inside the output budget.
+- Request-scoped, denied-by-default local read-only Git activity (ADR-0021): a distinct capability
+  port with a deterministic fixture adapter and a hard-capped, allowlisted-environment,
+  three-command subprocess adapter; typed redacted degradation; exact granted-root canonicalization.
+- Frozen versioned result/trace/repository contracts with deterministic `to_dict()`; text and JSON
+  rendered from one semantic result; non-disclosing trace with isolated timings.
+- CLI: `jarvis resume "<selector>"` (`--path/--format/--trace/--as-of/--evidence-budget/
+  --output-budget/--include-repository-activity/--repository-root`) and the read-only
+  `jarvis resume-doctor` diagnostic + derived-state rebuild. Exit codes extend the existing
+  `0/1/2` convention with `3` ambiguous, `4` not-found, `5` invalid, `6` policy, `7` budget.
+- Tooling: `scripts/benchmark_project_resume.py` (per-stage + total latency, peak memory) and
+  `scripts/evaluate_project_resume.py` + `evaluations/v0.4-project-resume-dogfood-template.tsv`
+  (offline dogfood aggregation, no telemetry). Guide: `docs/software/PROJECT_RESUME.md`.
+
 ## [0.3.1] - 2026-07-27
 
 ### Added — Query Trust Contracts

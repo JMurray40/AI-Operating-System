@@ -15,6 +15,8 @@
 | `jarvis search "<terms>" [--path <dir>] [--limit N]` | Ranked lexical search with cited sources. |
 | `jarvis summarize "<name>" [--path <dir>]` | Summarize a project with cited sources. |
 | `jarvis explain "<A>" "<B>" [--path <dir>]` | Explain how two notes are related. |
+| `jarvis resume "<selector>" [--path <dir>] [--trace]` | Assemble a deterministic, sourced project briefing (v0.4). |
+| `jarvis resume-doctor [--path <dir>] [--repository-root <root>]` | Diagnose the environment and rebuild derived state (read-only). |
 
 `<name>` matches a project note's title, alias, id, or filename stem.
 
@@ -54,9 +56,16 @@ jarvis ask "What projects relate to bookkeeping?" --trace --path /path/to/vault
 ## Exit codes
 | Code | Meaning |
 |---|---|
-| 0 | Success / validation OK |
-| 1 | Fatal error (bad path, project not found, validation errors) |
-| 2 | Completed with validation warnings, or a query returned no matches |
+| 0 | Success / validation OK / complete supported briefing |
+| 1 | Fatal error (bad path, project not found, validation errors) / internal failure |
+| 2 | Completed with validation warnings, a query returned no matches, or a partial briefing |
+| 3 | `resume`: ambiguous project selector (candidates shown, none chosen) |
+| 4 | `resume`: project not found (no substitute) |
+| 5 | `resume`: invalid input or identity |
+| 6 | `resume`: policy error |
+| 7 | `resume`: budget error |
+
+Codes 3–7 are `resume`-specific and extend the existing convention without reassigning 0/1/2.
 
 ## Examples
 ```bash
@@ -67,6 +76,68 @@ jarvis summarize-project "FileOrbit" --path tests/fixtures/fileorbit
 jarvis vault-report tests/fixtures/edge-cases          # exit 1: contains errors
 jarvis vault-report /path/to/real/ObsidianVault        # real vault, read-only
 ```
+
+## Project Resume (v0.4)
+
+`jarvis resume "<selector>"` assembles a deterministic, fully-sourced project briefing over
+the released read-only trust pipeline. It selects exactly one project by exact tier (canonical
+id → title → alias → filename stem), never substitutes a near match, and reports ten fixed
+sections: project, current state, next action and priorities, accepted decisions, recent
+sessions, open tasks and questions, resources, repository activity, conflicts/staleness/missing
+context, and evidence coverage and omissions. Every material claim is bound to a passage-and-
+revision citation validated against current bytes immediately before output; unsupported claims
+are shown as incomplete, never as verified. Output is stdout only (no product output-file path).
+
+```bash
+jarvis resume "Alpha" --path /path/to/vault
+jarvis resume "Alpha" --path /path/to/vault --format json --trace
+jarvis resume "Alpha" --path /path/to/vault --as-of 2026-07-28T00:00:00Z
+jarvis resume "Alpha" --path /path/to/vault \
+  --include-repository-activity --repository-root /path/to/local/git/repo
+```
+
+Resume-specific options:
+
+- `--as-of <ISO-8601-UTC>` — explicit evaluation time for staleness and byte-determinism
+  (defaults to now). Pass it for reproducible output.
+- `--evidence-budget <256..32000>` / `--output-budget <256..16000>` — two independent hard
+  budgets. The final serialization is measured before emission; over-budget results shed the
+  lowest-priority claims or fail closed with exit code 7 rather than truncating output.
+- `--include-repository-activity --repository-root <local-git-root>` — enable local, read-only
+  Git activity for this one invocation. Both flags are required together; repository activity is
+  denied by default and never inferred from a URI or vault content. An unavailable or
+  non-matching repository degrades to a limitation while local vault evidence stays usable.
+- `--trace` — add a non-disclosing trace: contract/index/repository versions, workspace
+  fingerprint, explicit evaluation time, safe authorization summary, selected identity/tier,
+  discovery channels, included evidence identities, coverage, budgets, and isolated timings.
+  Excluded identities and rejected ambiguity candidates are never disclosed.
+
+### Diagnostics and recovery
+
+`jarvis resume-doctor` is a read-only health check. It verifies the runtime, confirms the vault
+is readable, rebuilds the derived state, reports Git availability and version, and — with
+`--repository-root <root>` — probes that root through the same local read-only Git adapter the
+runtime uses (a denied, escaping, or non-repository root is rejected with a redacted message).
+
+Project Resume keeps **no persisted index**: the authorized view, lexical index, and
+relationship graph are derived projections rebuilt in memory from canonical sources on every
+run. A missing or corrupt derived index therefore self-heals on the next invocation — the doctor
+performs that rebuild explicitly and reports the resulting index version and workspace
+fingerprint. No diagnostic or recovery step ever writes to, repairs, or migrates canonical
+sources. Exit codes: `0` healthy, `2` warnings (e.g. Git unavailable), `1` a failed check.
+
+```bash
+jarvis resume-doctor --path /path/to/vault
+jarvis resume-doctor --path /path/to/vault --repository-root /path/to/local/git/repo --format json
+```
+
+Every eligible Project Resume note requires an explicit recognized `sensitivity`.
+Missing or unknown sensitivity is excluded before project selection and can therefore
+produce `not_found` without disclosing excluded candidates. Jarvis never assigns a
+classification or edits canonical notes. See
+[Project Resume Installation, Onboarding, and Recovery](PROJECT_RESUME_INSTALLATION_AND_RECOVERY.md)
+for owner-controlled onboarding, troubleshooting, safe recovery, Git-integrity evidence,
+and the independent A12 procedure.
 
 ## v0.3.1 query trust contracts
 

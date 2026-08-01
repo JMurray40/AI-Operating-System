@@ -39,6 +39,45 @@ def test_benchmark_query_runs_from_repo_root():
     assert "total" in proc.stdout
 
 
+def test_benchmark_project_resume_runs_from_repo_root():
+    proc = _run(["scripts/benchmark_project_resume.py", "--sizes", "5", "--runs", "1"], _ROOT)
+    assert proc.returncode == 0, proc.stderr
+    assert "Peak memory" in proc.stdout
+    assert "discover_ms" in proc.stdout  # the retrieval stage is recorded separately (A10)
+    assert "total_ms" in proc.stdout
+    assert "PENDING" in proc.stdout  # never asserts the reference-hardware gate is met
+
+
+def test_evaluate_project_resume_runs_from_repo_root():
+    # Runs against the shipped template (only EXAMPLE rows), which are skipped, so it reports
+    # zero rated rows and the PENDING notice without asserting the A11 gate.
+    proc = _run(["scripts/evaluate_project_resume.py"], _ROOT)
+    assert proc.returncode == 0, proc.stderr
+    assert "dogfood scorecard" in proc.stdout
+    assert "PENDING" in proc.stdout
+
+
+def test_evaluate_project_resume_json_summarizes(tmp_path: Path):
+    log = tmp_path / "log.tsv"
+    header = (
+        "id\tdate\trater\tproject_selector\toutcome\tuseful\ttime_to_orientation_min\t"
+        "est_time_saved_min\tincorrect_or_missing_context\tcitation_defects\t"
+        "correction_time_min\trequested_features\tnotes\n"
+    )
+    rows = (
+        "R1\t2026-07-28\tme\tAlpha\tsuccessful\tyes\t3\t20\tnone\t0\t0\t-\t-\n"
+        "R2\t2026-07-28\tme\tBeta\tsuccessful\tyes\t5\t18\tnone\t0\t0\t-\t-\n"
+    )
+    log.write_text(header + rows, encoding="utf-8")
+    proc = _run(["scripts/evaluate_project_resume.py", str(log), "--json"], _ROOT)
+    assert proc.returncode == 0, proc.stderr
+    import json
+    data = json.loads(proc.stdout)
+    assert data["rated"] == 2
+    assert data["useful_rate"] == 1.0
+    assert data["meets_useful_target"] is True
+
+
 def test_benchmark_regression_runs_from_repo_root():
     proc = _run(["scripts/benchmark_regression.py", "--notes", "5", "--runs", "2"], _ROOT)
     assert proc.returncode == 0, proc.stderr

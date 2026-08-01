@@ -34,7 +34,7 @@ governance document, follow the order of precedence in
 
 | Item | Current state |
 |---|---|
-| Current incoming handoff | [CTO Implementation Finalization](../handovers/v0.4/01-chief-of-staff-to-cto-implementation-finalization.md) |
+| Current incoming handoff | [Principal Engineer Implementation Authorization](../handovers/v0.4/02-chief-of-staff-to-principal-engineer-implementation-authorization.md) |
 | Acceptance tests | [Accepted v0.4 Project Resume tests](../product/V0.4_PROJECT_RESUME_ACCEPTANCE_TESTS.md) |
 | Planning brief | [CTO Project Resume planning brief](../handovers/v0.4/00-cto-to-principal-engineer-project-resume-planning-brief.md) |
 | Planning validation | [Chief of Staff validation](../handovers/v0.4/00-chief-of-staff-project-resume-planning-validation.md) |
@@ -43,18 +43,19 @@ governance document, follow the order of precedence in
 | v0.4 released baseline | `main@2022c2dffeda8341011b45ceaedd550dd53bf742` |
 | v0.4 implementation base | Pending CTO ADR/brief commit and Chief of Staff validation |
 | Repository activity | [Fixtures plus local read-only Git](../handovers/v0.4/00-product-owner-repository-activity-scope-decision.md); live GitHub excluded |
-| Engineering branch | Reserved but not created pending CTO package validation |
-| Current gate | Accept Project Resume ADRs and issue the final implementation brief |
+| Engineering branch | `feature/v0.4-project-resume` |
+| Implementation base | `3253b052a3986e7d2c94124fbac86c03980e0765` |
+| Current gate | Principal Engineer implementation and engineering-to-CTO handoff |
 | v0.5 conversation | Parked and excluded |
 
-**Next responsible role:** Chief Architect / CTO — finalize ADRs and implementation brief
+**Next responsible role:** Principal Engineer — implement the authorized v0.4 scope
 
 **Required next actions:**
 
-1. Reconcile the Project Resume architecture against released v0.3.1.
-2. Accept the required Project Resume ADRs and update the ADR index.
-3. Produce the final CTO-to-Principal-Engineer implementation brief.
-4. Stop for Chief of Staff validation before engineering branch creation.
+1. Verify the exact authorized branch, base, worktree, and documentation-only starting delta.
+2. Present the required implementation plan, then implement the final CTO brief.
+3. Produce the exact engineering evidence and Principal Engineer-to-CTO handoff.
+4. Stop without CTO/QA review, merge, push, release, or v0.5 work.
 
 ### Parked candidate: conversation branch with historical v0.4 identity
 

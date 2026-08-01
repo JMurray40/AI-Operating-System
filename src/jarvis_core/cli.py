@@ -10,11 +10,18 @@ Commands:
     jarvis search "<terms>"             Ranked lexical search with citations.
     jarvis summarize "<name>"           Summarize a project with cited sources.
     jarvis explain "<A>" "<B>"          Explain how two notes are related.
+    jarvis resume "<selector>"          Assemble a deterministic, sourced project briefing.
+    jarvis resume-doctor                Diagnose the environment and rebuild derived state.
 
 Exit codes:
-    0  success / validation OK / answer produced
-    1  fatal error (bad path, project not found, validation errors)
-    2  completed with warnings, or a query returned no matches
+    0  success / validation OK / answer produced / complete supported briefing
+    1  fatal error (bad path, project not found, validation errors) / internal failure
+    2  completed with warnings, a query returned no matches, or a partial briefing
+    3  resume: ambiguous project selector (candidates shown, none chosen)
+    4  resume: project not found (no substitute)
+    5  resume: invalid input or identity
+    6  resume: policy error
+    7  resume: budget error
 """
 from __future__ import annotations
 
@@ -34,6 +41,39 @@ from jarvis_core.models.context import ContextPackage
 from jarvis_core.models.note import Note
 from jarvis_core.models.validation import ValidationResult
 from jarvis_core.policy import local_allow_all
+from jarvis_core.policy.errors import PolicyError
+from jarvis_core.project_resume import (
+    ProjectResumeError,
+    assemble,
+    build_request,
+    exit_code_for,
+)
+from jarvis_core.project_resume import (
+    render_json as render_resume_json,
+)
+from jarvis_core.project_resume import (
+    render_text as render_resume_text,
+)
+from jarvis_core.project_resume.contract import (
+    DEFAULT_EVIDENCE_TOKEN_BUDGET,
+    DEFAULT_OUTPUT_TOKEN_BUDGET,
+)
+from jarvis_core.project_resume.diagnostics import (
+    STATUS_FAIL,
+    STATUS_OK,
+    run_diagnostics,
+)
+from jarvis_core.project_resume.identity import resolve_project
+from jarvis_core.project_resume.local_git import (
+    LocalGitRepositoryActivityAdapter,
+    SubprocessProcessRunner,
+)
+from jarvis_core.project_resume.repository_activity import RepositoryActivityGrant
+from jarvis_core.project_resume.request import (
+    BudgetRangeError,
+    RequestValidationError,
+    parse_evaluation_time,
+)
 from jarvis_core.providers import get_provider
 from jarvis_core.query import QueryAnswer, QueryEngine, QueryTrace
 from jarvis_core.relationships import RelationshipResolver
@@ -321,6 +361,120 @@ def _cmd_explain(args: argparse.Namespace) -> int:
     return EXIT_OK if answer.supported_citations() else EXIT_WARNINGS
 
 
+# ------------------------------------------------------------ project resume (v0.4)
+def _cmd_resume(args: argparse.Namespace) -> int:
+    """Assemble and print a deterministic, sourced Project Resume briefing (read-only).
+
+    Output is stdout only (no product output-file path). Repository activity is denied by
+    default and only enabled when BOTH ``--include-repository-activity`` and
+    ``--repository-root`` are supplied; the grant binds that root to the exactly-selected
+    project for this one invocation. Build-time failures map to the documented resume exit
+    codes rather than a traceback.
+    """
+    config = _build_config(args)
+    repo = FileSystemKnowledgeRepository(config)
+    notes = repo.discover()
+    scope = local_allow_all(workspace_id="local")
+
+    # A root supplied without the activation flag does nothing; the flag without a root is
+    # invalid input (ADR-0021, brief §12).
+    if args.include_repository_activity and not args.repository_root:
+        print(
+            "error: --include-repository-activity requires --repository-root",
+            file=sys.stderr,
+        )
+        return exit_code_for("invalid_identity")
+
+    grant = None
+    repository_port = None
+    if args.include_repository_activity:
+        # Bind the grant to the exactly-selected project's stable identity; a non-selection
+        # yields a terminal result before the port is ever consulted.
+        selection = resolve_project(notes, scope, args.selector)
+        project_id = (
+            selection.identity.source_id if selection.identity is not None else args.selector
+        )
+        grant = RepositoryActivityGrant(
+            workspace_id="local",
+            project_id=project_id,
+            repository_root=Path(args.repository_root),
+        )
+        repository_port = LocalGitRepositoryActivityAdapter(SubprocessProcessRunner())
+
+    evaluation_time = args.as_of or datetime.now(timezone.utc).isoformat()
+    evidence_budget = (
+        args.evidence_budget if args.evidence_budget is not None
+        else DEFAULT_EVIDENCE_TOKEN_BUDGET
+    )
+    output_budget = (
+        args.output_budget if args.output_budget is not None else DEFAULT_OUTPUT_TOKEN_BUDGET
+    )
+
+    try:
+        request = build_request(
+            workspace_id="local",
+            project_selector=args.selector,
+            authorization_scope=scope,
+            source_root=repo.root,
+            evaluation_time=evaluation_time,
+            evidence_token_budget=evidence_budget,
+            output_token_budget=output_budget,
+            repository_activity_grant=grant,
+            trace_requested=args.trace,
+        )
+    except BudgetRangeError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return exit_code_for("budget_error")
+    except PolicyError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return exit_code_for("policy_error")
+    except (RequestValidationError, ProjectResumeError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return exit_code_for("invalid_identity")
+
+    result = assemble(notes, request, repository_port=repository_port)
+    if config.output_format is OutputFormat.JSON:
+        print(render_resume_json(result))
+    else:
+        print(render_resume_text(result))
+    return exit_code_for(result.status)
+
+
+def _cmd_resume_doctor(args: argparse.Namespace) -> int:
+    """Diagnose the environment and rebuild derived state (read-only; brief §21).
+
+    Reports the runtime, vault readability, the derived-state rebuild (authorized view + lexical
+    index + relationship graph reconstructed from canonical sources, never persisted), Git
+    availability and version, and — when ``--repository-root`` is given — a redacted probe of
+    that root through the local read-only Git adapter. Exit: 0 healthy, 2 warnings, 1 failure.
+    """
+    config = _build_config(args)
+    repo = FileSystemKnowledgeRepository(config)
+    notes = repo.discover()
+    scope = local_allow_all(workspace_id="local")
+    repository_root = Path(args.repository_root) if args.repository_root else None
+    try:
+        evaluation_time = parse_evaluation_time(args.as_of) if args.as_of else None
+    except RequestValidationError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return EXIT_FATAL
+
+    report = run_diagnostics(
+        notes, scope=scope, source_root=repo.root,
+        repository_root=repository_root, evaluation_time=evaluation_time,
+    )
+    if config.output_format is OutputFormat.JSON:
+        print(_dumps(report.to_dict()))
+    else:
+        print(report.render_text())
+
+    if report.overall_status == STATUS_OK:
+        return EXIT_OK
+    if report.overall_status == STATUS_FAIL:
+        return EXIT_FATAL
+    return EXIT_WARNINGS
+
+
 # ------------------------------------------------------------------------------ main
 def _add_common(parser: argparse.ArgumentParser, *, with_path: bool) -> None:
     if with_path:
@@ -424,6 +578,58 @@ def build_parser() -> argparse.ArgumentParser:
     p_explain.add_argument("--path", default=None, help="Vault/fixture directory.")
     _add_common(p_explain, with_path=False)
     p_explain.set_defaults(func=_cmd_explain)
+
+    p_resume = sub.add_parser(
+        "resume",
+        help="Assemble a deterministic, sourced project briefing (read-only, offline).",
+    )
+    p_resume.add_argument(
+        "selector", help="Project selector: canonical id, title, alias, or filename stem."
+    )
+    p_resume.add_argument("--path", default=None, help="Vault/fixture directory.")
+    p_resume.add_argument(
+        "--trace", dest="trace", action="store_true", default=False,
+        help="Include a non-disclosing trace (versions, fingerprint, channels, timings).",
+    )
+    p_resume.add_argument(
+        "--as-of", dest="as_of", default=None,
+        help="Explicit ISO-8601 UTC evaluation time for staleness/determinism (default: now).",
+    )
+    p_resume.add_argument(
+        "--evidence-budget", dest="evidence_budget", type=int, default=None,
+        help="Evidence token budget (256..32000; default 8000).",
+    )
+    p_resume.add_argument(
+        "--output-budget", dest="output_budget", type=int, default=None,
+        help="Output token budget (256..16000; default 4000).",
+    )
+    p_resume.add_argument(
+        "--include-repository-activity", dest="include_repository_activity",
+        action="store_true", default=False,
+        help="Enable local read-only Git activity (requires --repository-root).",
+    )
+    p_resume.add_argument(
+        "--repository-root", dest="repository_root", default=None,
+        help="Local Git repository root to bind to the selected project for this invocation.",
+    )
+    _add_common(p_resume, with_path=False)
+    p_resume.set_defaults(func=_cmd_resume)
+
+    p_doctor = sub.add_parser(
+        "resume-doctor",
+        help="Diagnose the environment and rebuild derived state (read-only).",
+    )
+    p_doctor.add_argument("--path", default=None, help="Vault/fixture directory.")
+    p_doctor.add_argument(
+        "--repository-root", dest="repository_root", default=None,
+        help="Optional local Git repository root to probe (redacted diagnosis).",
+    )
+    p_doctor.add_argument(
+        "--as-of", dest="as_of", default=None,
+        help="Explicit ISO-8601 UTC time for the repository staleness probe (default: now).",
+    )
+    _add_common(p_doctor, with_path=False)
+    p_doctor.set_defaults(func=_cmd_resume_doctor)
 
     return parser
 

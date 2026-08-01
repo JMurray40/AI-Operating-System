@@ -22,7 +22,7 @@ product intent:
 |---|---|---|
 | v0.3 | Query Engine foundation | Merged |
 | v0.3.1 | Query Trust Contracts | Released |
-| v0.4 | Read-only Project Resume CLI Pilot | Planning validated; implementation blocked |
+| v0.4 | Read-only Project Resume CLI Pilot | Implementation complete; release evidence (reference-hardware benchmarks, 30s pilot gate, non-author packaging, dogfood scorecard) pending |
 | v0.5 | Visible-Context Conversation | Parked candidate requires reconciliation and fresh authorization |
 
 The originally planned v0.3 chat/provider scope moved to v0.5. Proposed Memory moved

@@ -1,0 +1,3 @@
+id	date	rater	project_selector	outcome	useful	time_to_orientation_min	est_time_saved_min	incorrect_or_missing_context	citation_defects	correction_time_min	requested_features	notes	material_claims_reviewed	material_claims_correctly_sourced	sampling_procedure	sampling_size
+EXAMPLE-001	2026-07-28	author	Alpha	successful	yes	3	22	none	0	0	repository activity for two remotes	Illustrative row only — delete before collecting real dogfood data.	8	8	first N material claims per briefing	8
+EXAMPLE-002	2026-07-28	author	Beta	abandoned	no	9	0	stale session summary treated as current	1	6	clearer conflict labels	Illustrative row only — delete before collecting real dogfood data.	5	4	first N material claims per briefing	5

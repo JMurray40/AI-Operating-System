@@ -4,12 +4,12 @@
 
 **Milestone:** v0.5 — visible-context conversation
 
-**Phase:** Approved scope; CTO implementation-brief preparation
+**Phase:** Principal Engineering implementation — WP1–WP3 only
 
 **Implementation:** Not authorized
 
 **Current incoming artifact:**
-[Product Owner Google provider authorization](06-product-owner-to-cto-google-provider-authorization.md)
+[Chief of Staff implementation authorization](08-chief-of-staff-to-principal-engineer-conversation-implementation-authorization.md)
 
 ## Released prerequisites
 
@@ -44,7 +44,6 @@ Credentials, calls, and spending remain unauthorized until later exact gates.
 
 ## Required next handoff
 
-The Chief Architect / CTO must produce
-`07-cto-to-principal-engineer-conversation-implementation-brief.md`. A later exact-commit
-Chief-of-Staff validation and separate implementation authorization are required before
-any engineering branch or executable change.
+Principal Engineering must implement only WP1–WP3 from the exact base/worktree in Handoff
+08 and produce `09-principal-engineer-to-cto-conversation-engineering-review.md`. WP4 and
+all live-provider activity remain separately blocked.

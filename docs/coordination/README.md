@@ -34,7 +34,7 @@ governance document, follow the order of precedence in
 
 | Item | Current state |
 |---|---|
-| Current incoming handoff | [Product Owner Google provider authorization](../handovers/v0.5/06-product-owner-to-cto-google-provider-authorization.md) |
+| Current incoming handoff | [Chief of Staff v0.5 implementation authorization](../handovers/v0.5/08-chief-of-staff-to-principal-engineer-conversation-implementation-authorization.md) |
 | Acceptance tests | [Accepted v0.4 Project Resume tests](../product/V0.4_PROJECT_RESUME_ACCEPTANCE_TESTS.md) |
 | Planning brief | [CTO Project Resume planning brief](../handovers/v0.4/00-cto-to-principal-engineer-project-resume-planning-brief.md) |
 | Planning validation | [Chief of Staff validation](../handovers/v0.4/00-chief-of-staff-project-resume-planning-validation.md) |
@@ -43,18 +43,18 @@ governance document, follow the order of precedence in
 | Frozen executable | `ff402d7f82c061426a5e960f7177d916c355bbf2` (tree `a7ff2c023b0e59df1f8bbc2ad05a3af843a5e344`) |
 | Evidence / final QA | `2c0e1204fb47d81fe8c7b873c973dd8c6026201b` / `cc43b0e918bc0164089b7d7120c92095058cc618` (`Ready`) |
 | Repository activity | [Fixtures plus local read-only Git](../handovers/v0.4/00-product-owner-repository-activity-scope-decision.md); live GitHub excluded |
-| Current gate | CTO final implementation brief; implementation and provider activity unauthorized |
+| Current gate | Principal Engineering WP1–WP3; WP4 and live-provider activity unauthorized |
 | A11 strategic outcome | Eight-week dogfood outcome remains pending and unproven |
-| v0.5 conversation | Scope and ADRs accepted; CTO brief authorized; implementation remains unauthorized |
+| v0.5 conversation | WP1–WP3 implementation authorized from exact base `e11703974219425b463a45a97e1d7d2a04de81dc`; WP4 blocked |
 
-**Next responsible role:** Chief Architect / CTO — produce the v0.5 implementation brief
+**Next responsible role:** Principal Engineer — implement WP1–WP3 and produce Handoff 09
 
 **Required next actions:**
 
-1. Read the Product Owner scope approval and accepted planning package.
-2. Apply the exact Google provider, privacy, credential, request, and spend limits in Handoff 06.
-3. Prepare the final implementation brief and C01–C30 work/evidence mapping.
-4. Produce the required CTO-to-Principal-Engineer brief; do not implement.
+1. Verify Handoff 08's exact branch, base, worktree, and exclusions.
+2. Present the pre-implementation plan before editing.
+3. Implement and validate only Handoff 07 WP1–WP3 without dependencies or live providers.
+4. Produce Handoff 09 and stop for CTO review.
 
 ### Parked candidate: conversation branch with historical v0.4 identity
 

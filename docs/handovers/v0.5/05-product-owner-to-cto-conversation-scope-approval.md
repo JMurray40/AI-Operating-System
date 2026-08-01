@@ -1,10 +1,15 @@
 # Handoff 05 — Product Owner to CTO: v0.5 Conversation Scope Approval
 
-**From:** Product Owner — Jason Murray  
-**To:** Chief Architect / CTO  
-**Date:** 2026-08-01  
-**Decision base:** `main@f3ab481f8bb79278fc674f13848700aa192ef3d5`  
-**Milestone:** v0.5 — Visible-Context Conversation  
+**From:** Product Owner — Jason Murray
+
+**To:** Chief Architect / CTO
+
+**Date:** 2026-08-01
+
+**Decision base:** `main@f3ab481f8bb79278fc674f13848700aa192ef3d5`
+
+**Milestone:** v0.5 — Visible-Context Conversation
+
 **Disposition:** **SCOPE AND ADRS APPROVED — CTO IMPLEMENTATION BRIEF AUTHORIZED; IMPLEMENTATION NOT AUTHORIZED**
 
 ## 1. Accepted decisions

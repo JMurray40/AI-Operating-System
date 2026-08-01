@@ -28,13 +28,13 @@ governance document, follow the order of precedence in
 
 ## Current program state
 
-### Active priority: v0.4 — released; repository closeout awaiting validation
+### Active priority: v0.5 — visible-context conversation planning
 
-**Latest effective handoff state:** [v0.4 Handoff Index](../handovers/v0.4/README.md)
+**Latest effective handoff state:** [v0.5 Handoff Index](../handovers/v0.5/README.md)
 
 | Item | Current state |
 |---|---|
-| Current incoming handoff | [Librarian Repository Closeout](../handovers/v0.4/43-librarian-to-product-owner-v0.4-repository-closeout.md) |
+| Current incoming handoff | [Chief of Staff v0.5 planning authorization](../handovers/v0.5/00-chief-of-staff-to-cto-conversation-planning-authorization.md) |
 | Acceptance tests | [Accepted v0.4 Project Resume tests](../product/V0.4_PROJECT_RESUME_ACCEPTANCE_TESTS.md) |
 | Planning brief | [CTO Project Resume planning brief](../handovers/v0.4/00-cto-to-principal-engineer-project-resume-planning-brief.md) |
 | Planning validation | [Chief of Staff validation](../handovers/v0.4/00-chief-of-staff-project-resume-planning-validation.md) |
@@ -43,18 +43,18 @@ governance document, follow the order of precedence in
 | Frozen executable | `ff402d7f82c061426a5e960f7177d916c355bbf2` (tree `a7ff2c023b0e59df1f8bbc2ad05a3af843a5e344`) |
 | Evidence / final QA | `2c0e1204fb47d81fe8c7b873c973dd8c6026201b` / `cc43b0e918bc0164089b7d7120c92095058cc618` (`Ready`) |
 | Repository activity | [Fixtures plus local read-only Git](../handovers/v0.4/00-product-owner-repository-activity-scope-decision.md); live GitHub excluded |
-| Current gate | Chief of Staff validation of the Librarian closeout commit |
+| Current gate | CTO architecture and Product Owner scope planning; implementation unauthorized |
 | A11 strategic outcome | Eight-week dogfood outcome remains pending and unproven |
-| v0.5 conversation | Planning may begin after closeout validation; implementation remains unauthorized |
+| v0.5 conversation | Planning authorized; implementation remains unauthorized |
 
-**Next responsible role:** Chief of Staff — validate the documentation-only closeout commit
+**Next responsible role:** Chief Architect / CTO — produce the v0.5 planning disposition
 
 **Required next actions:**
 
-1. Verify the Librarian commit changes documentation only and preserves the released identities.
-2. Validate repository navigation, latest-effective handoff routing, links, and whitespace.
-3. Accept or return the closeout explicitly.
-4. If accepted, authorize v0.5 planning separately; do not infer implementation authority.
+1. Read the v0.5 planning authorization and its authoritative inputs.
+2. Reconcile the historical conversation candidate against released trust contracts.
+3. Recommend the smallest coherent v0.5 scope and identify Product Owner decisions.
+4. Produce the required CTO-to-Product-Owner planning disposition; do not implement.
 
 ### Parked candidate: conversation branch with historical v0.4 identity
 

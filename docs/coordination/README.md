@@ -34,7 +34,7 @@ governance document, follow the order of precedence in
 
 | Item | Current state |
 |---|---|
-| Current incoming handoff | [Product Owner v0.5 scope approval](../handovers/v0.5/05-product-owner-to-cto-conversation-scope-approval.md) |
+| Current incoming handoff | [Product Owner Google provider authorization](../handovers/v0.5/06-product-owner-to-cto-google-provider-authorization.md) |
 | Acceptance tests | [Accepted v0.4 Project Resume tests](../product/V0.4_PROJECT_RESUME_ACCEPTANCE_TESTS.md) |
 | Planning brief | [CTO Project Resume planning brief](../handovers/v0.4/00-cto-to-principal-engineer-project-resume-planning-brief.md) |
 | Planning validation | [Chief of Staff validation](../handovers/v0.4/00-chief-of-staff-project-resume-planning-validation.md) |
@@ -43,7 +43,7 @@ governance document, follow the order of precedence in
 | Frozen executable | `ff402d7f82c061426a5e960f7177d916c355bbf2` (tree `a7ff2c023b0e59df1f8bbc2ad05a3af843a5e344`) |
 | Evidence / final QA | `2c0e1204fb47d81fe8c7b873c973dd8c6026201b` / `cc43b0e918bc0164089b7d7120c92095058cc618` (`Ready`) |
 | Repository activity | [Fixtures plus local read-only Git](../handovers/v0.4/00-product-owner-repository-activity-scope-decision.md); live GitHub excluded |
-| Current gate | CTO final implementation brief; provider selection and implementation unauthorized |
+| Current gate | CTO final implementation brief; implementation and provider activity unauthorized |
 | A11 strategic outcome | Eight-week dogfood outcome remains pending and unproven |
 | v0.5 conversation | Scope and ADRs accepted; CTO brief authorized; implementation remains unauthorized |
 
@@ -52,8 +52,8 @@ governance document, follow the order of precedence in
 **Required next actions:**
 
 1. Read the Product Owner scope approval and accepted planning package.
-2. Prepare the final implementation brief and C01–C30 work/evidence mapping.
-3. Expose the unresolved real-provider selection; do not infer credentials, endpoint, or spend.
+2. Apply the exact Google provider, privacy, credential, request, and spend limits in Handoff 06.
+3. Prepare the final implementation brief and C01–C30 work/evidence mapping.
 4. Produce the required CTO-to-Principal-Engineer brief; do not implement.
 
 ### Parked candidate: conversation branch with historical v0.4 identity
@@ -159,7 +159,7 @@ Prompts coordinate work; they do not override governance or grant authority.
 | Release identity | Approved 2026-07-27 | Project Resume is v0.4; visible-context conversation moves to v0.5 |
 | Streaming in the first conversation release | Before conversation rework | Defer provider-response streaming unless it is necessary to validate the core workflow |
 | v0.5 scope and ADR-0022 through ADR-0024 | Approved 2026-08-01 | Session-only, visible-context, non-streaming conversation |
-| v0.5 real provider and evidence spend | Before implementation-ready brief | Product Owner selection still required |
+| v0.5 real provider and evidence spend | Approved 2026-08-01 | Google `gemini-3.5-flash-lite`; USD 0.05/request and USD 10 evidence ceiling; use remains gated |
 
 ## Chief of Staff maintenance rules
 

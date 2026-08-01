@@ -76,7 +76,7 @@ silently select a provider.
 
 Required output:
 
-`docs/handovers/v0.5/06-cto-to-principal-engineer-conversation-implementation-brief.md`
+`docs/handovers/v0.5/07-cto-to-principal-engineer-conversation-implementation-brief.md`
 
 The brief is not effective until the Chief of Staff validates it against an exact clean
 documentation commit and separately authorizes Engineering.
@@ -95,6 +95,5 @@ This decision does not authorize:
 
 ## 6. Exit statement
 
-**Ready for CTO implementation-brief preparation, with provider-specific authorization
-blocked pending a separate Product Owner decision. v0.5 implementation remains
-unauthorized.**
+**Superseded for the provider-selection gate by Handoff 06. Ready for CTO
+implementation-brief preparation. v0.5 implementation remains unauthorized.**

@@ -9,7 +9,7 @@
 **Implementation:** Not authorized
 
 **Current incoming artifact:**
-[Product Owner scope approval](05-product-owner-to-cto-conversation-scope-approval.md)
+[Product Owner Google provider authorization](06-product-owner-to-cto-google-provider-authorization.md)
 
 ## Released prerequisites
 
@@ -38,13 +38,13 @@ Its historical Quality review is
 - No streaming, durable transcripts, tools, agents, MCP, plugins, UI, public server,
   semantic retrieval, provider fallback, live connectors, or vault writes.
 
-ADR-0022 through ADR-0024 are accepted. The real provider is not yet selected; provider
-credentials, calls, and spending remain unauthorized.
+ADR-0022 through ADR-0024 are accepted. Google `gemini-3.5-flash-lite` is the approved
+v0.5 real-provider target under the limits in Handoff 06. Ollama is deferred beyond v0.5.
+Credentials, calls, and spending remain unauthorized until later exact gates.
 
 ## Required next handoff
 
 The Chief Architect / CTO must produce
-`06-cto-to-principal-engineer-conversation-implementation-brief.md`. The brief must expose
-the open provider-selection gate. A later exact-commit Chief-of-Staff validation and
-separate implementation authorization are required before any engineering branch or
-executable change.
+`07-cto-to-principal-engineer-conversation-implementation-brief.md`. A later exact-commit
+Chief-of-Staff validation and separate implementation authorization are required before
+any engineering branch or executable change.

@@ -23,10 +23,13 @@ product intent:
 | v0.3 | Query Engine foundation | Merged |
 | v0.3.1 | Query Trust Contracts | Released |
 | v0.4 | Read-only Project Resume CLI Pilot | Released as `v0.4.0`; technical gates complete; A11 eight-week outcome pending and unproven |
-| v0.5 | Visible-Context Conversation | Planning may begin after v0.4 closeout validation; implementation requires fresh authorization |
+| v0.5 | Visible-Context Conversation | Scope and ADRs accepted; implementation requires a validated CTO brief and separate authorization |
+| v0.6 | Proposed Memory | Product identity accepted; implementation not authorized |
+| v0.7 | Semantic Search and Relationship Intelligence | Product identity accepted; implementation not authorized |
 
-The originally planned v0.3 chat/provider scope moved to v0.5. Proposed Memory moved
-beyond v0.5; its exact release number requires a future Product Owner decision.
+The originally planned v0.3 chat/provider scope moved to v0.5. The Product Owner assigned
+Proposed Memory to v0.6 and moved Semantic Search and Relationship Intelligence to v0.7.
+Plugin/MCP and later unreleased milestone numbers require a separate roadmap closeout.
 
 ## v0.2 — Indexed Retrieval Foundation
 
@@ -98,9 +101,10 @@ repository-activity scope decision; explicit implementation authorization.
 **Objectives:** Add inspectable conversation only after the trust contracts and Project
 Resume path are proven.
 
-**Planned features:** Visible context, evidence-backed responses, local API, provider/egress
-controls, retained/deletable conversation state, cost/latency capture, and streaming only
-if separately accepted.
+**Planned features:** Visible context, evidence-backed responses, CLI plus a versioned
+in-process API, one approved real provider plus a deterministic mock, per-turn
+digest-bound egress approval, and cost/latency capture. State is bounded, process-local,
+and session-only.
 
 **Dependencies:** Released trust contracts; fresh architecture/QA review; reconciliation of
 the parked `feature/v0.4-conversation` candidate; [Chat PRD](../prd/CHAT_INTERFACE.md).
@@ -108,11 +112,30 @@ the parked `feature/v0.4-conversation` candidate; [Chat PRD](../prd/CHAT_INTERFA
 **Risks:** Context leakage, citation mismatch, provider lock-in, uncontrolled cost, and
 confusion between temporary conversation state and durable memory.
 
-**Acceptance criteria:** Requires a future accepted brief. Planning may begin after Chief of
-Staff validation of the v0.4 Librarian closeout. No v0.5 implementation is authorized by
-this roadmap reconciliation.
+**Acceptance criteria:** The accepted C01–C30 matrix governs a future implementation brief.
+No v0.5 implementation is authorized by this roadmap reconciliation. Streaming, durable
+transcripts, tools, agents, MCP, plugins, graphical UI, public server, semantic retrieval,
+provider fallback, live connectors, and vault writes are excluded.
 
-## v0.6 — Semantic Search and Relationship Intelligence
+## v0.6 — Proposed Memory
+
+**Objectives:** Allow useful session outcomes to become durable knowledge only through
+explicit, reviewable proposals.
+
+**Major features:** Typed memory candidates; evidence and destination preview; sensitivity,
+duplicate, and conflict checks; explicit approve/edit/reject/defer; atomic writes and
+rollback; and complete audit records without transcript dumping.
+
+**Dependencies:** Released v0.5 conversation boundary; ADR-0009; accepted memory
+implementation brief; storage, migration, recovery, and retention review.
+
+**Risks:** Silent persistence, unsupported memories, duplicate or conflicting knowledge,
+misclassification, and incomplete rollback.
+
+**Acceptance criteria:** Requires a future accepted brief and separate implementation
+authorization. v0.5 creates no durable memory as a shortcut.
+
+## v0.7 — Semantic Search and Relationship Intelligence
 
 **Objectives:** Find meaningful overlap beyond exact terms.
 
@@ -126,7 +149,7 @@ this roadmap reconciliation.
 
 **Acceptance criteria:** Hybrid retrieval materially outperforms lexical baseline; findings show evidence and confidence; embeddings are rebuildable and sensitivity-scoped.
 
-## v0.7 — Plugin and MCP Foundations
+## Later unreleased milestone — Plugin and MCP Foundations
 
 **Objectives:** Add integrations without coupling them to core.
 
@@ -146,7 +169,7 @@ this roadmap reconciliation.
 
 **Major features:** Agent manifests; task budgets; shared artifact protocol; delegation limits; checkpoints; cancellation; evaluation harness; eight reference agent profiles.
 
-**Dependencies:** v0.7 capabilities; [Agent Framework PRD](../prd/AGENT_FRAMEWORK.md).
+**Dependencies:** Accepted plugin/MCP capability milestone; [Agent Framework PRD](../prd/AGENT_FRAMEWORK.md).
 
 **Risks:** Recursive delegation, cost explosions, responsibility ambiguity, unsafe tool composition.
 
@@ -160,7 +183,7 @@ this roadmap reconciliation.
 
 **Major features:** Durable workflow definitions; scheduler; triggers; idempotency; approval nodes; retry/dead-letter queues; execution dashboard.
 
-**Dependencies:** v0.7 plugin host; v0.8 agents; operational database migrations.
+**Dependencies:** Accepted plugin host and agent milestones; operational database migrations.
 
 **Risks:** Duplicate effects, stale approvals, missed triggers, background privacy violations.
 
@@ -260,5 +283,6 @@ No release advances because a feature list is complete. It advances when its acc
 
 | Version | Date | Change |
 |---|---|---|
+| 0.4.0 | 2026-08-01 | Accepted v0.5 conversation, v0.6 Proposed Memory, and v0.7 Semantic Search sequence; deferred later milestone renumbering |
 | 0.3.0 | 2026-07-27 | Reconciled v0.3 Query Engine, v0.3.1 Trust Contracts, v0.4 Project Resume, and v0.5 conversation sequence |
 | 0.2.0 | 2026-07-27 | Initial product release sequence through v2.0 |

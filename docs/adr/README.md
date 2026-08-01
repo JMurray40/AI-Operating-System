@@ -33,9 +33,9 @@
 | [0019](ADR-0019-Project-Resume-Uses-Explicit-Authority-Temporal-And-Conflict-Ordering.md) | Project Resume uses explicit authority, temporal, supersession, and conflict ordering | Accepted |
 | [0020](ADR-0020-Project-Resume-Claims-Require-Validated-Evidence-And-Two-Hard-Budgets.md) | Project Resume claims require validated evidence and two hard budgets | Accepted |
 | [0021](ADR-0021-Repository-Activity-Is-A-Request-Scoped-Local-Read-Only-Git-Capability.md) | Repository activity is a request-scoped local read-only Git capability | Accepted |
-| [0022](ADR-0022-Conversation-Is-A-Session-Only-Application-Layer.md) | Conversation is a session-only application layer | Proposed |
-| [0023](ADR-0023-Conversation-Uses-Immutable-Visible-Context-Snapshots.md) | Conversation uses immutable visible context snapshots | Proposed |
-| [0024](ADR-0024-V0.5-Uses-Normalized-Non-Streaming-Provider-Dispatch.md) | v0.5 uses normalized non-streaming provider dispatch | Proposed |
+| [0022](ADR-0022-Conversation-Is-A-Session-Only-Application-Layer.md) | Conversation is a session-only application layer | Accepted |
+| [0023](ADR-0023-Conversation-Uses-Immutable-Visible-Context-Snapshots.md) | Conversation uses immutable visible context snapshots | Accepted |
+| [0024](ADR-0024-V0.5-Uses-Normalized-Non-Streaming-Provider-Dispatch.md) | v0.5 uses normalized non-streaming provider dispatch | Accepted |
 
 Accepted ADRs are not rewritten to reflect a later choice. A new ADR supersedes the earlier record.
 
@@ -43,6 +43,7 @@ Accepted ADRs are not rewritten to reflect a later choice. A new ADR supersedes 
 
 | Version | Date | Change |
 |---|---|---|
+| 0.7.0 | 2026-08-01 | Recorded Product Owner acceptance of ADR-0022 through ADR-0024 |
 | 0.6.0 | 2026-08-01 | Added proposed ADR-0022 through ADR-0024 for Product Owner review of v0.5 conversation planning |
 | 0.5.0 | 2026-07-27 | Added accepted ADR-0018 through ADR-0021 for v0.4 Project Resume |
 | 0.4.0 | 2026-07-27 | Added accepted ADR-0014 through ADR-0017 for v0.3.1 Query Trust Contracts |

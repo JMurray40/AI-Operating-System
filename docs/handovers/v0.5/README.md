@@ -4,12 +4,12 @@
 
 **Milestone:** v0.5 — visible-context conversation
 
-**Phase:** Architecture and product-scope planning only
+**Phase:** Approved scope; CTO implementation-brief preparation
 
 **Implementation:** Not authorized
 
 **Current incoming artifact:**
-[Chief of Staff planning authorization](00-chief-of-staff-to-cto-conversation-planning-authorization.md)
+[Product Owner scope approval](05-product-owner-to-cto-conversation-scope-approval.md)
 
 ## Released prerequisites
 
@@ -28,9 +28,23 @@ during planning.
 Its historical Quality review is
 [Not ready](../../reviews/QUALITY_RELEASE_REVIEW_V0.4_CONVERSATION_2026-07-27.md).
 
+## Approved sequence and scope
+
+- v0.5: Visible-Context Conversation.
+- v0.6: Proposed Memory.
+- v0.7: Semantic Search and Relationship Intelligence.
+- CLI plus versioned in-process API, session-only state, one approved real provider plus
+  deterministic mock, and per-turn visible-context approval.
+- No streaming, durable transcripts, tools, agents, MCP, plugins, UI, public server,
+  semantic retrieval, provider fallback, live connectors, or vault writes.
+
+ADR-0022 through ADR-0024 are accepted. The real provider is not yet selected; provider
+credentials, calls, and spending remain unauthorized.
+
 ## Required next handoff
 
-The Chief Architect / CTO must produce a planning disposition and proposed v0.5
-architecture/scope package. Product Owner decisions and a later Chief-of-Staff
-implementation authorization are required before any engineering branch or executable
-change.
+The Chief Architect / CTO must produce
+`06-cto-to-principal-engineer-conversation-implementation-brief.md`. The brief must expose
+the open provider-selection gate. A later exact-commit Chief-of-Staff validation and
+separate implementation authorization are required before any engineering branch or
+executable change.

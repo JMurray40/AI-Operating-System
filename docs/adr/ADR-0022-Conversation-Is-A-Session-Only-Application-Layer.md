@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-08-01 |
 | Deciders | Product Owner, advised by Chief Architect / CTO |
 | Related | ADR-0007, ADR-0010, ADR-0012, ADR-0014 through ADR-0017, v0.5 planning package |

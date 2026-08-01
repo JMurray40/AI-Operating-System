@@ -2,7 +2,7 @@
 
 | Field | Value |
 |---|---|
-| Status | Proposed |
+| Status | Accepted |
 | Date | 2026-08-01 |
 | Deciders | Product Owner, advised by Chief Architect / CTO |
 | Related | ADR-0015, ADR-0016, ADR-0017, ADR-0020, Security Threat Model |

@@ -6,7 +6,7 @@
 | Status | Active |
 | Owner | Chief of Staff |
 | Product Owner | Jason Murray |
-| Updated | 2026-07-27 |
+| Updated | 2026-08-01 |
 | Governing documents | [Governance](../GOVERNANCE.md), [Ways of Working](../WAYS_OF_WORKING.md), [Operating Handbook](../../Operating%20Handbook%20-%20AI%20Agent%20Roles.md) |
 | Handoff router | [Global handoff router](../handovers/README.md) |
 
@@ -28,34 +28,33 @@ governance document, follow the order of precedence in
 
 ## Current program state
 
-### Active priority: v0.4 — Read-only Project Resume CLI Pilot
+### Active priority: v0.4 — released; repository closeout awaiting validation
 
-**Latest effective handoff state:** [v0.4 Planning Index](../handovers/v0.4/README.md)
+**Latest effective handoff state:** [v0.4 Handoff Index](../handovers/v0.4/README.md)
 
 | Item | Current state |
 |---|---|
-| Current incoming handoff | [Principal Engineer Implementation Authorization](../handovers/v0.4/02-chief-of-staff-to-principal-engineer-implementation-authorization.md) |
+| Current incoming handoff | [Librarian Repository Closeout](../handovers/v0.4/43-librarian-to-product-owner-v0.4-repository-closeout.md) |
 | Acceptance tests | [Accepted v0.4 Project Resume tests](../product/V0.4_PROJECT_RESUME_ACCEPTANCE_TESTS.md) |
 | Planning brief | [CTO Project Resume planning brief](../handovers/v0.4/00-cto-to-principal-engineer-project-resume-planning-brief.md) |
 | Planning validation | [Chief of Staff validation](../handovers/v0.4/00-chief-of-staff-project-resume-planning-validation.md) |
 | v0.3.1 release | Complete as `v0.3.1` |
-| v0.4 Product Owner direction | Begin implementation |
-| v0.4 released baseline | `main@2022c2dffeda8341011b45ceaedd550dd53bf742` |
-| v0.4 implementation base | Pending CTO ADR/brief commit and Chief of Staff validation |
+| v0.4 release | Published as annotated tag `v0.4.0` from integrated release commit `6cf9b72355d65768d3ea549a5af34006e2b6d3b6` |
+| Frozen executable | `ff402d7f82c061426a5e960f7177d916c355bbf2` (tree `a7ff2c023b0e59df1f8bbc2ad05a3af843a5e344`) |
+| Evidence / final QA | `2c0e1204fb47d81fe8c7b873c973dd8c6026201b` / `cc43b0e918bc0164089b7d7120c92095058cc618` (`Ready`) |
 | Repository activity | [Fixtures plus local read-only Git](../handovers/v0.4/00-product-owner-repository-activity-scope-decision.md); live GitHub excluded |
-| Engineering branch | `feature/v0.4-project-resume` |
-| Implementation base | `3253b052a3986e7d2c94124fbac86c03980e0765` |
-| Current gate | Principal Engineer implementation and engineering-to-CTO handoff |
-| v0.5 conversation | Parked and excluded |
+| Current gate | Chief of Staff validation of the Librarian closeout commit |
+| A11 strategic outcome | Eight-week dogfood outcome remains pending and unproven |
+| v0.5 conversation | Planning may begin after closeout validation; implementation remains unauthorized |
 
-**Next responsible role:** Principal Engineer — implement the authorized v0.4 scope
+**Next responsible role:** Chief of Staff — validate the documentation-only closeout commit
 
 **Required next actions:**
 
-1. Verify the exact authorized branch, base, worktree, and documentation-only starting delta.
-2. Present the required implementation plan, then implement the final CTO brief.
-3. Produce the exact engineering evidence and Principal Engineer-to-CTO handoff.
-4. Stop without CTO/QA review, merge, push, release, or v0.5 work.
+1. Verify the Librarian commit changes documentation only and preserves the released identities.
+2. Validate repository navigation, latest-effective handoff routing, links, and whitespace.
+3. Accept or return the closeout explicitly.
+4. If accepted, authorize v0.5 planning separately; do not infer implementation authority.
 
 ### Parked candidate: conversation branch with historical v0.4 identity
 

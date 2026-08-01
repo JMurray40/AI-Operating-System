@@ -4,21 +4,29 @@
 |---|---|
 | Purpose | Record notable project changes |
 | Status | Active |
-| Version | 0.1.0 |
+| Version | 0.2.0 |
 | Owner | Jason |
-| Revised | 2026-07-27 |
+| Revised | 2026-08-01 |
 | Related | [Roadmap](docs/ROADMAP.md) |
 
 This project follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and intends to use semantic versioning once application releases begin.
 
 ## [Unreleased]
 
-### Added — Read-only Project Resume (v0.4, in progress)
+No release-scoped changes are currently authorized. Visible-context conversation remains
+the v0.5 planning candidate.
+
+## [0.4.0] - 2026-08-01
+
+### Added — Read-only Project Resume
 
 Read-only, offline project briefing assembled over the v0.3.1 trust pipeline (ADR-0018–0021).
-Release evidence — reference-hardware benchmarks, the 30s pilot latency gate, non-author
-clean-Windows packaging, and the eight-week dogfood scorecard — remains **PENDING**; the
-mechanisms are built and tested, results are not fabricated.
+Released from integrated release commit `6cf9b72` under annotated tag `v0.4.0`, with frozen
+executable `ff402d7`, executable tree `a7ff2c0`, and accepted wheel SHA-256
+`8dcc1378a1ac4c3b96dbfea94c0443e92ffaec54fafeb1db5aa73e449a768cd3`. Reference-hardware
+benchmarks, the 30-second pilot latency gate, and independent clean-Windows packaging are
+complete. The A11 eight-week dogfood outcome remains **PENDING AND UNPROVEN**; release does
+not fabricate or claim that strategic outcome.
 
 - Exact tiered project selection (ADR-0018): canonical id → title → alias → filename stem; the
   first matching tier controls; exactly one match selects, ambiguity returns safe candidates

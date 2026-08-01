@@ -1,5 +1,10 @@
 # v0.4 Quality & Release Review — exact executable `ff402d7`
 
+> **Latest effective disposition:** Section 28 supersedes the operative `Not ready` in
+> Section 27. The final Quality disposition is **Ready**, bound to executable `ff402d7`,
+> tree `a7ff2c0`, and the accepted wheel digest. A11 strategic outcomes remain pending and
+> unproven. Earlier sections are retained as review history.
+
 **From:** Independent Quality & Release Manager
 **To:** Product Owner
 **Date:** 2026-07-30

@@ -11,6 +11,11 @@ See ADR-0018â€“0021, which build on the v0.3.1 query trust contracts (ADR-0014â€
 
 Project Resume is **v0.4**; visible-context conversation remains **v0.5**.
 
+**Release state:** Released as `v0.4.0` from integrated release commit `6cf9b72`, with
+frozen executable `ff402d7`, executable tree `a7ff2c0`, and accepted wheel SHA-256
+`8dcc1378a1ac4c3b96dbfea94c0443e92ffaec54fafeb1db5aa73e449a768cd3`. Technical release
+gates are complete. The A11 eight-week dogfood outcome remains pending and unproven.
+
 ## Contract versions
 
 Project Resume adds its own versioned contracts, never conflated with the query versions:

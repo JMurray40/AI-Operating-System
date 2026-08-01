@@ -5,7 +5,7 @@
 | Purpose | Route contributors to current milestone state without conversation history |
 | Owner | Chief of Staff |
 | Status | Active |
-| Updated | 2026-07-27 |
+| Updated | 2026-08-01 |
 
 ## Start here
 
@@ -18,7 +18,7 @@
 | Milestone | Status | Index |
 |---|---|---|
 | v0.3.1 — Query Trust Contracts | Released as `v0.3.1` | [v0.3.1 handoff index](v0.3.1/README.md) |
-| v0.4 — Project Resume | Implementation authorized; CTO finalization active | [v0.4 planning index](v0.4/README.md) |
+| v0.4 — Project Resume | Released as `v0.4.0`; Librarian closeout awaiting Chief of Staff validation | [v0.4 handoff index](v0.4/README.md) |
 
 Project-wide priority and decision state remains in
 [Project Control](../coordination/README.md).

@@ -10,10 +10,10 @@ no writes to any source it reads.
 > report (`jarvis vault-report`) — all still strictly read-only. See
 > [VAULT_HEALTH.md](VAULT_HEALTH.md).
 
-> v0.3 added the deterministic Query Engine. v0.3.1 Query Trust Contracts is locally
-> merged and adds explicit authorization, passage/revision citations, stable source
-> identity, strict context budgets, and versioned contracts. Final push, tag, and release
-> remain pending the post-merge closeout.
+> v0.3 added the deterministic Query Engine, and v0.3.1 released Query Trust Contracts.
+> v0.4 Project Resume is released as `v0.4.0` from integrated release commit `6cf9b72`,
+> with frozen executable `ff402d7`. Its technical release evidence is complete; the A11
+> eight-week dogfood outcome remains pending and unproven.
 
 > Scope guardrail: this prototype implements the read-only slice of
 > [IMPLEMENTATION_PLAN.md](../IMPLEMENTATION_PLAN.md) Phase 3. It deliberately omits the

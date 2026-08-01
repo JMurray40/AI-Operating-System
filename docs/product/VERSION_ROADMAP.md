@@ -4,9 +4,9 @@
 |---|---|
 | Purpose | Sequence product releases with implementable acceptance gates |
 | Status | Active planning record; near-term sequence approved |
-| Version | 0.3.0 |
+| Version | 0.4.0 |
 | Owner | Chief Product Officer |
-| Revised | 2026-07-27 |
+| Revised | 2026-08-01 |
 | Related | [Product Strategy](PRODUCT_STRATEGY.md), [Roadmap](../ROADMAP.md), [Architecture Review](../reviews/ENTERPRISE_ARCHITECTURE_REVIEW.md) |
 
 ## Estimation model
@@ -22,8 +22,8 @@ product intent:
 |---|---|---|
 | v0.3 | Query Engine foundation | Merged |
 | v0.3.1 | Query Trust Contracts | Released |
-| v0.4 | Read-only Project Resume CLI Pilot | Implementation complete; release evidence (reference-hardware benchmarks, 30s pilot gate, non-author packaging, dogfood scorecard) pending |
-| v0.5 | Visible-Context Conversation | Parked candidate requires reconciliation and fresh authorization |
+| v0.4 | Read-only Project Resume CLI Pilot | Released as `v0.4.0`; technical gates complete; A11 eight-week outcome pending and unproven |
+| v0.5 | Visible-Context Conversation | Planning may begin after v0.4 closeout validation; implementation requires fresh authorization |
 
 The originally planned v0.3 chat/provider scope moved to v0.5. Proposed Memory moved
 beyond v0.5; its exact release number requires a future Product Owner decision.
@@ -77,10 +77,14 @@ stable source identity; strict context budgets; versioned result/context/trace c
 
 **Objectives:** Make project resumption the first daily-use workflow.
 
-**Planned features:** Deterministic sourced Resume briefing; project status, decisions,
+**Delivered features:** Deterministic sourced Resume briefing; project status, decisions,
 sessions, resources, and missing-context warnings; fixtures plus local read-only Git only.
 
-**Dependencies:** Released v0.3.1 trust contracts; accepted Project Resume tests;
+**Release state:** Released as `v0.4.0` from integrated release commit `6cf9b72`, with
+frozen executable `ff402d7`. Technical release evidence is complete. The A11 eight-week
+dogfood outcome remains pending and unproven.
+
+**Dependencies satisfied:** Released v0.3.1 trust contracts; accepted Project Resume tests;
 repository-activity scope decision; explicit implementation authorization.
 
 **Risks:** Stale summaries, overly broad context, weak project identity matching.
@@ -104,8 +108,9 @@ the parked `feature/v0.4-conversation` candidate; [Chat PRD](../prd/CHAT_INTERFA
 **Risks:** Context leakage, citation mismatch, provider lock-in, uncontrolled cost, and
 confusion between temporary conversation state and durable memory.
 
-**Acceptance criteria:** Requires a future accepted brief. No v0.5 implementation is
-authorized by this roadmap reconciliation.
+**Acceptance criteria:** Requires a future accepted brief. Planning may begin after Chief of
+Staff validation of the v0.4 Librarian closeout. No v0.5 implementation is authorized by
+this roadmap reconciliation.
 
 ## v0.6 — Semantic Search and Relationship Intelligence
 

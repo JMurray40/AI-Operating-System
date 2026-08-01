@@ -6,9 +6,9 @@
 |---|---|
 | Purpose | Orient contributors to the AI Operating System |
 | Status | Foundation |
-| Version | 0.1.0 |
+| Version | 0.3.0 |
 | Owner | Jason |
-| Revised | 2026-07-27 |
+| Revised | 2026-08-01 |
 
 ## Vision
 
@@ -156,10 +156,16 @@ See the [v0.3.1 Handoff Index](docs/handovers/v0.3.1/README.md),
 [Query Trust Contracts](docs/software/QUERY_TRUST_CONTRACTS.md), and
 [Product Owner Release Decision](docs/handovers/v0.3.1/06-product-owner-to-librarian-release-decision.md).
 
-The next planned product milestone is v0.4 Project Resume. Its planning package is
-validated but implementation remains blocked. The earlier conversation candidate retains
-its historical v0.4 branch identity but is parked, not merged, and scheduled for
-reconciliation as v0.5.
+Version `0.4.0` Project Resume is released from integrated release commit `6cf9b72` and
+annotated tag `v0.4.0`. Its frozen executable is `ff402d7`, with deterministic sourced
+briefings, exact project selection, explicit authority ordering, current citations, hard
+budgets, and request-scoped local read-only Git activity. The technical release gates are
+complete; the A11 eight-week dogfood outcome remains pending and unproven.
+
+See the [v0.4 Handoff Index](docs/handovers/v0.4/README.md) and
+[Project Resume Guide](docs/software/PROJECT_RESUME.md). Visible-context conversation remains
+the v0.5 candidate. Planning may begin only after Chief of Staff validation of the v0.4
+Librarian closeout; no v0.5 implementation is authorized by the v0.4 release.
 
 ## Related documents
 
@@ -176,5 +182,6 @@ reconciliation as v0.5.
 
 | Version | Date | Change |
 |---|---|---|
+| 0.3.0 | 2026-08-01 | Recorded the v0.4.0 Project Resume release and v0.5 planning gate |
 | 0.2.0 | 2026-07-27 | Added current-work routing, accepted release sequence, and merged v0.3/v0.3.1 status |
 | 0.1.0 | 2026-07-27 | Initial engineering foundation |

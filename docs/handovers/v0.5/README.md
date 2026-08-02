@@ -6,10 +6,10 @@
 
 **Phase:** Principal Engineering implementation — WP1–WP3 only
 
-**Implementation:** Not authorized
+**Implementation:** WP1–WP3 authorized under Handoff 08; WP2–WP3 paused pending Handoff 08a WP1 correction; WP4 unauthorized
 
 **Current incoming artifact:**
-[Chief of Staff implementation authorization](08-chief-of-staff-to-principal-engineer-conversation-implementation-authorization.md)
+[CTO WP1 architecture clarification](08a-cto-to-principal-engineer-wp1-architecture-clarification.md)
 
 ## Released prerequisites
 
@@ -44,6 +44,7 @@ Credentials, calls, and spending remain unauthorized until later exact gates.
 
 ## Required next handoff
 
-Principal Engineering must implement only WP1–WP3 from the exact base/worktree in Handoff
-08 and produce `09-principal-engineer-to-cto-conversation-engineering-review.md`. WP4 and
-all live-provider activity remain separately blocked.
+Principal Engineering must complete the bounded WP1 correction in Handoff 08a, then
+implement only WP2–WP3 from the exact base/worktree in Handoff 08 and produce
+`09-principal-engineer-to-cto-conversation-engineering-review.md`. WP4 and all live-provider
+activity remain separately blocked.

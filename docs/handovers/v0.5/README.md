@@ -37,6 +37,12 @@ is authorized to merge or connect to Jarvis Core. Any convergence requires the b
 whole-runtime quarantine and bridge-shaped mock correction, followed by a separately
 authorized third mock-only integration candidate.
 
+The Product Owner accepted that disposition. [Handoff 04a](04a-chief-of-staff-voice-v1-v3-activation.md)
+records the completed V1 repository containment and activates only the isolated
+[Engineer 1 V2](04b-engineer-1-whole-runtime-quarantine-prompt.md) and
+[Engineer 2 V3](04c-engineer-2-bridge-shaped-mock-contract-prompt.md) corrections. V4
+remains unauthorized.
+
 ## Approved sequence and scope
 
 - v0.5: Visible-Context Conversation.

@@ -28,6 +28,15 @@ during planning.
 Its historical Quality review is
 [Not ready](../../reviews/QUALITY_RELEASE_REVIEW_V0.4_CONVERSATION_2026-07-27.md).
 
+## Parallel Voice Shell architecture track
+
+The CTO reviewed the isolated J.A.R.V.I.S Engineer 1 security-boundary candidate
+`bb1222b` and Engineer 2 mock Voice Shell candidate `f32499a` in
+[Handoff 04](04-cto-to-product-owner-jarvis-voice-frontend-disposition.md). Neither branch
+is authorized to merge or connect to Jarvis Core. Any convergence requires the bounded
+whole-runtime quarantine and bridge-shaped mock correction, followed by a separately
+authorized third mock-only integration candidate.
+
 ## Approved sequence and scope
 
 - v0.5: Visible-Context Conversation.

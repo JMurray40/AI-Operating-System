@@ -34,6 +34,7 @@ from pathlib import Path
 from jarvis_core.config import Config, LogLevel, OutputFormat, default_fixture_path
 from jarvis_core.context.loader import ProjectContextLoader, ProjectNotFoundError
 from jarvis_core.context.validator import validate_notes
+from jarvis_core.conversation.cli import add_chat_subparser
 from jarvis_core.health import analyze_vault, compute_vault_fingerprint, render_text
 from jarvis_core.logging_setup import configure_logging
 from jarvis_core.metrics import PerfReport, measure, track_memory
@@ -630,6 +631,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_common(p_doctor, with_path=False)
     p_doctor.set_defaults(func=_cmd_resume_doctor)
+
+    add_chat_subparser(sub)
 
     return parser
 

@@ -200,3 +200,94 @@ contracts. Ideas were reimplemented conceptually, not ported.
 Please review the WP1–WP3 candidate for CTO disposition and forward to Quality & Release as
 appropriate. WP4 (real-provider evidence), live credentials, provider calls, merge, push, tag,
 and release remain unauthorized and were not performed.
+
+---
+
+# SUPERSEDING REMEDIATION REVISION — Handoff 12 (AC-05-01–05, AE-05-01)
+
+This revision supersedes the disposition above for the AC-05 remediation cycle authorized by
+Handoff 12 (correction base `588896f955c86ce64db478086ea5fd6be4cc2280`, tree
+`2f7306f15eb1c6afe3a481a364150f537618c2e3`, disposition **Refactor first**).
+
+## R1. Exact commit and tree identities
+
+| Artifact | Identity |
+|---|---|
+| Executable remediation commit | `4f61cb19b2de621ded86cdbc7882c01cea5d52e3` |
+| Executable tree | `4b6532beb906eb5dc64a4c09deeaa7360c77550e` |
+| Parent (correction base) | `588896f955c86ce64db478086ea5fd6be4cc2280` |
+| Branch | `feature/v0.5-visible-context-conversation` |
+| Evidence/documentation-only commit | immediate descendant of `4f61cb19…` containing this revision plus the evidence JSON; contains no `src/`, `tests/`, scripts, dependency, or packaging change; exact SHA recorded by the Chief of Staff at commit |
+| Unchanged-query baseline | `e11703974219425b463a45a97e1d7d2a04de81dc` |
+
+The worktree was **clean** at the executable commit (verified `git status --porcelain` empty).
+The performance evidence was produced only **after** that commit was frozen, so no evidence is
+attributed to still-changing code.
+
+## R2. AC-05-01–05 requirement-to-test mapping
+
+| Requirement | Implementation | Tests |
+|---|---|---|
+| AC-05-01 deep semantic immutability | `conversation/immutable.py` (deep-freeze to read-only mappings/tuples, defensive copy, JSON encoder default); snapshot/approval freeze all nested collections; `ContextSnapshot.verify_integrity()` recompute before removal/approval/dispatch | `tests/unit/test_conversation_ac05_01.py` (mutation/alias/integrity, nested + approval) |
+| AC-05-02 single-use approval + exact retry lifecycle | typed `AttemptRecord` + `approval_consumed`/`in_flight` state; consume-once initial dispatch; replay/concurrent/dispatch-after-terminal fail closed before prompt/provider; explicit bounded retry (eligible-terminal only, ≤5 attempts); history serialization bound into the snapshot for byte-identical retry; cancellation forced terminal-once | `tests/unit/test_conversation_ac05_02.py` |
+| AC-05-03 exact Google destination profile | `google_gemini._destination_ok` exact-equality on provider/model/scheme/host/path/operation/timeout/limits/streaming/retries; bare-host + byte-exact-path reject port/user-info/encoding/query/fragment/slashes/case/alt-model/alt-api | `tests/unit/test_conversation_ac05_03.py` (20 negatives, each zero transport) |
+| AC-05-04 structured claims + deterministic support | `evidence.validate_response` structured JSON contract (no markers); per-claim shape/taxonomy/ID/current-byte + lexical-overlap support; inference validates every premise; metadata binding; unsupported never upgraded; fail-closed | `tests/unit/test_conversation_ac05_04.py` (unrelated passage, partial inference, fabricated/unknown/duplicate id, metadata mismatch, adversarial punctuation, malformed) |
+| AC-05-05 one safe presentation object | `conversation/presentation.py` `PresentationResult`/`present()` consumed identically by API/text/JSON/CLI; answer built from sanitized claims; raw provider payload discarded upstream (absent from results/trace/session history); shared `conversation/sanitize.py` | `tests/unit/test_conversation_ac05_05.py` (renderer==presentation, corpus sanitization, trace/history absence) |
+
+All prior 69 conversation tests plus the new adversarial matrices pass (124 conversation
+acceptance tests in this cycle; full released unit+integration **542 passed, 2 skipped**).
+
+## R3. AE-05-01 performance evidence (predeclared; recomputable)
+
+Protocol fixed before results: baseline `e11703974219…`, candidate `4f61cb19…` (both
+materialized via `git archive`), one shared harness (`scripts/benchmark_conversation_remediation.py`
++ `scripts/_qe_bench_runner.py`), identical synthetic vaults at 100/500/1,000/5,000 notes,
+identical query/scope/root/evaluation boundary, 3 warmups + 20 measured runs per size,
+candidate-first/baseline-first alternated by size, all raw wall-clock and per-run peak-memory
+samples retained.
+
+| Notes | order | baseline query p95 (ms) | candidate query p95 (ms) | candidate/baseline p95 | ≤20% |
+|---|---|---|---|---|---|
+| 100 | candidate_first | 26.685 | 26.028 | 0.975 | pass |
+| 500 | baseline_first | 126.602 | 126.788 | 1.002 | pass |
+| 1,000 | candidate_first | 245.397 | 242.334 | 0.988 | pass |
+| 5,000 | baseline_first | 1487.829 | 1314.217 | 0.883 | pass |
+
+- **Unchanged-query ≤20% p95 gate: PASS at every size.** The released query stack
+  (`query`, `models`, `policy`, `repositories`, `context`, `relationships`, `parsing`,
+  `identity.py`, `config.py`) is **byte-identical** between baseline and candidate
+  (`git diff` empty), so the harness executes identical code in both trees; any p95 delta is
+  measurement noise, disclosed as such (no post-hoc change to the accepted ≤20% rule).
+- **Conversation absolute gates (candidate): PASS** — 5,000-note prepare p95 < 2 s, application
+  overhead p95 < 250 ms, cancellation acknowledgement p95 < 500 ms.
+- Evidence artifact: `docs/evidence/v0.5/conversation-performance-remediation.json`,
+  independently generated SHA-256 **`57e031adb653db6c0f11fbc8e2bda484e20bf0c64684bd8ed315fc3480c7ae42`**.
+- Independent recomputation from the retained raw samples reproduces every reported p50/p95/p99
+  and ratio exactly (20/20 samples per size, per tree).
+
+## R4. Gates, limitations, and no-live-call confirmation
+
+- Static/tests: **Ruff clean** on changed/new files and across `src tests scripts`; **mypy
+  strict Success (89 files)**; whitespace/conflict clean; privacy/secret scan of the evidence
+  artifact clean (no prompts, context, responses, credentials, private paths, usernames, or
+  raw errors).
+- **Host verification (authoritative):** on the Windows host (git 2.55.0), the full released
+  suite is **545 passed, 2 skipped** (CS-21 Windows-logon and a symlink-unsupported skip; no
+  failures), Ruff **all checks passed**, mypy **Success (89 files)**. The three
+  `test_project_resume_local_git` real-git tests — which cannot run in the sandbox (git 2.34
+  below the 2.38 floor) — **pass on the host**, so the executable commit `4f61cb19…` is
+  technically complete. Those tests are unrelated to this remediation (the released local-git
+  module was not modified).
+- **Limitations:** the AE-05-01 latency figures were produced in the Engineering sandbox
+  (Python 3.10.12), not the accepted v0.4 reference machine; absolute milliseconds are
+  environment-dependent, but the ≤20% comparison is valid because both trees run a
+  byte-identical released query stack, and a reference-machine rerun remains available.
+- **No live credentials, provider calls, network egress, vault writes, packaging, QA, merge,
+  push, tag, release, Voice Shell, or Multica work were performed.** The Google adapter was
+  exercised only through a fake transport / in-process capture; `GEMINI_API_KEY` was never read.
+
+## R5. Requested disposition
+
+Chief-of-Staff validation and exact-commit CTO re-review of the executable commit
+`4f61cb19…` plus its descendant evidence commit. Quality, WP4, and live-provider activity
+remain unauthorized.

@@ -45,12 +45,13 @@ def test_c17_metadata_claim_binds_current_metadata_evidence(tmp_path: Path) -> N
     s = app.create_session("local")
     snap = app.prepare_turn(s, _req(s.session_id, root), notes)
     # A frontmatter-derived excerpt is a valid, current-byte-validated citation target.
+    from jarvis_core.query.tokenizer import token_set
     fm_item = next((it for it in snap.items if "---" in it.excerpt or ":" in it.excerpt), None)
     assert fm_item is not None
+    tok = next(iter(token_set(fm_item.excerpt)))  # a real metadata token to bind against
     app.approve(s, actor="jason", now=T)
-    res = app.dispatch_turn(
-        s, MockConversationProvider(reply=f"Metadata says so. [{fm_item.item_id}]"), now=T
-    )
+    claims = [(f"The metadata records {tok}.", "fact", [fm_item.item_id])]
+    res = app.dispatch_turn(s, MockConversationProvider(claims=claims), now=T)
     assert res.attempt.status is TerminalState.COMPLETED
     facts = [c for c in res.attempt.evidence.claims if c.evidence_type is EvidenceType.FACT]
     assert any(fm_item.item_id in c.citations for c in facts)

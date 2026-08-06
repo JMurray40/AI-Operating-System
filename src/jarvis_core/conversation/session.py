@@ -20,6 +20,15 @@ from jarvis_core.providers.conversation import CredentialProvider
 
 
 @dataclass(frozen=True)
+class AttemptRecord:
+    """A terminal dispatch attempt in the single-use approval lifecycle (AC-05-02)."""
+
+    attempt_id: str
+    status: str  # TerminalState value
+    kind: str    # 'initial' | 'retry'
+
+
+@dataclass(frozen=True)
 class TurnRecord:
     """A minimal, safe record of a completed turn (no excerpts, no raw payload)."""
 
@@ -57,6 +66,10 @@ class Session:
     pending_approval: EgressApproval | None = None
     pending_credentials: CredentialProvider | None = None
     last_attempt_id: str | None = None
+    # AC-05-02 single-use approval / attempt lifecycle
+    attempts: list[AttemptRecord] = field(default_factory=list)
+    approval_consumed: bool = False
+    in_flight: bool = False
 
     # ---------------------------------------------------------------- turn numbering
     def peek_turn_number(self) -> int:
@@ -118,11 +131,18 @@ class Session:
         return "\n".join(f"turn {t.turn_number}: coverage={t.coverage}" for t in self.turns)
 
     # ---------------------------------------------------------------- lifecycle
+    def reset_lifecycle(self) -> None:
+        """Invalidate any approval + attempt lifecycle (a new prepare/removal happened)."""
+        self.pending_approval = None
+        self.attempts.clear()
+        self.approval_consumed = False
+        self.in_flight = False
+
     def clear_pending(self) -> None:
         self.pending_prepared = None
-        self.pending_approval = None
         self.pending_credentials = None
         self.last_attempt_id = None
+        self.reset_lifecycle()
 
     def reset(self) -> None:
         self.turns.clear()
@@ -137,4 +157,4 @@ def new_attempt_id() -> str:
     return "att-" + uuid.uuid4().hex[:16]
 
 
-__all__ = ["Session", "TurnRecord", "new_attempt_id"]
+__all__ = ["AttemptRecord", "Session", "TurnRecord", "new_attempt_id"]

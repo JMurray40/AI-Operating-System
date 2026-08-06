@@ -105,7 +105,7 @@ def _bench_app_overhead(notes: list, root: Path, runs: int, warmup: int) -> list
         t0 = time.perf_counter()
         app.approve(s, actor="bench", now=_T)
         # prompt assembly + dispatch(mock, ~0) + evidence validation
-        assemble_prompt(s.pending_prepared.snapshot, history_text=s.history_text())
+        assemble_prompt(s.pending_prepared.snapshot)
         app.dispatch_turn(s, provider, now=_T)
         dt = (time.perf_counter() - t0) * 1000.0
         if i >= warmup:

@@ -34,6 +34,7 @@ CONTEXT_SNAPSHOT_VERSION = "jarvis.conversation-context.v0.5.0"
 EGRESS_APPROVAL_VERSION = "jarvis.conversation-egress.v0.5.0"
 PROMPT_CONTRACT_VERSION = "jarvis.conversation-prompt.v0.5.0"
 CONVERSATION_TRACE_VERSION = "jarvis.conversation-trace.v0.5.0"
+RESPONSE_CONTRACT_VERSION = "jarvis.conversation-response.v0.5.0"
 
 # Bound prompt-construction component versions (each is separately bound into the
 # snapshot and the approval; changing any one invalidates a prior approval — C09).
@@ -190,6 +191,7 @@ __all__ = [
     "PROMPT_CONTRACT_VERSION",
     "PROMPT_TEMPLATE_VERSION",
     "PROVIDER_CONTRACT_VERSION",
+    "RESPONSE_CONTRACT_VERSION",
     "SAFETY_INSTRUCTION_VERSION",
     "TOKEN_ESTIMATOR_VERSION",
     "ApprovalError",

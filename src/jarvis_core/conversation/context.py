@@ -101,6 +101,7 @@ def prepare(
     notes: list[Note],
     *,
     focus_titles: tuple[str, ...] = (),
+    history_text: str = "",
 ) -> PreparedTurn:
     """Run the authorized prepare pipeline and return an immutable snapshot."""
     source_root = request.source_root.resolve()
@@ -263,6 +264,7 @@ def prepare(
         price_table_version=profile.price_table_version,
         max_cost_usd_per_request=profile.max_cost_usd_per_request,
         evaluation_time=request.evaluation_time.isoformat(),
+        history_serialization=history_text,
     )
 
     new_focus = tuple(dict.fromkeys([it.title for it in items] + list(focus_titles)))

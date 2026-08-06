@@ -45,11 +45,43 @@ from jarvis_core.providers.transport import (
 
 GOOGLE_ADAPTER_VERSION = "jarvis.provider.google-gemini.v0.5.0"
 
-# Approved destination identity (Handoff 06 / H07 §4.2). Enforced independently of caller.
+# Approved destination identity (Handoff 06 / H07 §4.2 / AC-05-03). Enforced by EXACT equality
+# at the adapter boundary, independently of whatever the caller supplied.
+APPROVED_PROVIDER_ID = "google-gemini-developer-api"
+APPROVED_MODEL_ID = "gemini-3.5-flash-lite"
+APPROVED_API_VERSION = "v1beta"
 APPROVED_HOST = "generativelanguage.googleapis.com"
 APPROVED_SCHEME = "https"
 APPROVED_OPERATION = "generateContent"
-_APPROVED_PATH_PREFIX = "/v1beta/models/"
+APPROVED_PATH = f"/{APPROVED_API_VERSION}/models/{APPROVED_MODEL_ID}:{APPROVED_OPERATION}"
+APPROVED_TIMEOUT_SECONDS = 60.0
+APPROVED_MAX_INPUT_TOKENS = 64000
+APPROVED_MAX_OUTPUT_TOKENS = 8000
+
+
+def _destination_ok(t: object) -> bool:
+    """Exact-equality destination check (AC-05-03). Any drift returns False → BLOCKED.
+
+    A bare host (no user-info, no port) and a byte-exact path reject encoded paths, queries,
+    fragments, extra/missing slashes, case variants, alternate ports, alternate models, API
+    versions, provider IDs, streaming, and retry/feature drift in one place.
+    """
+    host = getattr(t, "host", "")
+    path = getattr(t, "path", "")
+    return (
+        getattr(t, "provider_id", None) == APPROVED_PROVIDER_ID
+        and getattr(t, "model_id", None) == APPROVED_MODEL_ID
+        and getattr(t, "scheme", None) == APPROVED_SCHEME
+        and host == APPROVED_HOST
+        and ":" not in host          # no alternate port
+        and "@" not in host          # no user-info
+        and path == APPROVED_PATH    # byte-exact: rejects %-encoding, ?, #, //, trailing /, case
+        and getattr(t, "operation", None) == APPROVED_OPERATION
+        and getattr(t, "streaming", True) is False
+        and getattr(t, "automatic_retries", 1) == 0
+        and float(getattr(t, "timeout_seconds", 0.0)) == APPROVED_TIMEOUT_SECONDS
+        and int(getattr(t, "max_input_tokens", 0)) == APPROVED_MAX_INPUT_TOKENS
+    )
 
 # Documentation reference for the wire shape; reconfirm at the WP4 preflight.
 GOOGLE_DOC_REFERENCE = "https://ai.google.dev/api/generate-content (v1beta models.generateContent)"
@@ -103,16 +135,8 @@ class GoogleGeminiAdapter:
         self, request: ProviderRequest, cancel: CancellationToken | None = None
     ) -> NormalizedResult:
         t = request.transport
-        # 1) Endpoint allowlist — enforced here regardless of what the caller supplied.
-        if (
-            t.scheme != APPROVED_SCHEME
-            or t.host != APPROVED_HOST
-            or t.operation != APPROVED_OPERATION
-            or not t.path.startswith(_APPROVED_PATH_PREFIX)
-            or not t.path.endswith(":" + APPROVED_OPERATION)
-            or t.streaming
-            or t.automatic_retries != 0
-        ):
+        # 1) Exact-equality endpoint allowlist (AC-05-03), enforced regardless of caller.
+        if not _destination_ok(t):
             return self._fail(request, TerminalState.BLOCKED, ERROR_ENDPOINT_DENIED)
         # 2) Credential must be present (materialized by the application for one attempt).
         if request.credential is None:
@@ -282,8 +306,12 @@ def google_gemini_profile() -> object:
 
 
 __all__ = [
+    "APPROVED_API_VERSION",
     "APPROVED_HOST",
+    "APPROVED_MODEL_ID",
     "APPROVED_OPERATION",
+    "APPROVED_PATH",
+    "APPROVED_PROVIDER_ID",
     "APPROVED_SCHEME",
     "GOOGLE_ADAPTER_VERSION",
     "GOOGLE_DOC_REFERENCE",

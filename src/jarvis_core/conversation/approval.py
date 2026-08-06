@@ -9,6 +9,7 @@ version, or expiry — any mismatch fails closed before prompt assembly.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -16,6 +17,7 @@ from jarvis_core.conversation.contract import (
     EGRESS_APPROVAL_VERSION,
     ApprovalError,
 )
+from jarvis_core.conversation.immutable import deep_thaw, freeze_mapping
 from jarvis_core.conversation.snapshot import ContextSnapshot
 
 DEFAULT_APPROVAL_TTL_SECONDS = 300
@@ -36,12 +38,16 @@ class EgressApproval:
     model_id: str
     model_role: str
     policy_version: str
-    prompt_versions: dict[str, object]
+    prompt_versions: Mapping[str, object]
     output_reserve_value: int
     approval_time: str
     expiry_time: str
     permitted_requests: int = 1
     approval_contract_version: str = EGRESS_APPROVAL_VERSION
+
+    def __post_init__(self) -> None:
+        # AC-05-01: the bound prompt-construction versions are deeply immutable.
+        object.__setattr__(self, "prompt_versions", freeze_mapping(self.prompt_versions))
 
     def _expired(self, now: datetime) -> bool:
         return now >= datetime.fromisoformat(self.expiry_time)
@@ -95,7 +101,7 @@ class EgressApproval:
             "model_id": self.model_id,
             "model_role": self.model_role,
             "policy_version": self.policy_version,
-            "prompt_versions": self.prompt_versions,
+            "prompt_versions": deep_thaw(self.prompt_versions),
             "output_reserve_value": self.output_reserve_value,
             "approval_time": self.approval_time,
             "expiry_time": self.expiry_time,

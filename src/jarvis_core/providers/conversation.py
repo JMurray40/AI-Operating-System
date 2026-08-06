@@ -15,6 +15,7 @@ silently rendered as zero. Raw provider payloads never cross this boundary.
 
 from __future__ import annotations
 
+import json
 import threading
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -245,20 +246,39 @@ class CredentialProvider(Protocol):
         ...
 
 
+# ------------------------------------------------------------------ structured answer
+def structured_answer(claims: list[tuple[str, str, list[str]]]) -> str:
+    """Serialize the structured response/evidence contract (AC-05-04).
+
+    ``claims`` is a list of ``(text, type, evidence_ids)`` tuples. The wire form is a JSON
+    object ``{"claims": [{"text", "type", "evidence"}]}`` — never free-text markers.
+    """
+    return json.dumps(
+        {"claims": [{"text": t, "type": ty, "evidence": list(ev)} for t, ty, ev in claims]},
+        ensure_ascii=False,
+        separators=(",", ":"),
+    )
+
+
 # ------------------------------------------------------------------ mock adapter
 class MockConversationProvider:
-    """Deterministic, offline mock. No network, no key, no randomness.
+    """Deterministic, offline mock emitting the structured answer contract (AC-05-04).
 
-    Produces a stable ``completed`` result derived only from the request content, so
-    fixtures and the shared conformance suite can exercise the whole pipeline without a
-    provider. It honours cancellation cooperatively.
+    ``claims`` sets exact structured claims; ``reply`` is convenience for a single
+    ``model_knowledge`` claim. It honours cancellation cooperatively.
     """
 
     name = "mock"
     adapter_version = "jarvis.provider.mock.v0.5.0"
 
-    def __init__(self, *, reply: str | None = None) -> None:
+    def __init__(
+        self,
+        *,
+        reply: str | None = None,
+        claims: list[tuple[str, str, list[str]]] | None = None,
+    ) -> None:
         self._reply = reply
+        self._claims = claims
 
     def dispatch(
         self, request: ProviderRequest, cancel: CancellationToken | None = None
@@ -272,16 +292,15 @@ class MockConversationProvider:
                 finish_reason="cancelled",
             )
         content = request.content
-        text = (
-            self._reply
-            if self._reply is not None
-            else (
-                f"[mock:{request.transport.model_id}] "
-                f"Received {len(content.user_text.split())} user token(s) and a "
-                f"{len(content.system_instruction.split())}-token system instruction; "
-                f"output reserve {content.max_output_tokens}."
+        if self._claims is not None:
+            text = structured_answer(self._claims)
+        elif self._reply is not None:
+            text = structured_answer([(self._reply, "model_knowledge", [])])
+        else:
+            text = structured_answer(
+                [(f"[mock:{request.transport.model_id}] deterministic offline reply.",
+                  "model_knowledge", [])]
             )
-        )
         out_tokens = len(text.split())
         return NormalizedResult(
             status=TerminalState.COMPLETED,
@@ -316,4 +335,5 @@ __all__ = [
     "TransportMetadata",
     "Usage",
     "UsageProvenance",
+    "structured_answer",
 ]

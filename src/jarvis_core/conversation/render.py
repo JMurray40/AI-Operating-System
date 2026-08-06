@@ -8,28 +8,10 @@ is never conveyed by color alone.
 
 from __future__ import annotations
 
-import re
-
+from jarvis_core.conversation.presentation import present
 from jarvis_core.conversation.results import TurnResult
+from jarvis_core.conversation.sanitize import sanitize_markdown
 from jarvis_core.conversation.snapshot import ContextSnapshot
-
-_HTML_TAG_RE = re.compile(r"<[^>]+>")
-_IMAGE_RE = re.compile(r"!\[([^\]]*)\]\(([^)]*)\)")
-_LINK_RE = re.compile(r"\[([^\]]+)\]\(([^)]*)\)")
-_AUTOLINK_RE = re.compile(r"<((?:https?|data|javascript|file):[^>]*)>", re.IGNORECASE)
-_BLOCKED_SCHEME_RE = re.compile(r"(?i)\b(?:javascript|data|file|vbscript):[^\s)]*")
-_CONTROL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
-
-
-def sanitize_markdown(text: str) -> str:
-    """Defang active/auto-fetched content; keep readable, inert text."""
-    text = _CONTROL_RE.sub("", text)
-    text = _AUTOLINK_RE.sub(r"[blocked-link \1]", text)
-    text = _IMAGE_RE.sub(r"[image: \1]", text)  # never emit a fetchable image reference
-    text = _LINK_RE.sub(r"\1 (\2)", text)  # link text with inert URL in parentheses
-    text = _BLOCKED_SCHEME_RE.sub("[blocked-scheme]", text)
-    text = _HTML_TAG_RE.sub("", text)  # drop any HTML/script tags
-    return text
 
 
 # ------------------------------------------------------------------ manifest
@@ -74,37 +56,13 @@ def manifest_text(snapshot: ContextSnapshot) -> str:
 
 
 # ------------------------------------------------------------------ result
+# The single sanitized presentation object drives BOTH surfaces (AC-05-05).
 def result_dict(turn: TurnResult) -> dict[str, object]:
-    return turn.to_dict()
+    return present(turn).to_dict()
 
 
 def result_text(turn: TurnResult) -> str:
-    a = turn.attempt
-    lines: list[str] = []
-    lines.append(
-        f"Turn {turn.turn_number} | status: {a.status.value} | coverage: {turn.coverage.value}"
-    )
-    if a.failure is not None:
-        lines.append(f"failure: {a.failure.value}")
-        if a.message:
-            lines.append(f"  {a.message}")
-    if a.text is not None:
-        lines.append("answer:")
-        lines.append(sanitize_markdown(a.text))
-    if a.evidence is not None:
-        ev = a.evidence
-        lines.append(
-            f"evidence: {ev.supported_count} supported, "
-            f"{ev.model_knowledge_count} model-knowledge, {ev.unknown_count} unknown"
-        )
-        for lim in ev.limitations:
-            lines.append(f"  limitation: {lim}")
-    lines.append(
-        f"usage: in={a.usage.input_tokens} out={a.usage.output_tokens} "
-        f"({a.usage.provenance.value}) | "
-        f"cost: {a.cost.amount_usd} {a.cost.currency} ({a.cost.provenance.value})"
-    )
-    return "\n".join(lines)
+    return present(turn).to_text()
 
 
 __all__ = [

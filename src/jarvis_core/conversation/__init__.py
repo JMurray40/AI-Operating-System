@@ -18,6 +18,7 @@ from jarvis_core.conversation.contract import (
     RemoteEligibility,
     TerminalState,
 )
+from jarvis_core.conversation.presentation import PresentationResult, present
 from jarvis_core.conversation.request import (
     Budgets,
     HistoryLimits,
@@ -43,6 +44,7 @@ __all__ = [
     "FailureClass",
     "HistoryLimits",
     "PrepareTurnRequest",
+    "PresentationResult",
     "ProviderProfile",
     "RemoteEligibility",
     "Session",
@@ -50,4 +52,5 @@ __all__ = [
     "TurnResult",
     "create_approval",
     "mock_profile",
+    "present",
 ]

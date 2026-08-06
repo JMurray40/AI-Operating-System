@@ -29,10 +29,11 @@ from jarvis_core.conversation.contract import (
     remote_eligibility,
 )
 from jarvis_core.conversation.evidence import validate_response
+from jarvis_core.conversation.presentation import answer_from_claims
 from jarvis_core.conversation.prompt import assemble_prompt
 from jarvis_core.conversation.request import HistoryLimits, PrepareTurnRequest
 from jarvis_core.conversation.results import AttemptResult, TurnResult
-from jarvis_core.conversation.session import Session, new_attempt_id
+from jarvis_core.conversation.session import AttemptRecord, Session, new_attempt_id
 from jarvis_core.conversation.snapshot import ContextSnapshot
 from jarvis_core.models.note import Note
 from jarvis_core.providers.conversation import (
@@ -62,6 +63,12 @@ _FAILURE_BY_CODE = {
     ERROR_ENDPOINT_DENIED: FailureClass.POLICY_BLOCKED,
     ERROR_UNAVAILABLE_CREDENTIAL: FailureClass.UNAVAILABLE_CREDENTIAL,
 }
+
+# AC-05-02 attempt-lifecycle bounds.
+_MAX_ATTEMPTS = 5
+_RETRY_ELIGIBLE_VALUES = frozenset(
+    {TerminalState.COMPLETED.value, TerminalState.FAILED.value, TerminalState.CANCELLED.value}
+)
 
 
 def _now(now: datetime | None) -> datetime:
@@ -166,9 +173,14 @@ class ConversationApplication:
             request_id=request.request_id,
             is_remote=request.provider_profile.is_remote,
         )
-        prepared = context_service.prepare(request, notes, focus_titles=session.focus_titles)
+        prepared = context_service.prepare(
+            request,
+            notes,
+            focus_titles=session.focus_titles,
+            history_text=session.history_text(),  # AC-05-02: bind history for byte-identical retry
+        )
         session.pending_prepared = prepared
-        session.pending_approval = None
+        session.reset_lifecycle()
         snap = prepared.snapshot
         session.trace.record(
             "snapshot_created",
@@ -185,9 +197,10 @@ class ConversationApplication:
         prepared = session.pending_prepared
         if prepared is None:
             raise ValidationError("no prepared turn to modify")
+        prepared.snapshot.verify_integrity()  # AC-05-01: recompute before removal
         new_snapshot = prepared.snapshot.without_item(item_id)
         session.pending_prepared = replace(prepared, snapshot=new_snapshot)
-        session.pending_approval = None  # any prior approval is invalidated
+        session.reset_lifecycle()  # a new snapshot invalidates approval + attempt lifecycle
         session.trace.record(
             "context_removed",
             session_id=session.session_id,
@@ -210,6 +223,7 @@ class ConversationApplication:
         if prepared is None:
             raise ValidationError("no prepared turn to approve")
         snap = prepared.snapshot
+        snap.verify_integrity()  # AC-05-01: recompute before approval
         policy_version = str(snap.policy_summary.get("policy_version", ""))
         approval = create_approval(
             snap,
@@ -237,18 +251,74 @@ class ConversationApplication:
         now: datetime | None = None,
         cancel: CancellationToken | None = None,
     ) -> TurnResult:
+        """Initial dispatch: consumes the single-use approval exactly once (AC-05-02)."""
+        return self._run_attempt(session, provider, kind="initial", now=now, cancel=cancel)
+
+    def retry_attempt(
+        self,
+        session: Session,
+        provider: ConversationProvider,
+        *,
+        now: datetime | None = None,
+        cancel: CancellationToken | None = None,
+    ) -> TurnResult:
+        """Retry the exact approved snapshot as one NEW eligible attempt (AC-05-02)."""
+        return self._run_attempt(session, provider, kind="retry", now=now, cancel=cancel)
+
+    def _run_attempt(
+        self,
+        session: Session,
+        provider: ConversationProvider,
+        *,
+        kind: str,
+        now: datetime | None,
+        cancel: CancellationToken | None,
+    ) -> TurnResult:
         prepared = session.pending_prepared
         approval = session.pending_approval
         if prepared is None:
             raise ValidationError("no prepared turn to dispatch")
         if approval is None:
             raise ApprovalError("dispatch requires an explicit approval")
+        # ---- AC-05-02 lifecycle gate: fail closed BEFORE prompt assembly / provider access
+        if session.in_flight:
+            raise ApprovalError("a dispatch for this turn is already in progress")
+        if kind == "initial":
+            if session.approval_consumed:
+                raise ApprovalError("approval already used; retry the attempt instead")
+        else:
+            if not session.attempts:
+                raise ValidationError("no terminal attempt to retry")
+            if session.attempts[-1].status not in _RETRY_ELIGIBLE_VALUES:
+                raise ValidationError("last attempt is not retry-eligible")
+            if len(session.attempts) >= _MAX_ATTEMPTS:
+                raise ValidationError("attempt limit reached; a fresh prepare is required")
+        # Consume permission / mark in-flight before any prompt or provider work.
+        session.in_flight = True
+        if kind == "initial":
+            session.approval_consumed = True
+        try:
+            return self._execute_attempt(session, provider, prepared, approval, kind, now, cancel)
+        finally:
+            session.in_flight = False
+
+    def _execute_attempt(
+        self,
+        session: Session,
+        provider: ConversationProvider,
+        prepared: context_service.PreparedTurn,
+        approval: EgressApproval,
+        kind: str,
+        now: datetime | None,
+        cancel: CancellationToken | None,
+    ) -> TurnResult:
         snap = prepared.snapshot
         attempt_id = new_attempt_id()
         session.last_attempt_id = attempt_id
         moment = _now(now)
 
         # -------- step 8: revalidate approval, policy, eligibility, credential, cost, bytes
+        snap.verify_integrity()  # AC-05-01: recompute canonical digest before dispatch
         policy_version = str(snap.policy_summary.get("policy_version", ""))
         approval.check(snap, policy_version=policy_version, now=moment)
         self._recheck_eligibility(snap)
@@ -262,8 +332,8 @@ class ConversationApplication:
             attempt_id=attempt_id,
         )
 
-        # -------- step 9: deterministically assemble the prompt within budget
-        projection = assemble_prompt(snap, history_text=session.history_text())
+        # -------- step 9: deterministically assemble the prompt within budget (bound history)
+        projection = assemble_prompt(snap)
         session.trace.record(
             "prompt_assembled",
             session_id=session.session_id,
@@ -299,9 +369,20 @@ class ConversationApplication:
             model_id=snap.provider_policy.model_id,
         )
         result = provider.dispatch(request, cancel)
+        # AC-05-02: honor cancellation even if the provider ignored the token — a provider
+        # that returns a completed result cannot produce a second terminal state.
+        if (
+            cancel is not None
+            and cancel.cancelled
+            and result.status is not TerminalState.CANCELLED
+        ):
+            result = replace(
+                result, status=TerminalState.CANCELLED, text=None, finish_reason="cancelled"
+            )
 
         # -------- steps 11-12: normalize outcome, validate evidence, record turn
         attempt = self._interpret(session, prepared, snap, attempt_id, result)
+        session.attempts.append(AttemptRecord(attempt_id, attempt.status.value, kind))
         coverage = attempt.evidence.coverage if attempt.evidence is not None else Coverage.NONE
         turn_number = session.peek_turn_number()
         if attempt.status is TerminalState.COMPLETED and attempt.text is not None:
@@ -332,19 +413,6 @@ class ConversationApplication:
             coverage=coverage,
             attempt=attempt,
         )
-
-    def retry_attempt(
-        self,
-        session: Session,
-        provider: ConversationProvider,
-        *,
-        now: datetime | None = None,
-        cancel: CancellationToken | None = None,
-    ) -> TurnResult:
-        """Retry the exact approved snapshot as a new attempt; drift blocks it."""
-        if session.pending_prepared is None or session.pending_approval is None:
-            raise ValidationError("no approved turn to retry")
-        return self.dispatch_turn(session, provider, now=now, cancel=cancel)
 
     @staticmethod
     def cancel_attempt(cancel: CancellationToken) -> None:
@@ -458,10 +526,13 @@ class ConversationApplication:
             supported_count=evidence.supported_count,
             model_knowledge_count=evidence.model_knowledge_count,
         )
+        # AC-05-05: the stored answer is a SANITIZED rendering of the validated claims; the
+        # raw provider payload (``text``) is discarded here and never stored or surfaced.
+        answer = answer_from_claims(evidence)
         return AttemptResult(
             attempt_id=attempt_id,
             status=TerminalState.COMPLETED,
-            text=text,
+            text=answer,
             evidence=evidence,
             usage=usage,
             cost=cost,

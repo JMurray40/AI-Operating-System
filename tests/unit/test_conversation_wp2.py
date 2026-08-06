@@ -69,10 +69,14 @@ class CapturingTransport:
         return self.response
 
 
-def _ok_body(text: str = "Uses markdown. [C1]", usage: bool = True) -> bytes:
+def _ok_body(text: str | None = None, usage: bool = True) -> bytes:
+    from jarvis_core.providers.conversation import structured_answer
+    answer = text if text is not None else structured_answer(
+        [("A deterministic offline reply.", "model_knowledge", [])]
+    )
     doc: dict = {
         "candidates": [
-            {"content": {"parts": [{"text": text}], "role": "model"}, "finishReason": "STOP"}
+            {"content": {"parts": [{"text": answer}], "role": "model"}, "finishReason": "STOP"}
         ]
     }
     if usage:

@@ -7,6 +7,7 @@ the deterministic mock adapter or an injected spy/fake.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -119,7 +120,7 @@ def test_c05_project_selection_exact(vault: tuple[list, Path]) -> None:
     notes, root = vault
     prepared = ctx.prepare(_request("s", root, selector="AI Operating System"), notes)
     sel = prepared.snapshot.authorization_summary["project_selection"]
-    assert isinstance(sel, dict) and sel["status"] == "selected"
+    assert isinstance(sel, Mapping) and sel["status"] == "selected"
 
 
 def test_c05_project_selection_not_found_fails_closed(vault: tuple[list, Path]) -> None:
@@ -239,20 +240,25 @@ def test_c12_source_text_cannot_change_instructions(vault: tuple[list, Path]) ->
 
 # ------------------------------------------------------------------ C16/C18 taxonomy
 def test_c16_c18_taxonomy_distinct(vault: tuple[list, Path]) -> None:
+    from jarvis_core.query.tokenizer import token_set
     notes, root = vault
     app = ConversationApplication()
     s = app.create_session("local")
-    app.prepare_turn(s, _request(s.session_id, root), notes)
+    snap = app.prepare_turn(s, _request(s.session_id, root), notes)
     app.approve(s, actor="jason", now=T)
-    reply = (
-        "The system stores markdown. [C1] "
-        "It also uses YAML and links. [C1][C2]\nParis is in France."
-    )
-    res = app.dispatch_turn(s, MockConversationProvider(reply=reply), now=T)
+    i1, i2 = snap.items[0], snap.items[1]
+    t1 = next(iter(token_set(i1.excerpt)))
+    t2 = next(iter(token_set(i2.excerpt)))
+    claims = [
+        (f"A fact about {t1}.", "fact", [i1.item_id]),
+        (f"An inference over {t1} and {t2}.", "inference", [i1.item_id, i2.item_id]),
+        ("General world knowledge, not from the vault.", "model_knowledge", []),
+    ]
+    res = app.dispatch_turn(s, MockConversationProvider(claims=claims), now=T)
     types = {c.evidence_type for c in res.attempt.evidence.claims}
     assert EvidenceType.FACT in types
-    assert EvidenceType.INFERENCE in types  # two citations => inference
-    assert EvidenceType.MODEL_KNOWLEDGE in types  # uncited sentence
+    assert EvidenceType.INFERENCE in types       # explicit multi-premise inference
+    assert EvidenceType.MODEL_KNOWLEDGE in types  # uncited, visibly not source-backed
 
 
 def test_c16_stale_citation_withholds_answer(vault: tuple[list, Path], tmp_path: Path) -> None:
@@ -271,7 +277,8 @@ def test_c16_stale_citation_withholds_answer(vault: tuple[list, Path], tmp_path:
     (dst / snap.items[0].relpath).write_bytes(b"totally different content\n")
     res_or_error = None
     try:
-        res = app.dispatch_turn(s, MockConversationProvider(reply="x [C1]"), now=T)
+        claims = [("A fact.", "fact", [snap.items[0].item_id])]
+        res = app.dispatch_turn(s, MockConversationProvider(claims=claims), now=T)
         res_or_error = res.attempt.status
     except DriftError:
         res_or_error = "drift"
@@ -280,17 +287,22 @@ def test_c16_stale_citation_withholds_answer(vault: tuple[list, Path], tmp_path:
 
 # ------------------------------------------------------------------ C19 coverage
 def test_c19_coverage_labels(vault: tuple[list, Path]) -> None:
+    from jarvis_core.query.tokenizer import token_set
     notes, root = vault
     app = ConversationApplication()
     s = app.create_session("local")
-    app.prepare_turn(s, _request(s.session_id, root), notes)
+    snap = app.prepare_turn(s, _request(s.session_id, root), notes)
     app.approve(s, actor="jason", now=T)
-    complete = app.dispatch_turn(s, MockConversationProvider(reply="fact only [C1]"), now=T)
+    tok = next(iter(token_set(snap.items[0].excerpt)))
+    fact = [(f"A fact about {tok}.", "fact", [snap.items[0].item_id])]
+    complete = app.dispatch_turn(s, MockConversationProvider(claims=fact), now=T)
     assert complete.coverage is Coverage.COMPLETE
 
     app.prepare_turn(s, _request(s.session_id, root), notes)
     app.approve(s, actor="jason", now=T)
-    modelonly = app.dispatch_turn(s, MockConversationProvider(reply="no citation here"), now=T)
+    modelonly = app.dispatch_turn(
+        s, MockConversationProvider(reply="no citation here"), now=T
+    )
     assert modelonly.coverage is Coverage.INCOMPLETE
 
 

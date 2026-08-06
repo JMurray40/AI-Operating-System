@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 
 from jarvis_core.conversation.contract import (
@@ -23,6 +24,12 @@ from jarvis_core.conversation.contract import (
     SAFETY_INSTRUCTION_VERSION,
     TOKEN_ESTIMATOR_VERSION,
     as_int,
+)
+from jarvis_core.conversation.immutable import (
+    deep_thaw,
+    freeze_mapping,
+    freeze_tuple_of_mappings,
+    json_default,
 )
 
 
@@ -134,7 +141,10 @@ class PromptConstructionVersions:
 
 def _canonical_bytes(payload: dict[str, object]) -> bytes:
     """Deterministic canonical serialization used for the digest."""
-    return json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode(
+    return json.dumps(
+        payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"),
+        default=json_default,
+    ).encode(
         "utf-8"
     )
 
@@ -147,23 +157,39 @@ class ContextSnapshot:
     session_id: str
     workspace_id: str
     normalized_user_input: str
-    assumptions: tuple[dict[str, object], ...]
+    assumptions: tuple[Mapping[str, object], ...]
     items: tuple[ContextItem, ...]
     provider_policy: ProviderPolicy
     prompt_versions: PromptConstructionVersions
-    policy_summary: dict[str, object]
-    authorization_summary: dict[str, object]
-    budget_accounting: dict[str, object]
-    safe_omissions: tuple[dict[str, object], ...]
+    policy_summary: Mapping[str, object]
+    authorization_summary: Mapping[str, object]
+    budget_accounting: Mapping[str, object]
+    safe_omissions: tuple[Mapping[str, object], ...]
     user_exclusions: tuple[str, ...]
     price_table_version: str
     max_cost_usd_per_request: float
     evaluation_time: str
+    history_serialization: str = ""
     snapshot_version: str = CONTEXT_SNAPSHOT_VERSION
     digest: str = field(default="", compare=False)
 
     def __post_init__(self) -> None:
+        # AC-05-01: deep-freeze caller-owned collections (defensive copy) so no retained
+        # reference can mutate a semantic value, then bind the canonical digest.
+        object.__setattr__(self, "assumptions", freeze_tuple_of_mappings(self.assumptions))
+        object.__setattr__(self, "safe_omissions", freeze_tuple_of_mappings(self.safe_omissions))
+        object.__setattr__(self, "policy_summary", freeze_mapping(self.policy_summary))
+        object.__setattr__(
+            self, "authorization_summary", freeze_mapping(self.authorization_summary)
+        )
+        object.__setattr__(self, "budget_accounting", freeze_mapping(self.budget_accounting))
+        object.__setattr__(self, "user_exclusions", tuple(self.user_exclusions))
         object.__setattr__(self, "digest", self._compute_digest())
+
+    def verify_integrity(self) -> None:
+        """Recompute the canonical digest and fail closed on any drift (AC-05-01)."""
+        if self._compute_digest() != self.digest:
+            raise ValueError("snapshot integrity check failed: canonical digest drifted")
 
     def _semantic_payload(self) -> dict[str, object]:
         """The exact semantic content covered by the digest (no diagnostics/timings)."""
@@ -185,6 +211,7 @@ class ContextSnapshot:
             "price_table_version": self.price_table_version,
             "max_cost_usd_per_request": self.max_cost_usd_per_request,
             "evaluation_time": self.evaluation_time,
+            "history_serialization": self.history_serialization,
         }
 
     def canonical_bytes(self) -> bytes:
@@ -216,9 +243,10 @@ class ContextSnapshot:
         )
 
     def to_dict(self) -> dict[str, object]:
-        payload = self._semantic_payload()
-        payload["digest"] = self.digest
-        return payload
+        thawed = deep_thaw(self._semantic_payload())
+        assert isinstance(thawed, dict)
+        thawed["digest"] = self.digest
+        return thawed
 
 
 __all__ = [

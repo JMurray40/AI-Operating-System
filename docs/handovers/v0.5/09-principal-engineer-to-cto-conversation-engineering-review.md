@@ -427,4 +427,132 @@ byproduct `src/jarvis_core.egg-info/`, which was never staged.
 
 Chief-of-Staff validation and one exact-candidate CTO re-review of the executable commit
 `d27eb607ea05fc69b5948b3fb43583e0bc914335` plus its documentation/evidence-only descendant.
+
+# SUPERSEDING VALIDATION CORRECTION — Handoff 15 (VC-15-01, VC-15-02)
+
+This revision supersedes S7's disposition. Chief-of-Staff Handoff 15 (Validation Return)
+reviewed the Handoff 14 candidate (executable `d27eb607ea05…`, evidence `5d1228bcf8f8…`)
+against the authoritative host and returned two acceptance defects, with correction
+authorized narrowly to: format the 17 correction-range files, make the reordered-punctuation
+test deterministic, rerun the host gates and the affected absolute benchmark, correct and
+rebind the evidence documentation, and return to Chief of Staff. No AC-05 architecture
+finding, AE-05-01 unchanged-query result, WP4, provider access, packaging, merge, push, tag,
+or release is touched by this revision.
+
+## T1. Exact commit and tree identities
+
+| Artifact | Identity |
+|---|---|
+| Prior (defective) executable | `d27eb607ea05fc69b5948b3fb43583e0bc914335` |
+| Prior evidence-only descendant | `5d1228bcf8f87dbbeb6a0b372b6f0b4a53bec954` |
+| **New executable correction commit** | `30f1c3010505213db7657e9ec9c5fef0da7faeb3` |
+| **New executable tree** | `0c4feff96a6f426c2c1170f4ab3e10967c9ca309` |
+| Git parent (branch tip at commit time) | `5d1228bcf8f87dbbeb6a0b372b6f0b4a53bec954` |
+| Corrected-baseline lineage | `d27eb607ea05…` (the executable this correction repairs) |
+| Branch | `feature/v0.5-visible-context-conversation` |
+| Correction range (this cycle) | 17 files: 8 under `src/jarvis_core/{conversation,providers}/`, 9 under `tests/unit/` — the exact set identified in Handoff 15 §2 as `20de32f..d27eb60` |
+| Documentation/evidence-only descendant | immediate descendant of `30f1c301…` containing this revision plus the rebound supplemental evidence JSON; no `src/`, `tests/`, scripts, dependency, or packaging change; exact SHA recorded at commit |
+
+## T2. VC-15-01 / VC-15-02 defect-to-fix mapping
+
+| Defect | Root cause | Fix | Verification |
+|---|---|---|---|
+| VC-15-01 — `ruff format --check` fails on all 17 correction-range files | The prior correction cycle ran `ruff check` (lint) but never `ruff format` (layout) on its own touched files, and treated pre-existing repo-wide formatter drift as grounds to skip the gate for the files it *did* own — a justification Handoff 15 explicitly rejected | `ruff format` applied to exactly the 17 correction-range files and no others; diff reviewed file-by-file (see T4) and confirmed to be whitespace/quote/blank-line reflow only — kwarg-per-line call layout, one blank line after module docstrings, comment spacing, string-join style — with zero control-flow, condition, value, or public-signature changes in any of the 8 touched source files | `ruff format --check` on the 17 files: **17 files already formatted** (pass) |
+| VC-15-02 — reordered-punctuation adversarial test nondeterministically skips | `test_reordered_punctuation_fails_closed` reused the shared multi-note `prepared` fixture's first sentence; that sentence's trailing punctuation is data-dependent on fixture content, not guaranteed, so the test intermittently called `pytest.skip()` instead of exercising the adversarial case at all | Replaced the shared-fixture dependency with a self-authored, deterministic one-note vault fixture (`_punctuation_fixture`) whose body sentence is guaranteed by construction to end in terminal punctuation; the mutation itself still moves punctuation into the sentence interior (edge punctuation alone is intentionally stripped by the exact-match normalizer's own boundary trimming, so an edge-only mutation would not exercise the interior-mismatch rejection) and the assertion (`pytest.raises(EvidenceError)`) is unchanged — no assertion was weakened, no different lexical case substituted | `pytest tests/unit/test_conversation_ac05_04r.py -q` run repeatedly: 14 passed, 0 skipped, every run (deterministic); `pytest tests/unit -k conversation -q`: 163 passed, 0 skipped (previously 162 passed / 1 conditional skip) |
+
+An incidental Ruff lint finding (`RUF005`, list-concatenation style) surfaced in the new
+VC-15-02 fixture code itself during the `ruff check` gate rerun; fixed in the same commit by
+switching to unpacking style (`[a, b, *rest]`), a stylistic change with no effect on the test's
+behavior or assertion.
+
+## T3. Gate results — authoritative-host-equivalent, this cycle
+
+Ruff's `format`/`check` and `mypy` are deterministic, environment-independent tools (no git
+version, no network, no filesystem-timing dependency); a clean sandbox result for these three
+gates is not a "sandbox-only" result requiring separate host confirmation — it is the same
+result the host will produce against the identical committed tree. This is the basis on which
+Handoff 15 authorized closing VC-15-01 from Engineering's own verification rather than
+requiring a further host round-trip.
+
+- **`ruff format --check` (the 17 correction-range files): PASS** — "17 files already
+  formatted." This closes VC-15-01.
+- **`ruff check src tests scripts`: PASS** — "All checks passed!" (includes the one incidental
+  VC-15-02-introduced `RUF005` finding, fixed as noted in T2).
+- **mypy** (project's actual configured invocation — `pyproject.toml` `[tool.mypy]`,
+  `packages = ["jarvis_core"]`, not an ad hoc `--strict src` flag set that pulls in checks the
+  project's own config does not enable): **`Success: no issues found in 89 source files`.**
+- **`git diff --check`: PASS** — clean, no whitespace conflicts.
+- **`pytest tests/unit -k conversation`: 163 passed, 0 skipped.** This closes VC-15-02 — the
+  conditional skip no longer exists in any run.
+- **`pytest tests/unit` (full released suite): 465 passed, 2 skipped, 3 failed.** The 3
+  failures and 1 of the 2 skips are the same pre-existing, unrelated
+  `test_project_resume_local_git.py` findings already disclosed in S4 above (sandbox git 2.34.1
+  is below the 2.38.0 floor those tests require); the second skip is the pre-existing CS-21
+  independent-Windows-logon-identity item, also already disclosed and out of this session's
+  reach. Neither category is touched, caused, or masked by this correction — the affected test
+  module has no import-graph dependency on any of the 17 corrected files.
+- **Remaining limitation, stated plainly rather than as a discrepancy to explain away: this
+  sandbox still cannot reach the user's Windows host (git 2.55.0.windows.1) directly.** For the
+  three deterministic, host-independent gates above (`ruff format`, `ruff check`, `mypy`) that
+  is not a limitation — the committed tree is the artifact under test, and both environments
+  read the same tree. For the git-version-floor-sensitive `local_git` tests it remains a real
+  gap; those 3 failures and the git-floor skip are unrelated to VC-15-01/VC-15-02 and were not
+  in scope to fix this cycle.
+
+## T4. Formatting-diff scope confirmation
+
+Diffed against the immediate parent (`d27eb607ea05…`): exactly the 17 authorized files
+changed, plus the two files already committed by the prior evidence-only commit
+(`5d1228bcf8f8…`, docs only, unaffected by this cycle). Diffed against `HEAD~1` in isolation
+(each of the 17 files individually): every one of the 8 source files' changes is line-wrap /
+blank-line / quote-style / comment-spacing only — confirmed by direct inspection of each
+file's diff, not merely inferred from the formatter's own "no semantic AST change" guarantee.
+The 9 test files carry the same category of reflow, plus (test_conversation_ac05_04r.py only)
+the VC-15-02 semantic rewrite described in T2. No file outside the 17 was touched.
+
+## T5. Rebound supplemental performance evidence
+
+The AE-05-01 unchanged-query paired-comparison result remains cited unmodified from S3 (its
+inputs — `query/`, `models/`, `policy/`, `repositories/`, `context.py`, `relationships/`,
+`parsing/`, `identity.py`, `config.py` — are untouched by either this cycle or the prior one).
+
+The conversation absolute benchmark **is** rerun here, against the new exact executable
+`30f1c3010505213db7657e9ec9c5fef0da7faeb3` (not the superseded `d27eb607…`), per Handoff 15
+§4's requirement that this evidence bind to the corrected executable:
+
+| Notes | prepare p50/p95/p99 (ms) | peak MiB | app-overhead p95 (ms) | cancel p95 (ms) |
+|---|---|---|---|---|
+| 100 | 11.939 / 15.684 / 16.649 | 1.08 | 5.978 | 1.393 |
+| 500 | 55.249 / 66.674 / 66.771 | 4.511 | 11.714 | 2.945 |
+| 1,000 | 136.772 / 173.125 / 181.039 | 8.333 | 15.906 | 3.62 |
+| 5,000 | 730.894 / 793.593 / 880.325 | 41.904 | 27.278 | 5.368 |
+
+Gate results: `prepare_p95_under_2s` PASS, `app_overhead_p95_under_250ms` PASS,
+`cancel_p95_under_500ms` PASS — `all_gates_pass: true`. Formatting-only and
+test-determinism-only changes carry no material overhead against the accepted gate
+thresholds, consistent with the code paths involved (a normalization pass and a
+docstring-adjacent test fixture, not the hot `prepare`/`dispatch` logic itself). Raw per-run
+samples for every size are retained in the artifact.
+
+Evidence file: `docs/evidence/v0.5/conversation-performance-remediation-vc15.json`,
+**SHA-256 `2fd1e18832d1b590ded3263a6c2068a2ee4f8a9e28d35753ab1b3bdc4875ee71`**. This supersedes
+`conversation-performance-remediation-ac05r.json` as the operative absolute-benchmark evidence
+for the current executable; the prior file is retained unmodified as the historical record for
+`d27eb607…` and is not deleted or overwritten.
+
+## T6. Clean worktree confirmation
+
+`git status --porcelain` is empty at the new executable commit `30f1c3010505…` (verified
+directly, not inferred). No `src/jarvis_core.egg-info/` or any other generated/build artifact
+is present, tracked, staged, or untracked in the worktree at this commit — `git clean -ndx`
+reports only gitignored tool caches (`.mypy_cache/`, `.pytest_cache/`, `.ruff_cache/`,
+`__pycache__/` under `scripts/`/`src/`/`tests/`), none of which are new to this cycle or were
+ever staged.
+
+## T7. Requested disposition
+
+Return to Chief of Staff for validation of the corrected executable commit
+`30f1c3010505213db7657e9ec9c5fef0da7faeb3` and its documentation/evidence-only descendant,
+per Handoff 15's explicit routing (Chief-of-Staff validation only — no direct CTO review is
+requested by this Engineering return).
 Quality, WP4, packaging, live-provider activity, merge, push, and release remain unauthorized.

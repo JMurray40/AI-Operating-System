@@ -1,4 +1,4 @@
-"""Structured claim/evidence validation and coverage assembly (R6, C16-C20, AC-05-04).
+"""Structured claim/evidence validation and coverage assembly (R6, C16-C20, AC-05-04R).
 
 The provider must return the structured answer contract — a JSON object with a ``claims``
 list, each claim declaring a permitted ``type`` and its ``evidence`` IDs — never free-text
@@ -6,13 +6,28 @@ markers. Every claim's shape, taxonomy, IDs, current-source bytes, and determini
 are validated. A declared ``fact``/``inference`` whose evidence is missing, stale, unknown,
 or not actually supported by the cited passage FAILS CLOSED (the whole answer is withheld
 with a typed evidence failure). Unsupported content stays visibly ``model_knowledge`` /
-``unknown`` / ``assumption`` and is never silently upgraded to supported. No live model or
-semantic/embedding dependency is used — support is a deterministic lexical-overlap test over
-the released tokenizer plus current-byte citation validation.
+``unknown`` / ``assumption`` and is never silently upgraded to supported.
+
+AC-05-04R: support is CONSERVATIVE EXACT matching, not lexical overlap. The prior round's
+support test was ``token_set(claim) & token_set(excerpt)`` — true whenever a claim shared even
+one token (including a stopword like "the"/"a"/"is", since ``token_set`` does not filter
+stopwords) with the cited excerpt, so an entirely fabricated or negated claim that merely
+reused one common word from the source counted as "supported". A fact/inference claim may now
+be ``supported`` only when its normalized text is bound to an exact current source
+sentence/span, an exact whole excerpt, or an exact approved metadata value (title, relpath,
+source id, heading path, or match reason) of the cited item, under a wholly deterministic
+rule. A material transformation, added entity, changed number, changed polarity, negation, or
+a partial/common-token-only match therefore fails closed as unsupported (the whole answer is
+withheld). An inference additionally requires the claim to be exactly the deterministic
+``" and "``-joined concatenation of one exact span per cited premise, in citation order — the
+only entailment rule this milestone authorizes; anything else fails closed. No embeddings,
+semantic models, live providers, or fuzzy thresholds are used.
 """
 from __future__ import annotations
 
+import itertools
 import json
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -23,16 +38,83 @@ from jarvis_core.conversation.contract import (
     EvidenceError,
     EvidenceType,
 )
-from jarvis_core.conversation.snapshot import ContextSnapshot
+from jarvis_core.conversation.snapshot import ContextItem, ContextSnapshot
 from jarvis_core.models.note import Note
 from jarvis_core.query.evidence import CurrentSourceResolver
 from jarvis_core.query.passages import Locator, validate
-from jarvis_core.query.tokenizer import token_set
 
 _SOURCE_BACKED = frozenset({EvidenceType.FACT, EvidenceType.INFERENCE})
 _UNSUPPORTED = frozenset(
     {EvidenceType.MODEL_KNOWLEDGE, EvidenceType.UNKNOWN, EvidenceType.ASSUMPTION}
 )
+
+# The sole authorized deterministic connector for reconstructing an inference conclusion from
+# its premises' exact spans (AC-05-04R). Fixed and literal; never inferred or configurable.
+_INFERENCE_CONNECTOR = " and "
+
+_EDGE_STRIP = " \t\r\n.,;:!?\"'()[]{}\u2018\u2019\u201c\u201d"
+_SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
+
+
+def _normalize_for_exact_match(text: str) -> str:
+    """Deterministic normalization for exact support: collapse whitespace, strip only the
+    outer edges of a value, casefold. No stemming, no reordering, no synonym/fuzzy matching —
+    a claim differing anywhere in its interior fails to match, by design."""
+    collapsed = " ".join(text.split())
+    return collapsed.strip(_EDGE_STRIP).casefold()
+
+
+def _exact_source_spans(excerpt: str) -> list[str]:
+    """The deterministic candidate exact spans of one cited excerpt: each sentence, each
+    non-blank line, and the whole excerpt. All are drawn only from the current, already
+    byte-validated excerpt text — never synthesized or paraphrased."""
+    spans: list[str] = [excerpt]
+    spans.extend(s for s in _SENTENCE_SPLIT_RE.split(excerpt) if s.strip())
+    spans.extend(line for line in excerpt.splitlines() if line.strip())
+    return spans
+
+
+def _exact_metadata_values(item: ContextItem) -> list[str]:
+    """The deterministic candidate exact approved metadata values for one cited item."""
+    values = [item.title, item.relpath, item.source_id, item.reason]
+    if item.sensitivity:
+        values.append(item.sensitivity)
+    if item.heading_path:
+        values.append(" ".join(item.heading_path))
+    return [v for v in values if v]
+
+
+def _exact_candidates(item: ContextItem) -> list[str]:
+    return _exact_source_spans(item.excerpt) + _exact_metadata_values(item)
+
+
+def _claim_exactly_supported(claim_text: str, item: ContextItem) -> bool:
+    """AC-05-04R fact rule: exact current source sentence/span OR exact metadata value."""
+    normalized_claim = _normalize_for_exact_match(claim_text)
+    if not normalized_claim:
+        return False
+    return any(
+        _normalize_for_exact_match(candidate) == normalized_claim
+        for candidate in _exact_candidates(item)
+    )
+
+
+def _inference_exactly_supported(claim_text: str, premises: list[ContextItem]) -> bool:
+    """AC-05-04R inference rule: the claim is exactly the deterministic ``" and "``-joined
+    concatenation of one exact span/metadata value per premise, in citation order. This is
+    the only authorized entailment rule; anything else — including a claim that merely
+    restates one premise, or a synthesized/paraphrased conclusion — fails closed."""
+    normalized_claim = _normalize_for_exact_match(claim_text)
+    if not normalized_claim or not premises:
+        return False
+    per_premise_candidates = [_exact_candidates(p) for p in premises]
+    # Bounded: excerpts are budget-limited to a handful of sentences/lines each, so the
+    # product of candidate spans across premises stays small (never unbounded/live).
+    for combo in itertools.product(*per_premise_candidates):
+        candidate = _INFERENCE_CONNECTOR.join(combo)
+        if _normalize_for_exact_match(candidate) == normalized_claim:
+            return True
+    return False
 
 
 @dataclass(frozen=True)
@@ -84,14 +166,18 @@ def _current_text(resolver: CurrentSourceResolver, note: Note) -> tuple[bytes, s
     return current_bytes, current_bytes.decode("utf-8", "replace")
 
 
-def _validate_supported_premise(
+def _validate_current_premise(
     snapshot: ContextSnapshot,
     item_id: str,
-    claim_text: str,
     resolver: CurrentSourceResolver,
     notes_by_relpath: dict[str, Note],
-) -> None:
-    """Validate one cited premise: known, current, and actually supporting (fails closed)."""
+) -> ContextItem:
+    """Validate one cited premise is known, current, and byte-valid (fails closed).
+
+    This is deliberately separate from the exact-support test below: an item can be a
+    perfectly valid, current, unmodified citation while still not exactly supporting a
+    particular claim's text.
+    """
     item = snapshot.item(item_id)
     if item is None:
         raise EvidenceError(f"claim cites unknown evidence id {item_id!r}")
@@ -115,10 +201,45 @@ def _validate_supported_premise(
     )
     if not result.ok:
         raise EvidenceError(f"evidence {item_id} failed current-byte validation")
-    # Deterministic support: the claim must actually overlap the cited passage (relevance),
-    # binding metadata claims to their metadata evidence and rejecting unrelated passages.
-    if not (token_set(claim_text) & token_set(item.excerpt)):
-        raise EvidenceError(f"claim is not supported by cited passage {item_id}")
+    return item
+
+
+def _validate_fact(
+    snapshot: ContextSnapshot,
+    ids: tuple[str, ...],
+    claim_text: str,
+    resolver: CurrentSourceResolver,
+    notes_by_relpath: dict[str, Note],
+) -> None:
+    """AC-05-04R: every cited item must independently be current AND exactly support the
+    claim (a fact citing several sources means the same exact statement appears in each)."""
+    for item_id in ids:
+        item = _validate_current_premise(snapshot, item_id, resolver, notes_by_relpath)
+        if not _claim_exactly_supported(claim_text, item):
+            raise EvidenceError(
+                f"claim is not exactly supported by cited passage/metadata {item_id}"
+            )
+
+
+def _validate_inference(
+    snapshot: ContextSnapshot,
+    ids: tuple[str, ...],
+    claim_text: str,
+    resolver: CurrentSourceResolver,
+    notes_by_relpath: dict[str, Note],
+) -> None:
+    """AC-05-04R: every premise must independently be current; the conclusion must be exactly
+    the deterministic conjunction of one exact span per premise (the sole authorized
+    entailment rule). No authorized rule -> fail closed as incomplete."""
+    premises = [
+        _validate_current_premise(snapshot, item_id, resolver, notes_by_relpath)
+        for item_id in ids
+    ]
+    if not _inference_exactly_supported(claim_text, premises):
+        raise EvidenceError(
+            "inference conclusion is not the exact deterministic conjunction of its "
+            f"cited premises {list(ids)}"
+        )
 
 
 def _parse_claim(raw: object) -> tuple[str, EvidenceType, tuple[str, ...]]:
@@ -165,11 +286,12 @@ def validate_response(
         if etype in _SOURCE_BACKED:
             if not ids:
                 raise EvidenceError(f"{etype.value} claim declares no evidence")
-            # Inference validates EVERY material premise; fact validates its citation(s).
-            for item_id in ids:
-                _validate_supported_premise(
-                    snapshot, item_id, ctext, resolver, notes_by_relpath
-                )
+            # AC-05-04R: fact requires each citation to independently exactly support the
+            # claim; inference requires the exact deterministic conjunction of every premise.
+            if etype is EvidenceType.FACT:
+                _validate_fact(snapshot, ids, ctext, resolver, notes_by_relpath)
+            else:
+                _validate_inference(snapshot, ids, ctext, resolver, notes_by_relpath)
             supported += 1
         else:
             if ids:
@@ -211,4 +333,19 @@ def validate_response(
     )
 
 
-__all__ = ["AnswerEvidence", "Claim", "validate_response"]
+__all__ = [
+    "AnswerEvidence",
+    "Claim",
+    "exact_source_spans",
+    "validate_response",
+]
+
+
+def exact_source_spans(excerpt: str) -> list[str]:
+    """Public accessor for the AC-05-04R deterministic exact-span candidates of an excerpt.
+
+    Exposed so callers/tests can construct a genuinely exactly-supported claim from a real
+    excerpt without duplicating (or drifting from) the production sentence/line-splitting
+    rule.
+    """
+    return _exact_source_spans(excerpt)

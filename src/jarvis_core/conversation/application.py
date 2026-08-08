@@ -280,27 +280,42 @@ class ConversationApplication:
             raise ValidationError("no prepared turn to dispatch")
         if approval is None:
             raise ApprovalError("dispatch requires an explicit approval")
-        # ---- AC-05-02 lifecycle gate: fail closed BEFORE prompt assembly / provider access
-        if session.in_flight:
-            raise ApprovalError("a dispatch for this turn is already in progress")
-        if kind == "initial":
-            if session.approval_consumed:
-                raise ApprovalError("approval already used; retry the attempt instead")
-        else:
-            if not session.attempts:
-                raise ValidationError("no terminal attempt to retry")
-            if session.attempts[-1].status not in _RETRY_ELIGIBLE_VALUES:
-                raise ValidationError("last attempt is not retry-eligible")
-            if len(session.attempts) >= _MAX_ATTEMPTS:
-                raise ValidationError("attempt limit reached; a fresh prepare is required")
-        # Consume permission / mark in-flight before any prompt or provider work.
-        session.in_flight = True
-        if kind == "initial":
-            session.approval_consumed = True
+        # ---- AC-05-02R lifecycle gate: fail closed BEFORE prompt assembly / provider access.
+        # The read-then-write of in_flight/approval_consumed/attempts is one atomic critical
+        # section under session.lock so two REAL concurrent callers cannot both observe
+        # "not in flight" before either claims it (a bare bool has a TOCTOU race under genuine
+        # simultaneous threads; a manually-set flag in a single-threaded test does not exercise
+        # this at all).
+        with session.lock:
+            if session.in_flight:
+                raise ApprovalError("a dispatch for this turn is already in progress")
+            if kind == "initial":
+                if session.approval_consumed:
+                    raise ApprovalError("approval already used; retry the attempt instead")
+            else:
+                if not session.attempts:
+                    raise ValidationError("no terminal attempt to retry")
+                if session.attempts[-1].status not in _RETRY_ELIGIBLE_VALUES:
+                    raise ValidationError("last attempt is not retry-eligible")
+                if len(session.attempts) >= _MAX_ATTEMPTS:
+                    raise ValidationError("attempt limit reached; a fresh prepare is required")
+            # Consume permission / mark in-flight before any prompt or provider work.
+            session.in_flight = True
+            if kind == "initial":
+                session.approval_consumed = True
+            generation = session.generation
         try:
-            return self._execute_attempt(session, provider, prepared, approval, kind, now, cancel)
+            return self._execute_attempt(
+                session, provider, prepared, approval, kind, now, cancel, generation
+            )
         finally:
-            session.in_flight = False
+            with session.lock:
+                # AC-05-02R: only release in_flight if no reset/removal happened meanwhile.
+                # A reset already force-clears in_flight itself (Session.reset_lifecycle); if
+                # this stale attempt cleared it again unconditionally it could erroneously
+                # release a NEW attempt's exclusivity that started after the reset.
+                if session.generation == generation:
+                    session.in_flight = False
 
     def _execute_attempt(
         self,
@@ -311,6 +326,7 @@ class ConversationApplication:
         kind: str,
         now: datetime | None,
         cancel: CancellationToken | None,
+        generation: int,
     ) -> TurnResult:
         snap = prepared.snapshot
         attempt_id = new_attempt_id()
@@ -378,6 +394,31 @@ class ConversationApplication:
         ):
             result = replace(
                 result, status=TerminalState.CANCELLED, text=None, finish_reason="cancelled"
+            )
+
+        # AC-05-02R: a reset()/remove_context() that happened while THIS attempt was still
+        # physically in flight on another thread bumps session.generation. Such a late
+        # completion must never write a stale attempt/turn into the (now different) session
+        # state — defeat it here, before any further session mutation.
+        with session.lock:
+            stale = session.generation != generation
+        if stale:
+            return TurnResult(
+                turn_number=session.peek_turn_number(),
+                request_id=snap.request_id,
+                session_id=session.session_id,
+                snapshot_digest=snap.digest,
+                coverage=Coverage.NONE,
+                attempt=AttemptResult(
+                    attempt_id=attempt_id,
+                    status=TerminalState.CANCELLED,
+                    failure=FailureClass.CANCELLED,
+                    message="attempt discarded: session lifecycle was reset before completion",
+                    usage=result.usage,
+                    cost=result.cost,
+                    finish_reason=result.finish_reason,
+                    elapsed_ms=result.elapsed_ms,
+                ),
             )
 
         # -------- steps 11-12: normalize outcome, validate evidence, record turn

@@ -10,7 +10,7 @@ from jarvis_core.config import Config
 from jarvis_core.conversation import PrepareTurnRequest, mock_profile
 from jarvis_core.conversation import context as ctx
 from jarvis_core.conversation.contract import Coverage, EvidenceError, EvidenceType
-from jarvis_core.conversation.evidence import validate_response
+from jarvis_core.conversation.evidence import exact_source_spans, validate_response
 from jarvis_core.policy import local_allow_all
 from jarvis_core.providers.conversation import structured_answer
 from jarvis_core.query.tokenizer import token_set
@@ -40,14 +40,18 @@ def _check(prepared, text: str):  # type: ignore[no-untyped-def]
 
 
 # ------------------------------------------------------------------ happy path
+# AC-05-04R: support is exact (a current source sentence/span, or an exact metadata value) —
+# never mere shared-token overlap. Claims below use the item's exact excerpt/exact sentence
+# text (via ``exact_source_spans``) rather than a synthetic wrapper sentence that only shares
+# one token with the source, since that is exactly the loose-overlap rule this round removes.
 def test_valid_fact_and_inference_and_model_knowledge(prepared) -> None:  # type: ignore[no-untyped-def]
     snap = prepared.snapshot
     i1, i2 = snap.items[0], snap.items[1]
-    t1 = next(iter(token_set(i1.excerpt)))
-    t2 = next(iter(token_set(i2.excerpt)))
+    fact1 = exact_source_spans(i1.excerpt)[0]  # the whole current excerpt: always an exact span
+    fact2 = exact_source_spans(i2.excerpt)[0]
     text = structured_answer([
-        (f"A fact about {t1}.", "fact", [i1.item_id]),
-        (f"An inference over {t1} and {t2}.", "inference", [i1.item_id, i2.item_id]),
+        (fact1, "fact", [i1.item_id]),
+        (f"{fact1} and {fact2}", "inference", [i1.item_id, i2.item_id]),
         ("World knowledge.", "model_knowledge", []),
     ])
     ev = _check(prepared, text)
@@ -127,6 +131,6 @@ def test_adversarial_punctuation_fact_fails_closed(prepared) -> None:  # type: i
 
 def test_duplicate_evidence_ids_deduplicated(prepared) -> None:  # type: ignore[no-untyped-def]
     i1 = prepared.snapshot.items[0]
-    t1 = next(iter(token_set(i1.excerpt)))
-    ev = _check(prepared, structured_answer([(f"About {t1}.", "fact", [i1.item_id, i1.item_id])]))
+    fact = exact_source_spans(i1.excerpt)[0]
+    ev = _check(prepared, structured_answer([(fact, "fact", [i1.item_id, i1.item_id])]))
     assert ev.claims[0].citations == (i1.item_id,)   # de-duplicated, still supported

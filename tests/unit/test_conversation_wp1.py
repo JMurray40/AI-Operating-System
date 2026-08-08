@@ -240,18 +240,20 @@ def test_c12_source_text_cannot_change_instructions(vault: tuple[list, Path]) ->
 
 # ------------------------------------------------------------------ C16/C18 taxonomy
 def test_c16_c18_taxonomy_distinct(vault: tuple[list, Path]) -> None:
-    from jarvis_core.query.tokenizer import token_set
+    # AC-05-04R: support is exact (a current source sentence/span or exact metadata value),
+    # never shared-token overlap — bind claims to real exact excerpt text.
+    from jarvis_core.conversation.evidence import exact_source_spans
     notes, root = vault
     app = ConversationApplication()
     s = app.create_session("local")
     snap = app.prepare_turn(s, _request(s.session_id, root), notes)
     app.approve(s, actor="jason", now=T)
     i1, i2 = snap.items[0], snap.items[1]
-    t1 = next(iter(token_set(i1.excerpt)))
-    t2 = next(iter(token_set(i2.excerpt)))
+    fact1 = exact_source_spans(i1.excerpt)[0]
+    fact2 = exact_source_spans(i2.excerpt)[0]
     claims = [
-        (f"A fact about {t1}.", "fact", [i1.item_id]),
-        (f"An inference over {t1} and {t2}.", "inference", [i1.item_id, i2.item_id]),
+        (fact1, "fact", [i1.item_id]),
+        (f"{fact1} and {fact2}", "inference", [i1.item_id, i2.item_id]),
         ("General world knowledge, not from the vault.", "model_knowledge", []),
     ]
     res = app.dispatch_turn(s, MockConversationProvider(claims=claims), now=T)
@@ -287,14 +289,15 @@ def test_c16_stale_citation_withholds_answer(vault: tuple[list, Path], tmp_path:
 
 # ------------------------------------------------------------------ C19 coverage
 def test_c19_coverage_labels(vault: tuple[list, Path]) -> None:
-    from jarvis_core.query.tokenizer import token_set
+    # AC-05-04R: bind the claim to the item's real exact excerpt, not a shared-token wrapper.
+    from jarvis_core.conversation.evidence import exact_source_spans
     notes, root = vault
     app = ConversationApplication()
     s = app.create_session("local")
     snap = app.prepare_turn(s, _request(s.session_id, root), notes)
     app.approve(s, actor="jason", now=T)
-    tok = next(iter(token_set(snap.items[0].excerpt)))
-    fact = [(f"A fact about {tok}.", "fact", [snap.items[0].item_id])]
+    fact_text = exact_source_spans(snap.items[0].excerpt)[0]
+    fact = [(fact_text, "fact", [snap.items[0].item_id])]
     complete = app.dispatch_turn(s, MockConversationProvider(claims=fact), now=T)
     assert complete.coverage is Coverage.COMPLETE
 

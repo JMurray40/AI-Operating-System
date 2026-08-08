@@ -9,6 +9,7 @@ or process exit erases everything.
 
 from __future__ import annotations
 
+import threading
 import uuid
 from dataclasses import dataclass, field
 
@@ -66,10 +67,20 @@ class Session:
     pending_approval: EgressApproval | None = None
     pending_credentials: CredentialProvider | None = None
     last_attempt_id: str | None = None
-    # AC-05-02 single-use approval / attempt lifecycle
+    # AC-05-02R single-use approval / attempt lifecycle
     attempts: list[AttemptRecord] = field(default_factory=list)
     approval_consumed: bool = False
     in_flight: bool = False
+    # AC-05-02R: guards the check-then-set of in_flight/approval_consumed/attempts so real
+    # concurrent callers cannot both observe "not in flight" before either claims it (a bare
+    # bool has a TOCTOU race under genuine simultaneous threads, not just sequential tests).
+    lock: threading.Lock = field(default_factory=threading.Lock, compare=False, repr=False)
+    # AC-05-02R: bumped by every lifecycle invalidation (reset, context removal, a fresh
+    # prepare). An attempt captures the generation it started under; on completion it only
+    # writes turns/attempts/in_flight back to the session if the generation is unchanged, so
+    # a reset/removal that happens while a dispatch is still physically in flight on another
+    # thread defeats that late completion instead of silently resurrecting stale state.
+    generation: int = 0
 
     # ---------------------------------------------------------------- turn numbering
     def peek_turn_number(self) -> int:
@@ -137,6 +148,9 @@ class Session:
         self.attempts.clear()
         self.approval_consumed = False
         self.in_flight = False
+        # AC-05-02R: every invalidation is a new generation so a still-running attempt from
+        # before this call can detect it happened and defeat its own late completion.
+        self.generation += 1
 
     def clear_pending(self) -> None:
         self.pending_prepared = None

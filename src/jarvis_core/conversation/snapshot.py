@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 
 from jarvis_core.conversation.contract import (
@@ -51,6 +51,20 @@ class ContextItem:
     reason: str
     token_count: int
     relative_relevance: float | None = None
+
+    def __post_init__(self) -> None:
+        # AC-05-01R: normalize heading_path into an owned tuple and reject anything that is
+        # not a string sequence. A caller-owned mutable list is copied here (never aliased),
+        # so a later mutation of the caller's original list cannot change this retained item.
+        hp = self.heading_path
+        if isinstance(hp, str) or not isinstance(hp, Sequence):
+            raise TypeError(
+                f"heading_path must be a sequence of strings, not {type(hp).__name__!r}"
+            )
+        normalized = tuple(hp)
+        if not all(isinstance(part, str) for part in normalized):
+            raise TypeError("heading_path elements must all be strings")
+        object.__setattr__(self, "heading_path", normalized)
 
     def semantic(self) -> dict[str, object]:
         """The exact fields that participate in the digest (order-independent)."""
@@ -94,6 +108,19 @@ class ProviderPolicy:
     disabled_features: tuple[str, ...]
     is_remote: bool
     provider_contract_version: str = PROVIDER_CONTRACT_VERSION
+
+    def __post_init__(self) -> None:
+        # AC-05-01R: normalize + own disabled_features so a caller-retained mutable list
+        # cannot later mutate this digest-bearing feature-control field in place.
+        df = self.disabled_features
+        if isinstance(df, str) or not isinstance(df, Sequence):
+            raise TypeError(
+                f"disabled_features must be a sequence of strings, not {type(df).__name__!r}"
+            )
+        normalized = tuple(df)
+        if not all(isinstance(feat, str) for feat in normalized):
+            raise TypeError("disabled_features elements must all be strings")
+        object.__setattr__(self, "disabled_features", normalized)
 
     def semantic(self) -> dict[str, object]:
         return {
@@ -174,8 +201,14 @@ class ContextSnapshot:
     digest: str = field(default="", compare=False)
 
     def __post_init__(self) -> None:
-        # AC-05-01: deep-freeze caller-owned collections (defensive copy) so no retained
-        # reference can mutate a semantic value, then bind the canonical digest.
+        # AC-05-01R: deep-freeze every caller-owned collection reachable from this snapshot
+        # (defensive copy, not just a defensive check) so no retained reference — including
+        # the caller's own `items` list/tuple — can mutate a semantic value, then bind the
+        # canonical digest. Each ContextItem/ProviderPolicy already owns its own nested
+        # collections (heading_path, disabled_features) via their own __post_init__; owning
+        # the top-level `items` tuple here closes the last aliasing gap (a caller-retained
+        # list of items being appended/removed/reordered after construction).
+        object.__setattr__(self, "items", tuple(self.items))
         object.__setattr__(self, "assumptions", freeze_tuple_of_mappings(self.assumptions))
         object.__setattr__(self, "safe_omissions", freeze_tuple_of_mappings(self.safe_omissions))
         object.__setattr__(self, "policy_summary", freeze_mapping(self.policy_summary))

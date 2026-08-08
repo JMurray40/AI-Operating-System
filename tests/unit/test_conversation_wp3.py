@@ -45,12 +45,14 @@ def test_c17_metadata_claim_binds_current_metadata_evidence(tmp_path: Path) -> N
     s = app.create_session("local")
     snap = app.prepare_turn(s, _req(s.session_id, root), notes)
     # A frontmatter-derived excerpt is a valid, current-byte-validated citation target.
-    from jarvis_core.query.tokenizer import token_set
+    # AC-05-04R: support is exact (a current source sentence/span), not shared-token overlap
+    # — bind the claim to the item's exact excerpt text via ``exact_source_spans``.
+    from jarvis_core.conversation.evidence import exact_source_spans
     fm_item = next((it for it in snap.items if "---" in it.excerpt or ":" in it.excerpt), None)
     assert fm_item is not None
-    tok = next(iter(token_set(fm_item.excerpt)))  # a real metadata token to bind against
+    fact_text = exact_source_spans(fm_item.excerpt)[0]
     app.approve(s, actor="jason", now=T)
-    claims = [(f"The metadata records {tok}.", "fact", [fm_item.item_id])]
+    claims = [(fact_text, "fact", [fm_item.item_id])]
     res = app.dispatch_turn(s, MockConversationProvider(claims=claims), now=T)
     assert res.attempt.status is TerminalState.COMPLETED
     facts = [c for c in res.attempt.evidence.claims if c.evidence_type is EvidenceType.FACT]

@@ -16,6 +16,7 @@ separately authorized WP4 preflight (H07 §4.2).
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from jarvis_core.providers.conversation import (
@@ -57,14 +58,18 @@ APPROVED_PATH = f"/{APPROVED_API_VERSION}/models/{APPROVED_MODEL_ID}:{APPROVED_O
 APPROVED_TIMEOUT_SECONDS = 60.0
 APPROVED_MAX_INPUT_TOKENS = 64000
 APPROVED_MAX_OUTPUT_TOKENS = 8000
+APPROVED_THINKING_LEVEL = "minimal"
 
 
 def _destination_ok(t: object) -> bool:
-    """Exact-equality destination check (AC-05-03). Any drift returns False → BLOCKED.
+    """Exact-equality destination/transport check (AC-05-03R). Any drift -> False -> BLOCKED.
 
     A bare host (no user-info, no port) and a byte-exact path reject encoded paths, queries,
     fragments, extra/missing slashes, case variants, alternate ports, alternate models, API
-    versions, provider IDs, streaming, and retry/feature drift in one place.
+    versions, provider IDs, streaming, and retry/feature drift in one place. This covers only
+    the transport-metadata half of the approved policy (destination, protocol, retry/streaming
+    behavior, request-side limit); see ``_content_ok`` for the content-policy half
+    (response-side limit, thinking level) that a caller could vary independently.
     """
     host = getattr(t, "host", "")
     path = getattr(t, "path", "")
@@ -82,6 +87,23 @@ def _destination_ok(t: object) -> bool:
         and float(getattr(t, "timeout_seconds", 0.0)) == APPROVED_TIMEOUT_SECONDS
         and int(getattr(t, "max_input_tokens", 0)) == APPROVED_MAX_INPUT_TOKENS
     )
+
+
+def _content_ok(c: object) -> bool:
+    """Exact-equality content-policy check (AC-05-03R): the response-side limit and thinking
+    level, which live on ``ProviderContent`` rather than ``TransportMetadata`` and were
+    previously never checked at this boundary — a caller could vary ``max_output_tokens`` or
+    ``thinking_level`` with no effect on ``_destination_ok`` and no BLOCKED result.
+    """
+    max_output = getattr(c, "max_output_tokens", None)
+    thinking = getattr(c, "thinking_level", None)
+    if max_output is None:
+        return False
+    try:
+        max_output_ok = int(max_output) == APPROVED_MAX_OUTPUT_TOKENS
+    except (TypeError, ValueError):
+        max_output_ok = False
+    return max_output_ok and thinking == APPROVED_THINKING_LEVEL
 
 # Documentation reference for the wire shape; reconfirm at the WP4 preflight.
 GOOGLE_DOC_REFERENCE = "https://ai.google.dev/api/generate-content (v1beta models.generateContent)"
@@ -119,11 +141,19 @@ class GoogleGeminiAdapter:
 
     # ------------------------------------------------------------------ cost hook
     def estimate_cost_usd(self, snapshot: object) -> float:
-        """Pre-dispatch cost estimate for the per-request ceiling check (application hook)."""
+        """Pre-dispatch cost estimate for the per-request ceiling check (application hook).
+
+        AC-05-03R: ``budget_accounting`` is a digest-bearing field and is retained as a frozen
+        ``MappingProxyType`` (AC-05-01R), never a concrete ``dict``. The previous
+        ``isinstance(budget, dict)`` check is False for a mapping proxy, so this silently fell
+        back to a fixed zero-usage/zero-reserve estimate instead of the approved context/output
+        budgets on every real (frozen) snapshot. Checking the abstract ``Mapping`` contract
+        instead accepts both a plain dict (tests) and a frozen proxy (production).
+        """
         budget = getattr(snapshot, "budget_accounting", {})
         used = 0
         reserve = 0
-        if isinstance(budget, dict):
+        if isinstance(budget, Mapping):
             used = int(budget.get("context_tokens_used", 0) or 0)
             reserve = int(budget.get("output_reserve_tokens", 0) or 0)
         # Conservative bound: assume the whole context plus a fixed instruction overhead as
@@ -135,8 +165,13 @@ class GoogleGeminiAdapter:
         self, request: ProviderRequest, cancel: CancellationToken | None = None
     ) -> NormalizedResult:
         t = request.transport
-        # 1) Exact-equality endpoint allowlist (AC-05-03), enforced regardless of caller.
+        # 1) Exact-equality destination/transport allowlist (AC-05-03R), regardless of caller.
         if not _destination_ok(t):
+            return self._fail(request, TerminalState.BLOCKED, ERROR_ENDPOINT_DENIED)
+        # 1b) Exact-equality content-policy allowlist (AC-05-03R: max_output_tokens,
+        # thinking_level). Every mismatch fails BEFORE credential materialization and
+        # transport, same as the destination check above.
+        if not _content_ok(request.content):
             return self._fail(request, TerminalState.BLOCKED, ERROR_ENDPOINT_DENIED)
         # 2) Credential must be present (materialized by the application for one attempt).
         if request.credential is None:
@@ -308,11 +343,15 @@ def google_gemini_profile() -> object:
 __all__ = [
     "APPROVED_API_VERSION",
     "APPROVED_HOST",
+    "APPROVED_MAX_INPUT_TOKENS",
+    "APPROVED_MAX_OUTPUT_TOKENS",
     "APPROVED_MODEL_ID",
     "APPROVED_OPERATION",
     "APPROVED_PATH",
     "APPROVED_PROVIDER_ID",
     "APPROVED_SCHEME",
+    "APPROVED_THINKING_LEVEL",
+    "APPROVED_TIMEOUT_SECONDS",
     "GOOGLE_ADAPTER_VERSION",
     "GOOGLE_DOC_REFERENCE",
     "GOOGLE_DOC_VERIFIED",

@@ -1,16 +1,26 @@
-"""One immutable, sanitized presentation result (AC-05-05).
+"""One immutable, sanitized presentation result (AC-05-05R).
 
 A single public object built once from the internal turn result and consumed identically by
 the in-process API, the text renderer, the JSON renderer, and the CLI. Raw provider output
 never crosses this boundary: the answer and every claim are sanitized here, and the raw
 provider payload is already discarded upstream (it is never stored in the result, evidence,
 session history, trace, or errors).
+
+AC-05-05R residual: ``claims``/``usage``/``cost`` were retained as plain mutable dicts (and
+``to_dict()`` embedded ``self.usage``/``self.cost`` directly, with no copy at all), so a
+caller mutating a dict obtained from one accessor could corrupt the SAME retained
+``PresentationResult`` and change what a later ``to_dict()``/``to_text()`` call on that same
+object returns. Every collection here is now deep-frozen at construction (reusing the
+AC-05-01R immutability helpers), and ``to_dict()`` deep-thaws fresh, fully detached mutable
+copies for its output — public serialization may still return ordinary dicts/lists, but
+mutating them can never reach back into the retained object or any later render of it.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 from jarvis_core.conversation.evidence import AnswerEvidence, Claim
+from jarvis_core.conversation.immutable import deep_thaw, freeze_mapping, freeze_tuple_of_mappings
 from jarvis_core.conversation.results import TurnResult
 from jarvis_core.conversation.sanitize import sanitize_markdown
 
@@ -53,7 +63,20 @@ class PresentationResult:
     usage: dict[str, object]
     cost: dict[str, object]
 
+    def __post_init__(self) -> None:
+        # AC-05-05R: deep-freeze every retained collection so no caller-held reference —
+        # including one returned by an earlier accessor on THIS SAME object — can mutate the
+        # retained presentation or change what a later render of it returns.
+        object.__setattr__(self, "claims", freeze_tuple_of_mappings(self.claims))
+        object.__setattr__(self, "limitations", tuple(self.limitations))
+        object.__setattr__(self, "citations", tuple(self.citations))
+        object.__setattr__(self, "usage", freeze_mapping(self.usage))
+        object.__setattr__(self, "cost", freeze_mapping(self.cost))
+
     def to_dict(self) -> dict[str, object]:
+        # Deep-thaw fresh, fully DETACHED mutable copies for the output: a caller is free to
+        # mutate this dict (that is the point of "public serialization returns a fresh
+        # copy"), but doing so can never reach back into the retained frozen state above.
         return {
             "turn_number": self.turn_number,
             "request_id": self.request_id,
@@ -65,11 +88,11 @@ class PresentationResult:
                 "failure": self.failure,
                 "message": self.message,
                 "answer": self.answer,
-                "claims": [dict(c) for c in self.claims],
+                "claims": [deep_thaw(c) for c in self.claims],
                 "limitations": list(self.limitations),
                 "citations": list(self.citations),
-                "usage": self.usage,
-                "cost": self.cost,
+                "usage": deep_thaw(self.usage),
+                "cost": deep_thaw(self.cost),
             },
         }
 

@@ -15,6 +15,7 @@ import pytest
 from jarvis_core.config import Config
 from jarvis_core.conversation import ConversationApplication, PrepareTurnRequest
 from jarvis_core.conversation.contract import FailureClass
+from jarvis_core.conversation.request import Budgets
 from jarvis_core.policy import local_allow_all
 from jarvis_core.providers.conversation import (
     CancellationToken,
@@ -30,6 +31,8 @@ from jarvis_core.providers.conversation import (
 from jarvis_core.providers.credentials import EnvCredentialProvider, StaticCredentialProvider
 from jarvis_core.providers.google_gemini import (
     APPROVED_HOST,
+    APPROVED_MAX_OUTPUT_TOKENS,
+    APPROVED_THINKING_LEVEL,
     GoogleGeminiAdapter,
     google_gemini_profile,
 )
@@ -47,6 +50,14 @@ from jarvis_core.repositories import FileSystemKnowledgeRepository
 
 T = datetime(2026, 8, 1, tzinfo=timezone.utc)
 CANARY = "CANARY-API-KEY-do-not-log-9z9z"
+
+# AC-05-03R: the adapter now enforces exact content-policy equality (max_output_tokens,
+# thinking_level), not just transport/destination. Fixtures below must supply the approved
+# values to reach the behavior each test actually exercises (timeout/malformed/credential/
+# secret-redaction/...), rather than being short-circuited by a (correct) BLOCKED result.
+_GOOGLE_BUDGETS = Budgets(
+    context_tokens=3000, prompt_tokens=20000, output_reserve_tokens=APPROVED_MAX_OUTPUT_TOKENS
+)
 
 
 class CapturingTransport:
@@ -124,7 +135,10 @@ def _preq(
     return ProviderRequest(
         request_id="r",
         attempt_id="a",
-        content=ProviderContent("system safety instruction", "hello world", 800),
+        content=ProviderContent(
+            "system safety instruction", "hello world",
+            APPROVED_MAX_OUTPUT_TOKENS, APPROVED_THINKING_LEVEL,
+        ),
         transport=tm,
         credential=credential,
     )
@@ -216,6 +230,7 @@ def test_c15_secret_absent_from_all_surfaces_end_to_end() -> None:
         source_root=root,
         user_text="summarize the AI Operating System project",
         provider_profile=google_gemini_profile(),
+        budgets=_GOOGLE_BUDGETS,
         evaluation_time=T,
         want_trace=True,
     )
@@ -296,6 +311,7 @@ def test_application_maps_failure_classes() -> None:
         source_root=root,
         user_text="summarize the AI Operating System project",
         provider_profile=google_gemini_profile(),
+        budgets=_GOOGLE_BUDGETS,
         evaluation_time=T,
     )
     app.prepare_turn(s, req, notes, credentials=StaticCredentialProvider(CANARY))

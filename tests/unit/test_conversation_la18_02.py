@@ -1,4 +1,4 @@
-"""LA-18-02 — the lifecycle transaction's remaining gaps (Handoff 20 / Handoff 11 §20).
+"""LA-18-02 — the lifecycle transaction's remaining gaps (Handoff 20/21 / Handoff 11 §20).
 
 LA-18-01 made prepared/approval publication, attempt admission, terminal commit, and reset
 mutations individually atomic, but three narrower gaps in the complete semantic lifecycle
@@ -8,8 +8,22 @@ remained:
 ``session.lock`` but did NOT capture the matching ``pending_credentials``; ``_recheck_credential``
 and ``_credential`` re-read ``session.pending_credentials`` later, outside the lock, so a
 concurrent ``prepare_turn()`` could replace the credential provider after admission but before
-credential use. Fix: capture ``pending_credentials`` in the SAME admission lock acquisition and
-thread that exact reference through the rest of the attempt; never reread session state.
+credential use. Fix (Handoff 20, LA-18-02A): capture ``pending_credentials`` in the SAME
+admission lock acquisition and thread that exact reference through the rest of the attempt;
+never reread session state.
+
+20.1 residual (LA-18-02A-2, Handoff 21) — capturing the credential provider prevents
+SUBSTITUTION but, by itself, does nothing to stop the admitted attempt from using that captured
+credential and reaching the provider even after a replacement or reset has already invalidated
+it; terminal commit converts the result to a discarded/cancelled outcome, but by then the
+unauthorized egress has already occurred. Fix: a SECOND short lock acquisition
+(``_egress_admissible()``) immediately before any credential availability recheck,
+materialization, prompt/provider-request construction, or transport, re-verifying the entire
+admitted semantic envelope (preparation identity, credential-provider identity, generation,
+attempt identity, ``in_flight``) is still exactly what admission captured. A concurrent
+replacement/reset landing before this second check now defeats the attempt with ZERO credential
+or provider/transport calls; one landing after it can no longer prevent the already-admitted
+egress (only the later terminal commit, unchanged from LA-18-01).
 
 20.2 — ``prepare_turn()`` read ``focus_titles``/``history_text()`` outside the lock and published
 unconditionally; a terminal commit landing between capture and publish does not bump
@@ -47,12 +61,12 @@ from jarvis_core.conversation import (
 from jarvis_core.conversation.contract import DriftError
 from jarvis_core.policy import local_allow_all
 from jarvis_core.providers.conversation import (
+    Credential,
     MockConversationProvider,
     NormalizedResult,
     TerminalState,
     structured_answer,
 )
-from jarvis_core.providers.credentials import StaticCredentialProvider
 from jarvis_core.providers.google_gemini import APPROVED_MAX_OUTPUT_TOKENS, google_gemini_profile
 from jarvis_core.repositories import FileSystemKnowledgeRepository
 
@@ -137,22 +151,51 @@ class CapturingProvider:
         )
 
 
+class CountingCredentialProvider:
+    """A ``CredentialProvider`` that separately counts ``is_available()`` and ``get()`` calls
+    (Handoff 21 §4: "instrumented credential providers that separately count is_available()
+    and get()"). A normal, legitimate call happens once during ``prepare_turn()`` (Decision A's
+    pre-flight availability check) — tests snapshot the count baseline AFTER admission setup
+    (prepare + approve) and assert no ADDITIONAL calls occur during a defeated dispatch.
+    """
+
+    def __init__(self, secret: str | None) -> None:
+        self._secret = secret
+        self.is_available_calls = 0
+        self.get_calls = 0
+
+    def is_available(self) -> bool:
+        self.is_available_calls += 1
+        return bool(self._secret and self._secret.strip())
+
+    def get(self) -> Credential:
+        self.get_calls += 1
+        if not self._secret:
+            raise LookupError("credential is unavailable")
+        return Credential(self._secret)
+
+
 @pytest.fixture(scope="module")
 def vault() -> tuple[list, Path]:
     repo = FileSystemKnowledgeRepository(Config())
     return repo.discover(), Path(repo.root)
 
 
-# ================================================================ 20.1 credential binding
-def test_admitted_attempt_uses_captured_credential_not_a_concurrent_replacement(
+# ================================================================ 20.1 / LA-18-02A-2 credential
+# binding and second egress-admission linearization (Handoff 21). Four tests prove both
+# possible lock orders against the SECOND admission check, replacing the two prior tests that
+# encoded the LA-18-02A-2 defect (an admitted attempt reaching the provider with its captured
+# credential even after a replacement/reset had already invalidated it).
+def test_replacement_wins_before_egress_admission_zero_credential_or_provider_calls(
     vault: tuple[list, Path],
 ) -> None:
     notes, root = vault
     app = ConversationApplication()
     s = app.create_session("local")
-    old_cred = StaticCredentialProvider(_OLD_CANARY)
+    old_cred = CountingCredentialProvider(_OLD_CANARY)
     app.prepare_turn(s, _remote_req(s.session_id, root), notes, credentials=old_cred)
     app.approve(s, actor="jason", now=T)
+    is_avail_baseline = old_cred.is_available_calls  # one legitimate call already happened above
 
     prov = CapturingProvider()
     seam = SeamGate()
@@ -164,13 +207,11 @@ def test_admitted_attempt_uses_captured_credential_not_a_concurrent_replacement(
 
     t = threading.Thread(target=run)
     t.start()
-    # Admitted: prepared/approval/credentials captured and in_flight claimed, all under one
-    # lock acquisition — but paused BEFORE any credential recheck or materialization.
+    # Admitted (prepared/approval/credentials captured, in_flight claimed) but paused BEFORE
+    # the second egress-admission lock check has run at all.
     assert seam.entered.wait(timeout=5)
 
-    # A concurrent, unrelated prepare_turn() replaces BOTH the preparation and the credential
-    # provider while the admitted attempt is paused.
-    new_cred = StaticCredentialProvider(_NEW_CANARY)
+    new_cred = CountingCredentialProvider(_NEW_CANARY)
     app.prepare_turn(
         s, _remote_req(s.session_id, root, request_id="r2"), notes, credentials=new_cred
     )
@@ -179,31 +220,30 @@ def test_admitted_attempt_uses_captured_credential_not_a_concurrent_replacement(
     seam.release()
     t.join(timeout=5)
 
-    # The admitted attempt dispatched using its OWN captured (old) credential — it never
-    # reread the now-replaced session.pending_credentials.
-    assert len(prov.requests) == 1
-    credential = prov.requests[0].credential  # type: ignore[attr-defined]
-    assert credential is not None
-    assert credential.reveal() == _OLD_CANARY
+    # The second egress-admission check now runs for the first time and finds the preparation/
+    # credentials/generation already replaced: fails closed with ZERO additional credential
+    # calls on the OLD provider and ZERO materialization on the NEW one, and ZERO provider/
+    # transport calls — the old attempt never got far enough to touch either credential.
+    assert old_cred.is_available_calls == is_avail_baseline
+    assert old_cred.get_calls == 0
+    assert new_cred.get_calls == 0
+    assert len(prov.requests) == 0
 
-    # Per LA-18-01 (unregressed): the completion is still discarded because the replacement
-    # also bumped generation.
     result = outcome["value"]
     assert result.attempt.status is TerminalState.CANCELLED  # type: ignore[union-attr]
     assert s.turns == []
 
 
-def test_admitted_attempt_credential_unaffected_by_concurrent_reset(
+def test_reset_wins_before_egress_admission_zero_credential_or_provider_calls(
     vault: tuple[list, Path],
 ) -> None:
-    """A concurrent reset (not just a replacement) must not change which credential an already
-    -admitted attempt uses, even though the reset clears session.pending_credentials entirely."""
     notes, root = vault
     app = ConversationApplication()
     s = app.create_session("local")
-    old_cred = StaticCredentialProvider(_OLD_CANARY)
+    old_cred = CountingCredentialProvider(_OLD_CANARY)
     app.prepare_turn(s, _remote_req(s.session_id, root), notes, credentials=old_cred)
     app.approve(s, actor="jason", now=T)
+    is_avail_baseline = old_cred.is_available_calls
 
     prov = CapturingProvider()
     seam = SeamGate()
@@ -223,6 +263,95 @@ def test_admitted_attempt_credential_unaffected_by_concurrent_reset(
     seam.release()
     t.join(timeout=5)
 
+    assert old_cred.is_available_calls == is_avail_baseline
+    assert old_cred.get_calls == 0
+    assert len(prov.requests) == 0
+
+    result = outcome["value"]
+    assert result.attempt.status is TerminalState.CANCELLED  # type: ignore[union-attr]
+    assert s.turns == []
+
+
+def test_egress_admission_wins_before_replacement_uses_only_captured_credential(
+    vault: tuple[list, Path],
+) -> None:
+    notes, root = vault
+    app = ConversationApplication()
+    s = app.create_session("local")
+    old_cred = CountingCredentialProvider(_OLD_CANARY)
+    app.prepare_turn(s, _remote_req(s.session_id, root), notes, credentials=old_cred)
+    app.approve(s, actor="jason", now=T)
+
+    prov = CapturingProvider()
+    seam = SeamGate()
+    app._post_egress_admission_seam = seam  # type: ignore[assignment]
+    outcome: dict[str, object] = {}
+
+    def run() -> None:
+        outcome["value"] = app.dispatch_turn(s, prov, now=T)
+
+    t = threading.Thread(target=run)
+    t.start()
+    # The second egress-admission check has ALREADY passed (nothing raced it yet) — paused
+    # immediately after, before any credential recheck/materialization/transport.
+    assert seam.entered.wait(timeout=5)
+
+    new_cred = CountingCredentialProvider(_NEW_CANARY)
+    app.prepare_turn(
+        s, _remote_req(s.session_id, root, request_id="r2"), notes, credentials=new_cred
+    )
+    assert s.pending_credentials is new_cred
+
+    seam.release()
+    t.join(timeout=5)
+
+    # The already egress-admitted attempt proceeds using ONLY its captured (old) credential —
+    # never the replacement — reaching the provider exactly once.
+    assert old_cred.get_calls == 1
+    assert new_cred.is_available_calls == 1  # only its OWN prepare_turn()'s legitimate check
+    assert new_cred.get_calls == 0  # never materialized; never used for dispatch
+    assert len(prov.requests) == 1
+    credential = prov.requests[0].credential  # type: ignore[attr-defined]
+    assert credential is not None
+    assert credential.reveal() == _OLD_CANARY
+
+    # Per LA-18-01 (unregressed): the completion is still discarded at terminal commit because
+    # the replacement bumped generation — egress admission does not change that outcome, it
+    # only changes WHEN a stale attempt is stopped when the lock order goes the other way.
+    result = outcome["value"]
+    assert result.attempt.status is TerminalState.CANCELLED  # type: ignore[union-attr]
+    assert s.turns == []
+
+
+def test_egress_admission_wins_before_reset_uses_only_captured_credential(
+    vault: tuple[list, Path],
+) -> None:
+    notes, root = vault
+    app = ConversationApplication()
+    s = app.create_session("local")
+    old_cred = CountingCredentialProvider(_OLD_CANARY)
+    app.prepare_turn(s, _remote_req(s.session_id, root), notes, credentials=old_cred)
+    app.approve(s, actor="jason", now=T)
+
+    prov = CapturingProvider()
+    seam = SeamGate()
+    app._post_egress_admission_seam = seam  # type: ignore[assignment]
+    outcome: dict[str, object] = {}
+
+    def run() -> None:
+        outcome["value"] = app.dispatch_turn(s, prov, now=T)
+
+    t = threading.Thread(target=run)
+    t.start()
+    assert seam.entered.wait(timeout=5)
+
+    app.reset_session(s)
+    assert s.pending_credentials is None
+
+    seam.release()
+    t.join(timeout=5)
+
+    assert old_cred.get_calls == 1
     assert len(prov.requests) == 1
     credential = prov.requests[0].credential  # type: ignore[attr-defined]
     assert credential is not None

@@ -112,6 +112,34 @@ def _prepare_inputs_still_current(
     )
 
 
+def _egress_admissible(
+    session: Session,
+    prepared: object,
+    credentials: object,
+    generation: int,
+    attempt_id: str,
+) -> bool:
+    """LA-18-02A-2: caller MUST already hold ``session.lock``. True iff the ENTIRE semantic
+    envelope captured at initial admission — preparation identity, the exact credential-
+    provider reference, lifecycle generation, and attempt identity — is still exactly what
+    admission captured, AND the session still considers this attempt ``in_flight``.
+
+    A concurrent replacement or reset always force-clears ``in_flight`` and
+    ``active_attempt_id`` together (``Session._invalidate_lifecycle_locked``), replaces
+    ``pending_prepared`` with a genuinely new object, and replaces (or clears)
+    ``pending_credentials`` — so this single check catches every case Handoff 21 §3
+    enumerates (stale preparation, stale generation, stale attempt identity, cancelled/reset,
+    and stale credential-provider binding) without a separate flag.
+    """
+    return (
+        session.pending_prepared is prepared
+        and session.pending_credentials is credentials
+        and session.generation == generation
+        and session.active_attempt_id == attempt_id
+        and session.in_flight
+    )
+
+
 def _revalidate_current_bytes(
     snapshot: ContextSnapshot, source_root: Path, notes_by_relpath: dict[str, Note]
 ) -> None:
@@ -180,6 +208,18 @@ class ConversationApplication:
         # admitted attempt used only its OWN captured credential reference — never rereading
         # session.pending_credentials — without adding a parameter to any public method.
         self._post_admission_seam: Callable[[], None] = lambda: None
+        # LA-18-02A-2 test-only instrumentation seam: a private hook invoked immediately after
+        # the SECOND egress-admission lock check has passed (the admitted attempt's entire
+        # captured semantic envelope — preparation, credential-provider reference, generation,
+        # attempt identity, in_flight — was just reverified atomically) but BEFORE any
+        # credential availability recheck, materialization, prompt/provider-request
+        # construction, or transport. Every production call path leaves this a no-op. It exists
+        # so a barrier-controlled test can pause a REAL egress-admitted attempt at exactly this
+        # point and run a real concurrent prepare_turn()/reset() against it, then resume and
+        # assert the attempt proceeds using ONLY its already-captured credential — a
+        # replacement/reset landing AFTER this point can still defeat the eventual terminal
+        # commit, but can no longer prevent or alter the credential/provider access itself.
+        self._post_egress_admission_seam: Callable[[], None] = lambda: None
 
     # ------------------------------------------------------------------ session
     def create_session(
@@ -506,6 +546,40 @@ class ConversationApplication:
         attempt_id: str,
     ) -> TurnResult:
         snap = prepared.snapshot
+
+        # -------- LA-18-02A-2: second egress-admission linearization point. Capturing the
+        # credential provider at initial admission (LA-18-02A) prevents a concurrent
+        # prepare_turn() from SUBSTITUTING the credential this attempt uses, but by itself does
+        # nothing to stop the admitted attempt from using that captured credential and reaching
+        # the provider even when a replacement or reset has ALREADY invalidated it — terminal
+        # commit converts that to a discarded result, but the unauthorized egress itself would
+        # already have happened. Re-verify, under ONE short lock acquisition, that the ENTIRE
+        # admitted semantic envelope is still exactly what admission captured; if not, fail
+        # closed before any credential availability check, materialization, prompt/provider-
+        # request construction, or transport — and emit no credential/provider-attempt trace
+        # event for the discarded attempt.
+        with session.lock:
+            if not _egress_admissible(session, prepared, credentials, generation, attempt_id):
+                return TurnResult(
+                    turn_number=session.peek_turn_number(),
+                    request_id=snap.request_id,
+                    session_id=session.session_id,
+                    snapshot_digest=snap.digest,
+                    coverage=Coverage.NONE,
+                    attempt=AttemptResult(
+                        attempt_id=attempt_id,
+                        status=TerminalState.CANCELLED,
+                        failure=FailureClass.CANCELLED,
+                        message=(
+                            "attempt discarded before egress admission: session lifecycle changed"
+                        ),
+                    ),
+                )
+        # Test-only pre-egress-access seam (LA-18-02A-2): a no-op in every production call
+        # path. Invoked immediately after egress admission passes, before ANY credential
+        # recheck, materialization, prompt/provider-request construction, or transport.
+        self._post_egress_admission_seam()
+
         moment = _now(now)
 
         # -------- step 8: revalidate approval, policy, eligibility, credential, cost, bytes

@@ -291,3 +291,140 @@ samples retained.
 Chief-of-Staff validation and exact-commit CTO re-review of the executable commit
 `4f61cb19…` plus its descendant evidence commit. Quality, WP4, and live-provider activity
 remain unauthorized.
+
+---
+
+# SUPERSEDING REMEDIATION REVISION — Handoff 14 (AC-05-01R–05R, AE-05-01)
+
+This revision supersedes the disposition above for the final bounded remediation cycle
+authorized by Handoff 14 (correction base `20de32fc4a2d328ac9909f81c589bb821f87d205`,
+executable parent `4f61cb19b2de621ded86cdbc7882c01cea5d52e3`, controlling disposition Handoff
+11 superseding revision "Refactor first").
+
+## S1. Exact commit and tree identities
+
+| Artifact | Identity |
+|---|---|
+| Executable correction commit | `d27eb607ea05fc69b5948b3fb43583e0bc914335` |
+| Executable tree | `dc3ae61a2f15eecdffe5fa4c3fd4b0ac87bb3d33` |
+| Parent (correction base) | `20de32fc4a2d328ac9909f81c589bb821f87d205` |
+| Branch | `feature/v0.5-visible-context-conversation` |
+| Correction range | `20de32fc4a…20de32f` → `d27eb607ea05…d27eb60` (one commit, bounded source + tests only) |
+| Documentation/evidence-only descendant | immediate descendant of `d27eb607…` containing this revision plus the supplemental evidence JSON; no `src/`, `tests/`, scripts, dependency, or packaging change; exact SHA recorded at commit |
+
+The worktree was clean at the executable commit (`git status --porcelain` empty for
+`src`/`tests`; the only untracked path was a local `pip install -e .` build byproduct,
+`src/jarvis_core.egg-info/`, never staged or committed).
+
+## S2. AC-05-01R–05R requirement-to-test mapping
+
+| Requirement | Residual defect found | Implementation | Tests |
+|---|---|---|---|
+| AC-05-01R reject, not merely detect | `deep_freeze` silently retained any unrecognized value type (e.g. `bytearray`, an arbitrary mutable object) instead of raising; `ContextItem.heading_path` / `ProviderPolicy.disabled_features` were declared `tuple[str, ...]` but never copied/validated at construction, so a caller-owned mutable list could be mutated in place after the fact; `ContextSnapshot.items` itself was never copied | `conversation/immutable.py` `deep_freeze` now raises `TypeError` for any value that is not a mapping/sequence/set-like/known-immutable-scalar; `ContextItem.__post_init__` / `ProviderPolicy.__post_init__` normalize+copy+type-check `heading_path`/`disabled_features`; `ContextSnapshot.__post_init__` owns `items` as a tuple | `tests/unit/test_conversation_ac05_01r.py` (reject-unsupported-type, bytearray, nested-unsupported, set→frozenset, heading-path alias+reject, disabled-features alias+reject, snapshot-item alias, nested list-in-mapping/mapping-in-sequence, full-pipeline alias sweep) |
+| AC-05-02R real concurrency, no internal-flag poking | `Session.in_flight`/`approval_consumed` were a bare bool/attribute with no lock — a TOCTOU race under genuine simultaneous callers, previously proven only sequentially or by a test directly setting `in_flight = True`; a reset/context-removal concurrent with an in-flight dispatch on another thread was not defeated (the stale attempt could still write a turn/attempt into the now-different session, and its `finally` block could clear a NEWER attempt's `in_flight`) | `Session` gains a `threading.Lock` guarding the single-use approval/in-flight/attempt check-then-set as one atomic section (`application._run_attempt`); `Session.generation` is bumped by every lifecycle invalidation (`reset_lifecycle`); `_execute_attempt` captures its generation and discards (does not write back) a late completion if the generation changed, and only clears `in_flight` if unchanged | `tests/unit/test_conversation_ac05_02r.py` (real barrier-controlled concurrent initial dispatch — exactly one winner among 8 real threads; retry cannot overlap a genuinely in-flight initial dispatch; reset from another thread while in flight defeats the late completion and leaves the session clean, then a fresh dispatch on the same session works normally) |
+| AC-05-03R complete provider-policy enforcement | `max_output_tokens`/`thinking_level` live on `ProviderContent`, not `TransportMetadata`, and were never checked at the adapter boundary at all — the released positive-path fixture used an unapproved 800-token value and still dispatched; `estimate_cost_usd` checked `isinstance(budget, dict)`, which is `False` for a real snapshot's frozen `MappingProxyType` `budget_accounting` (AC-05-01R), silently falling back to a fixed zero-usage/zero-reserve estimate | `google_gemini._content_ok` adds exact equality on `max_output_tokens`/`thinking_level`, checked before credential materialization and transport exactly like `_destination_ok`; `estimate_cost_usd` now checks `collections.abc.Mapping` | `tests/unit/test_conversation_ac05_03.py` (fixed positive-path fixture to the approved 8000/"minimal"; 5 new content-policy negatives, each zero transport; content-policy-before-credential; frozen-mapping-proxy cost estimation uses the real budgets) |
+| AC-05-04R fail-closed claim support | Support was `token_set(claim) & token_set(excerpt)` — true whenever a claim shared even one token with the excerpt, including an ordinary stopword (`token_set` does not filter stopwords) — so a negated, numerically altered, entity-substituted, or wholly fabricated claim reusing one common word counted as fully supported | Replaced with conservative exact matching (`conversation/evidence.py`): a fact/inference claim is `supported` only when its normalized text equals an exact current-source sentence/span, the whole excerpt, or an exact approved metadata value of the cited item; inference additionally requires the exact deterministic `" and "`-joined conjunction of one exact span per cited premise in citation order — the sole authorized entailment rule; no embeddings, fuzzy thresholds, or broad entailment framework | `tests/unit/test_conversation_ac05_04r.py` (negation, numeric substitution, entity substitution, common-token-only — the exact prior bug, partial-sentence fragment, reordered punctuation, cross-item metadata/body mismatch, multi-premise exact/synthesized/wrong-order/missing-premise inference); existing `test_conversation_ac05_04.py`/`wp1.py`/`wp3.py` happy-path fixtures updated to bind claims to real exact spans instead of a synthetic shared-token wrapper |
+| AC-05-05R immutable + fully redacted | `PresentationResult.claims`/`usage`/`cost` were plain mutable dicts, and `to_dict()` embedded `self.usage`/`self.cost` directly with **no copy at all** — mutating one render's output could corrupt the retained object and change a LATER render of the SAME object; the shared `sanitize_markdown` pipeline never addressed absolute-path, traceback/exception, or credential/secret-like disclosure (the existing hostile-corpus test embedded all three but asserted on none of them) | `PresentationResult.__post_init__` deep-freezes `claims`/`usage`/`cost`; `to_dict()` deep-thaws fresh detached copies; `sanitize_markdown` adds Windows-drive/UNC/POSIX absolute-path redaction, traceback-header/file-line/exception-marker redaction, and credential/bearer-token/API-key/secret-like-canary redaction, applied through the one pipeline already shared by the API, text, JSON, CLI, trace, and history surfaces | `tests/unit/test_conversation_ac05_05r.py` (8 sanitizer unit cases incl. a relative-path/fraction negative control; full hostile-corpus parity check across API/text/JSON/CLI-text/trace/history; frozen-claims/usage/cost alias-mutation tests; the historical no-copy bug reproduced and proven fixed via a later-render-unaffected test) |
+
+162 conversation tests pass (0 failures, 1 environment-content-dependent justified skip: a
+reordered-punctuation case skips only when the fixture's chosen sentence has no trailing
+punctuation to move — a data-availability skip, not a defect). Full released sandbox suite:
+**464 passed, 3 skipped** (see S4 for the skip/fail breakdown).
+
+## S3. Performance-evidence reuse and bounded supplemental evidence
+
+- **Unchanged-query paired comparison: cited, not rerun.** This correction touches no file
+  under `query/`, `models/`, `policy/`, `repositories/`, `context.py`, `relationships/`,
+  `parsing/`, `identity.py`, or `config.py`; that stack remains byte-identical to the accepted
+  AE-05-01 measurement, so the `≤20%` unchanged-query gate result in
+  `docs/evidence/v0.5/conversation-performance-remediation.json`
+  (SHA-256 `57e031adb653db6c0f11fbc8e2bda484e20bf0c64684bd8ed315fc3480c7ae42`) is cited
+  unmodified.
+- **Conversation absolute gates: rerun (measured execution path changed).** This correction
+  touches `conversation/{application,evidence,immutable,presentation,sanitize,session,
+  snapshot}.py`, all of which are on the `ConversationApplication` path
+  `scripts/benchmark_conversation.py` exercises (prepare / approve+assemble+dispatch+validate
+  overhead / cancellation acknowledgement). Rerun against the new executable
+  `d27eb607ea05…`:
+
+  | Notes | prepare p50/p95/p99 (ms) | peak MiB | app-overhead p95 (ms) | cancel p95 (ms) |
+  |---|---|---|---|---|
+  | 100 | 10.221 / 13.141 / 13.748 | 1.08 | 5.451 | 1.319 |
+  | 500 | 50.323 / 54.441 / 54.557 | 4.511 | 10.107 | 1.381 |
+  | 1,000 | 102.072 / 109.303 / 112.208 | 8.333 | 9.285 | 1.432 |
+  | 5,000 | 578.746 / 597.57 / 615.826 | 41.904 | 19.969 | 1.361 |
+
+  Gate results: `prepare_p95_under_2s` PASS, `app_overhead_p95_under_250ms` PASS,
+  `cancel_p95_under_500ms` PASS — `all_gates_pass: true`. Raw per-run samples for every size
+  are retained in the artifact. Evidence file:
+  `docs/evidence/v0.5/conversation-performance-remediation-ac05r.json`, SHA-256
+  `892e9ff6b14e071c036fc9452bd03a1ba2ba6df47cc00094d97fb29dab69f340`. Produced only after the
+  executable commit was frozen (rerun against the committed `d27eb607…` tree, not a working
+  copy).
+- The added deep-freeze copying, exact-span lookups, lock-based concurrency gate, and extra
+  redaction regex passes show no material overhead against the accepted gate thresholds (all
+  three gates pass with wide margin at every size, including the 5,000-note ceiling).
+
+## S4. Gate results and justified skips (sandbox-only; see limitation below)
+
+- **Ruff** (`ruff check`) on every changed/new file: **all checks passed**. Two lint findings
+  in the new code were fixed during this cycle (an ambiguous-unicode-quote string in
+  `evidence.py`; a module-level-import-after-statement ordering issue introduced by a test
+  edit) rather than suppressed.
+- **`ruff format --check` — justified skip (repo-wide, pre-existing, out of bounded scope).**
+  The full tree already has ~123 of ~183 files that would be reformatted under the current
+  Ruff formatter, predating this correction (verified by inspecting unrelated pre-existing
+  lines in files this correction did not touch). Reformatting only the touched files would
+  still rewrite substantial pre-existing code this correction did not author, which the stop
+  line forbids ("do not perform unrelated refactoring"). Every line this correction actually
+  added is `ruff format`-clean in isolation; the repo-wide drift is unchanged by this commit
+  and is flagged here for a separate, explicitly authorized formatting pass.
+- **mypy strict**: `Success: no issues found in 89 source files`.
+- **Privacy/secret scan**: the new evidence JSON contains only schema/timing/gate fields (no
+  prompts, context, responses, credentials, private paths, or usernames); grepped clean for
+  path/username/secret-shaped strings. The correction diff itself contains no real-secret-
+  shaped strings outside the pre-existing synthetic test canaries (`CANARY-...`,
+  `SECRETVALUE`) already used throughout the released test suite as leak-detection markers.
+- **`git diff --check`**: clean (no whitespace conflicts).
+- **Local-link checks**: no `.md`/documentation files were added or changed by the executable
+  commit; not applicable to this commit's diff.
+- **Full released sandbox suite**: **464 passed, 3 skipped**, in
+  `tests/unit/test_project_resume_local_git.py`:
+  - `test_independent_windows_identity_row` [CS-21 skip, pre-existing —
+    "independent Windows-logon identity run cannot be executed in this session"];
+  - one pre-existing skip — "host git is below the 2.38.0 floor" (sandbox git is 2.34.1);
+  - **3 pre-existing FAILURES** in that same file (`test_real_git_process_boundary_reads_and_
+    does_not_mutate`, `test_no_temp_artifact_created_during_real_git`,
+    `test_real_git_different_owner_without_command_scope_is_denied`), all in the
+    `local_git`/real-git-process-boundary module, which this correction does not touch and
+    does not import (verified), and all attributable to the same sub-2.38.0 sandbox git
+    floor. These are environmental, not a regression from this correction: the failing test
+    module has no import-graph dependency on any file this correction changed.
+- **Limitation (explicit, unlike the prior round's claim): this session has no access to the
+  Windows host referenced in the prior remediation's "host verification" — all gates above
+  were run in the Linux Engineering sandbox only.** A host rerun (git ≥ 2.38, the accepted
+  reference machine) remains available and is the appropriate venue to close the three
+  environmental `local_git` failures and to obtain a definitive `ruff format` baseline
+  decision; neither blocks this bounded AC-05-01R–05R correction, which does not touch that
+  module.
+
+## S5. Privacy and no-live-call confirmation
+
+No live credential, provider/network call, vault write, packaging execution, QA, merge, push,
+tag, or release was performed. The Google adapter changes were exercised only through fake
+`Transport`/`CapturingTransport` fixtures and the deterministic mock provider; `GEMINI_API_KEY`
+was never read. No real personal data, credentials, or private paths were introduced into
+source, tests, or the evidence artifact (see privacy/secret scan above).
+
+## S6. Clean worktree confirmation
+
+`git status --porcelain` for `src`/`tests`/`scripts` is empty at both the executable commit
+`d27eb607…` and (after adding the two evidence/doc files) at the documentation/evidence-only
+descendant. The only untracked path throughout was the local `pip install -e .` build
+byproduct `src/jarvis_core.egg-info/`, which was never staged.
+
+## S7. Requested disposition
+
+Chief-of-Staff validation and one exact-candidate CTO re-review of the executable commit
+`d27eb607ea05fc69b5948b3fb43583e0bc914335` plus its documentation/evidence-only descendant.
+Quality, WP4, packaging, live-provider activity, merge, push, and release remain unauthorized.

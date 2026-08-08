@@ -15,6 +15,7 @@ Two gaps closed:
    (``present()``), text, JSON, CLI-equivalent (``render.result_dict``/``result_text``),
    trace, and history.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -51,10 +52,15 @@ def completed():  # type: ignore[no-untyped-def]
     app = ConversationApplication()
     s = app.create_session("local")
     req = PrepareTurnRequest(
-        request_id="r", session_id=s.session_id, workspace_id="local",
+        request_id="r",
+        session_id=s.session_id,
+        workspace_id="local",
         scope=local_allow_all(workspace_id="local", max_sensitivity="internal"),
-        source_root=Path(repo.root), user_text="summarize the AI Operating System project",
-        provider_profile=mock_profile(), evaluation_time=T, want_trace=True,
+        source_root=Path(repo.root),
+        user_text="summarize the AI Operating System project",
+        provider_profile=mock_profile(),
+        evaluation_time=T,
+        want_trace=True,
     )
     app.prepare_turn(s, req, notes)
     app.approve(s, actor="jason", now=T)
@@ -92,7 +98,7 @@ def test_sanitize_redacts_traceback_header() -> None:
 
 def test_sanitize_redacts_file_line_disclosure() -> None:
     out = sanitize_markdown('File "/opt/app/main.py", line 42, in run')
-    assert 'line 42' not in out or "[redacted-file-line]" in out
+    assert "line 42" not in out or "[redacted-file-line]" in out
     assert "[redacted-file-line]" in out
 
 
@@ -134,8 +140,12 @@ def test_hostile_corpus_absent_across_every_public_surface(completed) -> None:  
         "SECRETVALUE",
     )
     for surface_name, blob in (
-        ("api", api_blob), ("text", text_blob), ("json", json_blob),
-        ("cli_text", cli_text_blob), ("trace", trace_blob), ("history", history_blob),
+        ("api", api_blob),
+        ("text", text_blob),
+        ("json", json_blob),
+        ("cli_text", cli_text_blob),
+        ("trace", trace_blob),
+        ("history", history_blob),
     ):
         for marker in forbidden:
             assert marker not in blob, f"{marker!r} leaked into the {surface_name} surface"

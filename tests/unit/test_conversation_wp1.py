@@ -243,6 +243,7 @@ def test_c16_c18_taxonomy_distinct(vault: tuple[list, Path]) -> None:
     # AC-05-04R: support is exact (a current source sentence/span or exact metadata value),
     # never shared-token overlap — bind claims to real exact excerpt text.
     from jarvis_core.conversation.evidence import exact_source_spans
+
     notes, root = vault
     app = ConversationApplication()
     s = app.create_session("local")
@@ -259,7 +260,7 @@ def test_c16_c18_taxonomy_distinct(vault: tuple[list, Path]) -> None:
     res = app.dispatch_turn(s, MockConversationProvider(claims=claims), now=T)
     types = {c.evidence_type for c in res.attempt.evidence.claims}
     assert EvidenceType.FACT in types
-    assert EvidenceType.INFERENCE in types       # explicit multi-premise inference
+    assert EvidenceType.INFERENCE in types  # explicit multi-premise inference
     assert EvidenceType.MODEL_KNOWLEDGE in types  # uncited, visibly not source-backed
 
 
@@ -291,6 +292,7 @@ def test_c16_stale_citation_withholds_answer(vault: tuple[list, Path], tmp_path:
 def test_c19_coverage_labels(vault: tuple[list, Path]) -> None:
     # AC-05-04R: bind the claim to the item's real exact excerpt, not a shared-token wrapper.
     from jarvis_core.conversation.evidence import exact_source_spans
+
     notes, root = vault
     app = ConversationApplication()
     s = app.create_session("local")
@@ -303,9 +305,7 @@ def test_c19_coverage_labels(vault: tuple[list, Path]) -> None:
 
     app.prepare_turn(s, _request(s.session_id, root), notes)
     app.approve(s, actor="jason", now=T)
-    modelonly = app.dispatch_turn(
-        s, MockConversationProvider(reply="no citation here"), now=T
-    )
+    modelonly = app.dispatch_turn(s, MockConversationProvider(reply="no citation here"), now=T)
     assert modelonly.coverage is Coverage.INCOMPLETE
 
 

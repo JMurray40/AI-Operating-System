@@ -17,6 +17,7 @@ the primary control.
 ``json_default`` lets the canonical serializer emit frozen mappings/frozensets, and
 ``deep_thaw`` produces plain dict/list copies for public output.
 """
+
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence, Set

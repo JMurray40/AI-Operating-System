@@ -17,6 +17,7 @@ poking:
 - exactly one public terminal result exists;
 - cancellation/reset defeats late completion.
 """
+
 from __future__ import annotations
 
 import threading
@@ -38,9 +39,14 @@ _MSG = "summarize the AI Operating System project"
 
 def _req(sid: str, root: Path) -> PrepareTurnRequest:
     return PrepareTurnRequest(
-        request_id="r1", session_id=sid, workspace_id="local",
+        request_id="r1",
+        session_id=sid,
+        workspace_id="local",
         scope=local_allow_all(workspace_id="local", max_sensitivity="internal"),
-        source_root=root, user_text=_MSG, provider_profile=mock_profile(), evaluation_time=T,
+        source_root=root,
+        user_text=_MSG,
+        provider_profile=mock_profile(),
+        evaluation_time=T,
     )
 
 
@@ -68,8 +74,11 @@ class GatedProvider:
             else None
         )
         return NormalizedResult(
-            status=self.status, provider_id=request.transport.provider_id,
-            model_id=request.transport.model_id, adapter_version=self.adapter_version, text=text,
+            status=self.status,
+            provider_id=request.transport.provider_id,
+            model_id=request.transport.model_id,
+            adapter_version=self.adapter_version,
+            text=text,
         )
 
 

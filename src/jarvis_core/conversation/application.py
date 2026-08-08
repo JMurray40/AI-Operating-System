@@ -387,11 +387,7 @@ class ConversationApplication:
         result = provider.dispatch(request, cancel)
         # AC-05-02: honor cancellation even if the provider ignored the token — a provider
         # that returns a completed result cannot produce a second terminal state.
-        if (
-            cancel is not None
-            and cancel.cancelled
-            and result.status is not TerminalState.CANCELLED
-        ):
+        if cancel is not None and cancel.cancelled and result.status is not TerminalState.CANCELLED:
             result = replace(
                 result, status=TerminalState.CANCELLED, text=None, finish_reason="cancelled"
             )

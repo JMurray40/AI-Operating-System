@@ -82,8 +82,11 @@ class CapturingTransport:
 
 def _ok_body(text: str | None = None, usage: bool = True) -> bytes:
     from jarvis_core.providers.conversation import structured_answer
-    answer = text if text is not None else structured_answer(
-        [("A deterministic offline reply.", "model_knowledge", [])]
+
+    answer = (
+        text
+        if text is not None
+        else structured_answer([("A deterministic offline reply.", "model_knowledge", [])])
     )
     doc: dict = {
         "candidates": [
@@ -136,8 +139,10 @@ def _preq(
         request_id="r",
         attempt_id="a",
         content=ProviderContent(
-            "system safety instruction", "hello world",
-            APPROVED_MAX_OUTPUT_TOKENS, APPROVED_THINKING_LEVEL,
+            "system safety instruction",
+            "hello world",
+            APPROVED_MAX_OUTPUT_TOKENS,
+            APPROVED_THINKING_LEVEL,
         ),
         transport=tm,
         credential=credential,

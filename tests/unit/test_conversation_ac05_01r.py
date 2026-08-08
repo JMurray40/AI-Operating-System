@@ -10,6 +10,7 @@ copied, so a caller-retained list of items could be appended/reordered/removed a
 construction. All three are fixed here; these tests prove rejection (not mere later
 detection via ``verify_integrity()``) and prove every alias case is inert.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -33,19 +34,33 @@ def _snap():  # type: ignore[no-untyped-def]
     repo = FileSystemKnowledgeRepository(Config())
     notes = repo.discover()
     req = PrepareTurnRequest(
-        request_id="r", session_id="s", workspace_id="local",
+        request_id="r",
+        session_id="s",
+        workspace_id="local",
         scope=local_allow_all(workspace_id="local", max_sensitivity="internal"),
-        source_root=Path(repo.root), user_text="summarize the AI Operating System project",
-        provider_profile=mock_profile(), evaluation_time=T,
+        source_root=Path(repo.root),
+        user_text="summarize the AI Operating System project",
+        provider_profile=mock_profile(),
+        evaluation_time=T,
     )
     return ctx.prepare(req, notes).snapshot
 
 
 def _item(**over: object) -> ContextItem:
     base = dict(
-        item_id="C1", source_id="s1", source_identity_kind="note", relpath="a.md",
-        title="A", sensitivity="internal", source_fingerprint="fp", heading_path=["H1", "H2"],
-        line_start=1, line_end=2, excerpt="excerpt text", reason="matched", token_count=3,
+        item_id="C1",
+        source_id="s1",
+        source_identity_kind="note",
+        relpath="a.md",
+        title="A",
+        sensitivity="internal",
+        source_fingerprint="fp",
+        heading_path=["H1", "H2"],
+        line_start=1,
+        line_end=2,
+        excerpt="excerpt text",
+        reason="matched",
+        token_count=3,
     )
     base.update(over)
     return ContextItem(**base)  # type: ignore[arg-type]
@@ -53,10 +68,20 @@ def _item(**over: object) -> ContextItem:
 
 def _policy(**over: object) -> ProviderPolicy:
     base = dict(
-        provider_id="p", model_id="m", scheme="https", host="h", path="/x",
-        operation="generateContent", streaming=False, thinking_level="minimal",
-        timeout_seconds=1.0, automatic_retries=0, max_input_tokens=1, max_output_tokens=1,
-        disabled_features=["tools", "streaming"], is_remote=False,
+        provider_id="p",
+        model_id="m",
+        scheme="https",
+        host="h",
+        path="/x",
+        operation="generateContent",
+        streaming=False,
+        thinking_level="minimal",
+        timeout_seconds=1.0,
+        automatic_retries=0,
+        max_input_tokens=1,
+        max_output_tokens=1,
+        disabled_features=["tools", "streaming"],
+        is_remote=False,
     )
     base.update(over)
     return ProviderPolicy(**base)  # type: ignore[arg-type]
@@ -128,14 +153,24 @@ def test_disabled_features_rejects_non_string_elements() -> None:
 # ------------------------------------------------------------------ snapshot-item alias case
 def _base_snapshot_kwargs(items: list[ContextItem]) -> dict[str, object]:
     return dict(
-        request_id="r", session_id="s", workspace_id="w", normalized_user_input="hi",
-        assumptions=(), items=items, provider_policy=_policy(is_remote=False),
+        request_id="r",
+        session_id="s",
+        workspace_id="w",
+        normalized_user_input="hi",
+        assumptions=(),
+        items=items,
+        provider_policy=_policy(is_remote=False),
         prompt_versions=__import__(
             "jarvis_core.conversation.snapshot", fromlist=["PromptConstructionVersions"]
         ).PromptConstructionVersions(output_reserve_value=10),
-        policy_summary={}, authorization_summary={}, budget_accounting={},
-        safe_omissions=(), user_exclusions=(), price_table_version="v1",
-        max_cost_usd_per_request=1.0, evaluation_time="2026-08-01T00:00:00+00:00",
+        policy_summary={},
+        authorization_summary={},
+        budget_accounting={},
+        safe_omissions=(),
+        user_exclusions=(),
+        price_table_version="v1",
+        max_cost_usd_per_request=1.0,
+        evaluation_time="2026-08-01T00:00:00+00:00",
     )
 
 
@@ -179,10 +214,14 @@ def test_full_prepare_pipeline_survives_every_caller_alias_mutation() -> None:
     notes = repo.discover()
     focus = ["AI Operating System"]
     req = PrepareTurnRequest(
-        request_id="r", session_id="s", workspace_id="local",
+        request_id="r",
+        session_id="s",
+        workspace_id="local",
         scope=local_allow_all(workspace_id="local", max_sensitivity="internal"),
-        source_root=Path(repo.root), user_text="tell me about it",
-        provider_profile=mock_profile(), evaluation_time=T,
+        source_root=Path(repo.root),
+        user_text="tell me about it",
+        provider_profile=mock_profile(),
+        evaluation_time=T,
     )
     prepared = ctx.prepare(req, notes, focus_titles=tuple(focus))
     snap = prepared.snapshot

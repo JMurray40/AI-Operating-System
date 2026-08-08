@@ -23,6 +23,7 @@ withheld). An inference additionally requires the claim to be exactly the determ
 only entailment rule this milestone authorizes; anything else fails closed. No embeddings,
 semantic models, live providers, or fuzzy thresholds are used.
 """
+
 from __future__ import annotations
 
 import itertools
@@ -232,8 +233,7 @@ def _validate_inference(
     the deterministic conjunction of one exact span per premise (the sole authorized
     entailment rule). No authorized rule -> fail closed as incomplete."""
     premises = [
-        _validate_current_premise(snapshot, item_id, resolver, notes_by_relpath)
-        for item_id in ids
+        _validate_current_premise(snapshot, item_id, resolver, notes_by_relpath) for item_id in ids
     ]
     if not _inference_exactly_supported(claim_text, premises):
         raise EvidenceError(
@@ -315,9 +315,7 @@ def validate_response(
 
     limitations: list[str] = []
     if model_knowledge:
-        limitations.append(
-            "answer contains model-knowledge statements not backed by vault sources"
-        )
+        limitations.append("answer contains model-knowledge statements not backed by vault sources")
     if coverage in (Coverage.INCOMPLETE, Coverage.NONE):
         limitations.append("answer is not fully supported by cited sources")
 

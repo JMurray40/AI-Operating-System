@@ -78,9 +78,9 @@ def _destination_ok(t: object) -> bool:
         and getattr(t, "model_id", None) == APPROVED_MODEL_ID
         and getattr(t, "scheme", None) == APPROVED_SCHEME
         and host == APPROVED_HOST
-        and ":" not in host          # no alternate port
-        and "@" not in host          # no user-info
-        and path == APPROVED_PATH    # byte-exact: rejects %-encoding, ?, #, //, trailing /, case
+        and ":" not in host  # no alternate port
+        and "@" not in host  # no user-info
+        and path == APPROVED_PATH  # byte-exact: rejects %-encoding, ?, #, //, trailing /, case
         and getattr(t, "operation", None) == APPROVED_OPERATION
         and getattr(t, "streaming", True) is False
         and getattr(t, "automatic_retries", 1) == 0
@@ -104,6 +104,7 @@ def _content_ok(c: object) -> bool:
     except (TypeError, ValueError):
         max_output_ok = False
     return max_output_ok and thinking == APPROVED_THINKING_LEVEL
+
 
 # Documentation reference for the wire shape; reconfirm at the WP4 preflight.
 GOOGLE_DOC_REFERENCE = "https://ai.google.dev/api/generate-content (v1beta models.generateContent)"

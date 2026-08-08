@@ -1,4 +1,5 @@
 """AC-05-04 — structured claim/evidence validation and deterministic support (fail-closed)."""
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -24,18 +25,24 @@ def prepared():  # type: ignore[no-untyped-def]
     repo = FileSystemKnowledgeRepository(Config())
     notes = repo.discover()
     req = PrepareTurnRequest(
-        request_id="r", session_id="s", workspace_id="local",
+        request_id="r",
+        session_id="s",
+        workspace_id="local",
         scope=local_allow_all(workspace_id="local", max_sensitivity="internal"),
-        source_root=Path(repo.root), user_text="summarize the AI Operating System project",
-        provider_profile=mock_profile(), evaluation_time=T,
+        source_root=Path(repo.root),
+        user_text="summarize the AI Operating System project",
+        provider_profile=mock_profile(),
+        evaluation_time=T,
     )
     return ctx.prepare(req, notes)
 
 
 def _check(prepared, text: str):  # type: ignore[no-untyped-def]
     return validate_response(
-        prepared.snapshot, text,
-        source_root=prepared.source_root, notes_by_relpath=prepared.notes_by_relpath,
+        prepared.snapshot,
+        text,
+        source_root=prepared.source_root,
+        notes_by_relpath=prepared.notes_by_relpath,
     )
 
 
@@ -49,11 +56,13 @@ def test_valid_fact_and_inference_and_model_knowledge(prepared) -> None:  # type
     i1, i2 = snap.items[0], snap.items[1]
     fact1 = exact_source_spans(i1.excerpt)[0]  # the whole current excerpt: always an exact span
     fact2 = exact_source_spans(i2.excerpt)[0]
-    text = structured_answer([
-        (fact1, "fact", [i1.item_id]),
-        (f"{fact1} and {fact2}", "inference", [i1.item_id, i2.item_id]),
-        ("World knowledge.", "model_knowledge", []),
-    ])
+    text = structured_answer(
+        [
+            (fact1, "fact", [i1.item_id]),
+            (f"{fact1} and {fact2}", "inference", [i1.item_id, i2.item_id]),
+            ("World knowledge.", "model_knowledge", []),
+        ]
+    )
     ev = _check(prepared, text)
     assert ev.supported_count == 2 and ev.model_knowledge_count == 1
     assert ev.coverage is Coverage.PARTIAL
@@ -69,7 +78,7 @@ def test_model_knowledge_only_is_incomplete(prepared) -> None:  # type: ignore[n
 # ------------------------------------------------------------------ fail-closed
 def test_non_json_response_fails_closed(prepared) -> None:  # type: ignore[no-untyped-def]
     with pytest.raises(EvidenceError):
-        _check(prepared, "The system stores markdown. [C1]")   # legacy free-text markers
+        _check(prepared, "The system stores markdown. [C1]")  # legacy free-text markers
 
 
 def test_missing_claims_list_fails_closed(prepared) -> None:  # type: ignore[no-untyped-def]
@@ -133,4 +142,4 @@ def test_duplicate_evidence_ids_deduplicated(prepared) -> None:  # type: ignore[
     i1 = prepared.snapshot.items[0]
     fact = exact_source_spans(i1.excerpt)[0]
     ev = _check(prepared, structured_answer([(fact, "fact", [i1.item_id, i1.item_id])]))
-    assert ev.claims[0].citations == (i1.item_id,)   # de-duplicated, still supported
+    assert ev.claims[0].citations == (i1.item_id,)  # de-duplicated, still supported

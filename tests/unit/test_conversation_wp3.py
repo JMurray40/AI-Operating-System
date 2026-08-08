@@ -48,6 +48,7 @@ def test_c17_metadata_claim_binds_current_metadata_evidence(tmp_path: Path) -> N
     # AC-05-04R: support is exact (a current source sentence/span), not shared-token overlap
     # — bind the claim to the item's exact excerpt text via ``exact_source_spans``.
     from jarvis_core.conversation.evidence import exact_source_spans
+
     fm_item = next((it for it in snap.items if "---" in it.excerpt or ":" in it.excerpt), None)
     assert fm_item is not None
     fact_text = exact_source_spans(fm_item.excerpt)[0]

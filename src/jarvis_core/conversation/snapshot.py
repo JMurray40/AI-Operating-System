@@ -169,11 +169,12 @@ class PromptConstructionVersions:
 def _canonical_bytes(payload: dict[str, object]) -> bytes:
     """Deterministic canonical serialization used for the digest."""
     return json.dumps(
-        payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"),
+        payload,
+        sort_keys=True,
+        ensure_ascii=False,
+        separators=(",", ":"),
         default=json_default,
-    ).encode(
-        "utf-8"
-    )
+    ).encode("utf-8")
 
 
 @dataclass(frozen=True)

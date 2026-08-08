@@ -9,6 +9,7 @@ rule — exact current source sentence/span, exact metadata value, or (for infer
 deterministic ``" and "``-joined conjunction of one exact span per cited premise — rejects
 every one of those adversarial shapes, and still accepts a genuinely exact claim.
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -33,18 +34,24 @@ def prepared():  # type: ignore[no-untyped-def]
     repo = FileSystemKnowledgeRepository(Config())
     notes = repo.discover()
     req = PrepareTurnRequest(
-        request_id="r", session_id="s", workspace_id="local",
+        request_id="r",
+        session_id="s",
+        workspace_id="local",
         scope=local_allow_all(workspace_id="local", max_sensitivity="internal"),
-        source_root=Path(repo.root), user_text="summarize the AI Operating System project",
-        provider_profile=mock_profile(), evaluation_time=T,
+        source_root=Path(repo.root),
+        user_text="summarize the AI Operating System project",
+        provider_profile=mock_profile(),
+        evaluation_time=T,
     )
     return ctx.prepare(req, notes)
 
 
 def _check(prepared, text: str):  # type: ignore[no-untyped-def]
     return validate_response(
-        prepared.snapshot, text,
-        source_root=prepared.source_root, notes_by_relpath=prepared.notes_by_relpath,
+        prepared.snapshot,
+        text,
+        source_root=prepared.source_root,
+        notes_by_relpath=prepared.notes_by_relpath,
     )
 
 
@@ -131,15 +138,60 @@ def test_partial_sentence_fragment_fails_closed(prepared) -> None:  # type: igno
 
 
 # ------------------------------------------------------------------ reordered punctuation
-def test_reordered_punctuation_fails_closed(prepared) -> None:  # type: ignore[no-untyped-def]
-    sentence, item_id = _real_sentence(prepared)
+def _punctuation_fixture(tmp_path: Path) -> object:  # type: ignore[no-untyped-def]
+    """A minimal, fully self-authored one-note vault whose body sentence is GUARANTEED to end
+    in terminal punctuation (VC-15-02: the shared multi-note fixture vault's chosen sentence
+    is not guaranteed to have any, which made this adversarial case data-dependent instead of
+    deterministic). Single note, single unambiguous query match, no reliance on the shared
+    ``prepared`` fixture's content."""
+    root = tmp_path / "punct-vault"
+    root.mkdir()
+    (root / "Punctuation Fixture.md").write_text(
+        "---\n"
+        "id: punctuation-fixture\n"
+        "type: project\n"
+        'title: "Punctuation Fixture"\n'
+        "status: active\n"
+        "created: 2026-08-01\n"
+        "updated: 2026-08-01\n"
+        "sensitivity: internal\n"
+        "---\n\n"
+        "# Punctuation Fixture\n\n"
+        "## Overview\n\n"
+        "Zzqpunct sentinel marker sentence ends with terminal punctuation.\n",
+        encoding="utf-8",
+    )
+    notes = FileSystemKnowledgeRepository(Config(vault_path=root)).discover()
+    req = PrepareTurnRequest(
+        request_id="r",
+        session_id="s",
+        workspace_id="local",
+        scope=local_allow_all(workspace_id="local", max_sensitivity="internal"),
+        source_root=root,
+        user_text="Zzqpunct sentinel marker sentence",
+        provider_profile=mock_profile(),
+        evaluation_time=T,
+    )
+    return ctx.prepare(req, notes)
+
+
+def test_reordered_punctuation_fails_closed(tmp_path: Path) -> None:
+    local = _punctuation_fixture(tmp_path)
+    item = local.snapshot.items[0]  # type: ignore[attr-defined]
+    sentence = item.excerpt.strip()
     stripped = sentence.rstrip(".!?")
-    if stripped == sentence:  # pragma: no cover - no terminal punctuation to move
-        pytest.skip("fixture sentence has no trailing punctuation to reorder")
-    reordered = "!" + stripped  # move/insert punctuation elsewhere rather than at the tail
+    assert stripped != sentence, "authored fixture sentence must end in terminal punctuation"
+    # Move the terminal punctuation INTO the interior rather than the tail. Note that leading/
+    # trailing punctuation alone would be stripped by the exact-match normalizer's own edge
+    # trimming (by design, so "Sentence." and "Sentence" bind to the same source span) — an
+    # interior insertion is what actually exercises "the interior differs" rejection.
+    words = stripped.split()
+    assert len(words) >= 2, "authored fixture sentence must have an interior word boundary"
+    interior = " ".join([words[0], "!", *words[1:]])
+    reordered = interior + "."
     assert reordered != sentence
     with pytest.raises(EvidenceError):
-        _check(prepared, structured_answer([(reordered, "fact", [item_id])]))
+        _check(local, structured_answer([(reordered, "fact", [item.item_id])]))
 
 
 # ------------------------------------------------------------------ metadata/body mismatch
@@ -169,9 +221,7 @@ def test_multi_premise_inference_synthesized_conclusion_fails_closed(prepared) -
     # the two premises' exact spans) must fail closed: no broad entailment is authorized.
     conclusion = f"Because {i1.title} and {i2.title} are related, this follows."
     with pytest.raises(EvidenceError):
-        _check(
-            prepared, structured_answer([(conclusion, "inference", [i1.item_id, i2.item_id])])
-        )
+        _check(prepared, structured_answer([(conclusion, "inference", [i1.item_id, i2.item_id])]))
 
 
 def test_multi_premise_inference_wrong_order_fails_closed(prepared) -> None:  # type: ignore[no-untyped-def]
@@ -182,9 +232,7 @@ def test_multi_premise_inference_wrong_order_fails_closed(prepared) -> None:  # 
     if conclusion == f"{i1.excerpt} and {i2.excerpt}":  # pragma: no cover
         pytest.skip("fixture excerpts happen to be order-symmetric")
     with pytest.raises(EvidenceError):
-        _check(
-            prepared, structured_answer([(conclusion, "inference", [i1.item_id, i2.item_id])])
-        )
+        _check(prepared, structured_answer([(conclusion, "inference", [i1.item_id, i2.item_id])]))
 
 
 def test_multi_premise_inference_missing_one_premise_link_fails_closed(prepared) -> None:  # type: ignore[no-untyped-def]
@@ -192,6 +240,4 @@ def test_multi_premise_inference_missing_one_premise_link_fails_closed(prepared)
     # Only i1's exact span, with unrelated filler standing in for the second premise.
     conclusion = f"{i1.excerpt} and something else entirely"
     with pytest.raises(EvidenceError):
-        _check(
-            prepared, structured_answer([(conclusion, "inference", [i1.item_id, i2.item_id])])
-        )
+        _check(prepared, structured_answer([(conclusion, "inference", [i1.item_id, i2.item_id])]))

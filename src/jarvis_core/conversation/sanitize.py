@@ -12,6 +12,7 @@ addressed three named categories from the redaction corpus: (1) Windows/POSIX ab
 disclosure, (2) traceback/exception/file-line disclosure, and (3) credential/secret-like
 canaries. All three are addressed here so every public surface gets the same guarantee.
 """
+
 from __future__ import annotations
 
 import re

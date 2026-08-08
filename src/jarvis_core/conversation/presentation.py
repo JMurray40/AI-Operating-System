@@ -15,6 +15,7 @@ AC-05-01R immutability helpers), and ``to_dict()`` deep-thaws fresh, fully detac
 copies for its output — public serialization may still return ordinary dicts/lists, but
 mutating them can never reach back into the retained object or any later render of it.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass

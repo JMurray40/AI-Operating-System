@@ -26,7 +26,7 @@ class AttemptRecord:
 
     attempt_id: str
     status: str  # TerminalState value
-    kind: str    # 'initial' | 'retry'
+    kind: str  # 'initial' | 'retry'
 
 
 @dataclass(frozen=True)

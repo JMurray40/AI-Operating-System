@@ -1087,3 +1087,127 @@ Return to Chief of Staff for validation of the corrected executable commit
 Handoff 21 §5 (do not route directly to CTO). Quality, WP4, credentials, provider/network
 activity, packaging, merge, push, tag, release, Voice Shell, Multica, and Ruflo remain
 unauthorized.
+
+## SUPERSEDING FINAL CORRECTION — Handoff 23 (LA-18-02A-3)
+
+### Y1. Exact commit and tree identities
+
+| Artifact | Identity |
+|---|---|
+| Reviewed executable (LA-18-02A-2 closed) | `0b4d372abf7201f7a47d64cdd5f833787d268447` |
+| Reviewed evidence commit | `321e4a2e9633372f8d0c137175a0b4decf14df94` |
+| Controlling finding | Handoff 11, LA-18-02A-3 |
+| **New executable correction commit** | `75f0c0dda3a92e202efc5bda6acdfe4ba3a470b9` |
+| **New executable tree** | `d6c4f1fdf4a090dca82fa08acd0a722ec62f5abe` |
+| Branch | `feature/v0.5-visible-context-conversation` |
+| Files touched | `src/jarvis_core/conversation/application.py` (only implementation file); `tests/unit/test_conversation_la18_02.py` (2 new tests added) — 2 files |
+| Documentation/evidence-only descendant | immediate descendant of `75f0c0dd…` containing this revision plus the rebound supplemental evidence JSON; no `src/`, `tests/`, scripts, dependency, or packaging change; exact SHA recorded at commit |
+
+### Y2. LA-18-02A-3 requirement-to-fix mapping
+
+| Gap (Handoff 23 §2) | Prior state | Fix |
+|---|---|---|
+| Cancellation absent from egress admission | The second egress-admission decision (LA-18-02A-2) revalidated preparation/credential-provider/generation/attempt-identity/`in_flight`, but never observed the supplied `CancellationToken`; a token already cancelled before that decision still let the candidate perform credential availability, materialization, and provider dispatch before terminal cancellation caught up | The same short lock-protected decision in `_execute_attempt()` now also reads `cancel.cancelled` (a non-blocking, thread-safe property — never `.wait()`) alongside `_egress_admissible()`. If the token already won, it returns a `TerminalState.CANCELLED`/`FailureClass.CANCELLED` `TurnResult` immediately with message `"attempt cancelled before egress admission"` — zero credential (`is_available()`/`get()`), provider, or transport calls, and zero trace events (distinct from the pre-existing lifecycle-envelope-mismatch message, so the two causes remain distinguishable). |
+
+A token that wins AFTER egress admission passes follows the existing, unchanged
+cooperative-cancellation path: `provider.dispatch()` may already be underway; once it returns,
+the framework's pre-existing check (`if cancel is not None and cancel.cancelled and
+result.status is not TerminalState.CANCELLED: result = replace(..., status=CANCELLED, ...)`)
+still forces the terminal result to a speech-ineligible cancellation, unchanged by this
+correction. `session.lock` is never held while waiting on cancellation, credential access,
+provider work, or I/O — the decision remains non-blocking.
+
+### Y3. Required tests — both lock orders
+
+`tests/unit/test_conversation_la18_02.py`, 2 new tests, using the existing counting credential/
+provider spies and seams — no test establishes its result by directly mutating session-internal
+fields:
+
+| Handoff 23 §4 requirement | Test |
+|---|---|
+| 1. Cancellation wins before second egress admission → zero credential availability/materialization calls, zero provider/transport calls, zero new trace events, silent typed cancellation, no public turn | `test_cancellation_wins_before_second_egress_admission_is_silent_and_zero_activity` — paused at the existing `_post_admission_seam` (before the second decision runs at all); asserts `len(s.trace.events)` is unchanged from the pre-race baseline |
+| 2. Second egress admission wins before cancellation → the already-admitted path uses only the captured credential (never a replacement), and the result remains terminal/speech-ineligible | `test_egress_admission_wins_before_cancellation_uses_only_captured_credential` — paused at the existing `_post_egress_admission_seam` (immediately after the second decision has already passed with the token not yet cancelled) |
+
+All accepted replacement/reset lock-order tests (the four LA-18-02A-2 tests), plus all
+LA-18-02B/C, LA-18-01, AC-05-02R-2, and AC-05-01R-2 tests, were retained and rerun unmodified
+alongside these two.
+
+### Y4. Gate results (this sandbox)
+
+- **`ruff format --check`** (2 changed files): PASS — "2 files already formatted."
+- **`ruff check`** (2 changed files): PASS — "All checks passed!"
+- **mypy** (project's actual configured invocation, `pyproject.toml` `[tool.mypy]`,
+  `packages = ["jarvis_core"]`): **`Success: no issues found in 89 source files`.**
+- **`git diff --check`**: PASS — clean, no whitespace conflicts.
+- **Privacy/secret scan**: zero matches in `src/`; existing test canaries unchanged in scope.
+- **Focused LA-18-02(A-3) tests**: 11/11 pass; combined with `test_conversation_la18_01.py`,
+  `test_conversation_ac05_02r2.py`, `test_conversation_ac05_01r2.py` (42 tests total),
+  stress-run 5 consecutive times with zero failures.
+- **Complete conversation suite**: `pytest tests/unit -k conversation`: **205 passed, 0
+  skipped, 307 deselected** (203 prior + 2 new); stress-run 5 consecutive times with zero
+  failures.
+- **Complete regression suite**: `pytest tests` (unit + integration): **631 passed, 2 skipped,
+  3 failed.** Identical failure signatures/messages to every prior round's disclosed baseline
+  (sandbox git below the 2.38.0 floor those three `test_project_resume_local_git.py` tests
+  require; the other skip is the pre-existing CS-21 independent-Windows-logon item). 629→631
+  passed is exactly +2, the size of this cycle's test addition; failed/skipped counts are
+  unchanged. Neither category is touched by, caused by, or related to this correction.
+- **Limitation, stated plainly**: this sandbox cannot reach the user's Windows host directly.
+  For the deterministic, environment-independent gates above that is not a limitation — both
+  environments read the same committed tree and produce the same result. It remains a real,
+  unclosed gap only for the three git-version-floor-sensitive `local_git` failures, unrelated
+  to LA-18-02A-3.
+
+### Y5. Rebound supplemental performance evidence
+
+The application lifecycle path changed (`_execute_attempt`'s second decision now also reads
+`cancel.cancelled`), so the conversation absolute benchmark is rerun against the new exact
+executable `75f0c0dda3a92e202efc5bda6acdfe4ba3a470b9` per Handoff 23 §5. The unchanged-query
+paired-comparison result remains cited unmodified (its inputs — the query stack — are untouched
+by this cycle).
+
+| Notes | prepare p50/p95/p99 (ms) | peak MiB | app-overhead p95 (ms) | cancel p95 (ms) |
+|---|---|---|---|---|
+| 100 | 9.862 / 11.364 / 13.136 | 1.08 | 5.6 | 1.178 |
+| 500 | 51.843 / 56.561 / 56.828 | 4.511 | 11.655 | 3.393 |
+| 1,000 | 104.979 / 116.373 / 119.573 | 8.333 | 9.76 | 1.396 |
+| 5,000 | 610.571 / 767.126 / 795.282 | 41.904 | 23.82 | 6.826 |
+
+Gate results: `prepare_p95_under_2s` PASS, `app_overhead_p95_under_250ms` PASS,
+`cancel_p95_under_500ms` PASS — `all_gates_pass: true`. Adding one non-blocking property read
+to the existing second lock acquisition shows no material overhead against the accepted gate
+thresholds at any size, including the 5,000-note ceiling; per-run variance at 5,000 notes is
+consistent with the sandbox's general noise floor observed across all prior rounds. Raw per-run
+samples for every size are retained in the artifact; every reported p95 and all three gates were
+independently recomputed from `prepare_raw_ms`/`app_overhead_raw_ms`/`cancel_raw_ms` in this
+sandbox and matched exactly.
+
+Evidence file: `docs/evidence/v0.5/conversation-performance-remediation-h23.json`,
+**SHA-256 `52b0590356d576b243cabf7e69d9e5a225704e83c1c7a3a2c7456b7355cd39a9`**. This supersedes
+`conversation-performance-remediation-h21.json` as the operative absolute-benchmark evidence
+for the current executable; all prior evidence files are retained unmodified as historical
+record and are not deleted or overwritten.
+
+### Y6. Privacy and no-live-call confirmation
+
+No live credential, provider/network call, vault write, packaging execution, QA, merge, push,
+tag, or release was performed. No real personal data, credentials, or private paths were
+introduced into source, tests, or the evidence artifact. `cancel.cancelled` is a local,
+in-process, non-blocking property read; no I/O, network, or blocking wait was added anywhere in
+the decision path.
+
+### Y7. Clean worktree confirmation
+
+`git status --porcelain` is empty at the new executable commit `75f0c0dda3a9…` (verified
+directly). No `src/jarvis_core.egg-info/` or any other generated/build artifact is present,
+tracked, staged, or untracked in the worktree at this commit — `git clean -ndx` reports only
+gitignored tool caches (`.mypy_cache/`, `.pytest_cache/`, `.ruff_cache/`, `__pycache__/` under
+`scripts/`/`src/`/`tests/`), none of which are new to this cycle or were ever staged.
+
+### Y8. Requested disposition
+
+Return to Chief of Staff for validation of the corrected executable commit
+`75f0c0dda3a92e202efc5bda6acdfe4ba3a470b9` and its documentation/evidence-only descendant, per
+Handoff 23 §5 (do not route directly to CTO). Quality, WP4, credentials, provider/network
+activity, packaging, merge, push, tag, release, Voice Shell, Multica, and Ruflo remain
+unauthorized.

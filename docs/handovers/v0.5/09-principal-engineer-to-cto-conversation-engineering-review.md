@@ -956,3 +956,134 @@ Return to Chief of Staff for validation of the corrected executable commit
 Handoff 20 §7-8 (do not route directly to CTO). Quality, WP4, credentials, provider/network
 activity, packaging, merge, push, tag, release, Voice Shell, Multica, and Ruflo remain
 unauthorized.
+
+## SUPERSEDING FINAL CORRECTION — Handoff 21 (LA-18-02A-2)
+
+### X1. Exact commit and tree identities
+
+| Artifact | Identity |
+|---|---|
+| Reviewed executable (LA-18-02B/C closed) | `5e05fc934e4631cc8ab4fefd988946a65d70ba96` |
+| Reviewed evidence commit | `349370b86b57c75fd4e37aa72ce8755689e19874` |
+| **New executable correction commit** | `0b4d372abf7201f7a47d64cdd5f833787d268447` |
+| **New executable tree** | `2a10f408002a2dbe667a8d560f4e7c255b577aa0` |
+| Branch | `feature/v0.5-visible-context-conversation` |
+| Files touched | `src/jarvis_core/conversation/application.py` (only implementation file — no `Session` field/method changes were needed); `tests/unit/test_conversation_la18_02.py` (2 defect-encoding tests replaced with 4 required tests; see X2) — 2 files |
+| Documentation/evidence-only descendant | immediate descendant of `0b4d372a…` containing this revision plus the rebound supplemental evidence JSON; no `src/`, `tests/`, scripts, dependency, or packaging change; exact SHA recorded at commit |
+
+### X2. LA-18-02A-2 requirement-to-fix mapping
+
+| Gap (Handoff 21 §2) | Prior state | Fix |
+|---|---|---|
+| Captured credential still permits stale egress | LA-18-02A captured `pending_credentials` at admission, preventing SUBSTITUTION, but the admitted attempt then used that captured credential and called the provider even after a replacement/reset had already invalidated it before credential use; terminal commit converted the result to CANCELLED, but the unauthorized egress had already occurred | New module-level `_egress_admissible(session, prepared, credentials, generation, attempt_id)`. `_execute_attempt()` now acquires `session.lock` a SECOND time, immediately on entry (before `snap.verify_integrity()`, `approval.check()`, `_recheck_eligibility`, `_recheck_credential`, `_recheck_cost`, `_revalidate_current_bytes`, prompt assembly, or dispatch), and re-verifies the ENTIRE admitted semantic envelope — preparation identity, the exact credential-provider reference, generation, attempt identity, and `in_flight` — is still exactly what admission captured. A mismatch returns a `TerminalState.CANCELLED`/`FailureClass.CANCELLED` `TurnResult` immediately, with zero credential (`is_available()`/`get()`), provider, or transport calls, and no credential/provider-attempt trace event. |
+
+A new private `_post_egress_admission_seam` test-only hook (production no-op) fires immediately
+after this second check passes, before any credential recheck/materialization/prompt/transport
+— mirroring the existing seam pattern. The two prior tests that encoded this defect as expected
+behavior (`test_admitted_attempt_uses_captured_credential_not_a_concurrent_replacement`,
+`test_admitted_attempt_credential_unaffected_by_concurrent_reset`) were removed; empirically
+confirmed to now FAIL against the corrected executable (zero provider calls where they expected
+one) before being replaced, which is itself part of this correction's proof.
+
+### X3. Required race tests — both lock orders
+
+`tests/unit/test_conversation_la18_02.py`, 4 new tests replacing the 2 removed, using a new
+`CountingCredentialProvider` (separately counts `is_available()`/`get()`) and the existing
+`CapturingProvider` as a provider/transport spy — no test establishes its result by directly
+mutating session-internal fields:
+
+| Handoff 21 §4 requirement | Test |
+|---|---|
+| 1. Replacement wins before egress admission → zero availability/materialization calls on EITHER credential provider; zero provider/transport calls | `test_replacement_wins_before_egress_admission_zero_credential_or_provider_calls` — paused at the existing `_post_admission_seam` (before the second check has run at all) |
+| 2. Reset wins before egress admission → zero calls | `test_reset_wins_before_egress_admission_zero_credential_or_provider_calls` |
+| 3. Egress admission wins before replacement → exactly the captured OLD credential is used (never the replacement), later terminal commit still discarded | `test_egress_admission_wins_before_replacement_uses_only_captured_credential` — paused at the new `_post_egress_admission_seam` (immediately after the second check has ALREADY passed) |
+| 4. Egress admission wins before reset → exactly the captured credential is used, later terminal commit still discarded | `test_egress_admission_wins_before_reset_uses_only_captured_credential` |
+
+All accepted LA-18-02B/C, LA-18-01, AC-05-02R-2, and AC-05-01R-2 tests were retained and rerun
+unmodified alongside these four (verified in X4).
+
+### X4. Gate results (this sandbox)
+
+- **`ruff format --check`** (2 changed files): PASS — "2 files already formatted" (one
+  formatting pass applied during authoring — a wrapped string literal — before this gate).
+- **`ruff check`** (2 changed files): PASS — "All checks passed!"
+- **mypy** (project's actual configured invocation, `pyproject.toml` `[tool.mypy]`,
+  `packages = ["jarvis_core"]`): **`Success: no issues found in 89 source files`.**
+- **`git diff --check`**: PASS — clean, no whitespace conflicts.
+- **Privacy/secret scan**: the two test canaries appear only in
+  `tests/unit/test_conversation_la18_02.py`; zero matches in `src/`.
+- **Focused LA-18-02(A-2) tests**: 9/9 pass; combined with `test_conversation_la18_01.py`,
+  `test_conversation_ac05_02r2.py`, `test_conversation_ac05_01r2.py` (40 tests total),
+  stress-run 5 consecutive times with zero failures.
+- **Complete conversation suite**: `pytest tests/unit -k conversation`: **203 passed, 0
+  skipped, 307 deselected** (201 prior − 2 removed + 4 new); stress-run 5 consecutive times
+  with zero failures.
+- **Complete regression suite**: `pytest tests` (unit + integration): **629 passed, 2 skipped,
+  3 failed.** Identical failure signatures/messages to every prior round's disclosed baseline
+  (sandbox git below the 2.38.0 floor those three `test_project_resume_local_git.py` tests
+  require; the other skip is the pre-existing CS-21 independent-Windows-logon item). 627→629
+  passed is exactly +2, the net size change of this cycle's test file edit; failed/skipped
+  counts are unchanged. Neither category is touched by, caused by, or related to this
+  correction.
+- **Limitation, stated plainly**: this sandbox cannot reach the user's Windows host directly.
+  For the deterministic, environment-independent gates above that is not a limitation — both
+  environments read the same committed tree and produce the same result. It remains a real,
+  unclosed gap only for the three git-version-floor-sensitive `local_git` failures, unrelated
+  to LA-18-02A-2.
+
+### X5. Rebound supplemental performance evidence
+
+The application lifecycle path changed (`_execute_attempt`'s new second lock acquisition), so
+the conversation absolute benchmark is rerun against the new exact executable
+`0b4d372abf7201f7a47d64cdd5f833787d268447` per Handoff 21 §5. The unchanged-query
+paired-comparison result remains cited unmodified (its inputs — the query stack — are untouched
+by this cycle).
+
+| Notes | prepare p50/p95/p99 (ms) | peak MiB | app-overhead p95 (ms) | cancel p95 (ms) |
+|---|---|---|---|---|
+| 100 | 10.114 / 13.154 / 13.415 | 1.08 | 5.621 | 1.218 |
+| 500 | 50.492 / 55.207 / 55.86 | 4.511 | 8.657 | 1.469 |
+| 1,000 | 107.028 / 119.093 / 127.123 | 8.333 | 9.283 | 2.212 |
+| 5,000 | 581.879 / 604.254 / 605.003 | 41.904 | 19.119 | 1.454 |
+
+Gate results: `prepare_p95_under_2s` PASS, `app_overhead_p95_under_250ms` PASS,
+`cancel_p95_under_500ms` PASS — `all_gates_pass: true`. Adding one additional short lock
+acquisition per dispatch attempt (mock-path measurement; the check itself does no I/O) shows no
+material overhead against the accepted gate thresholds at any size, including the 5,000-note
+ceiling — all figures are within the same range as the H20 round's rebound evidence. Raw
+per-run samples for every size are retained in the artifact; every reported p95 and all three
+gates were independently recomputed from `prepare_raw_ms`/`app_overhead_raw_ms`/
+`cancel_raw_ms` in this sandbox and matched exactly.
+
+Evidence file: `docs/evidence/v0.5/conversation-performance-remediation-h21.json`,
+**SHA-256 `750e62ab084d5813817ef4a2611f6ddee3449914164f7de0a0a6dc097588b52f`**. This supersedes
+`conversation-performance-remediation-h20.json` as the operative absolute-benchmark evidence
+for the current executable; all prior evidence files are retained unmodified as historical
+record and are not deleted or overwritten.
+
+### X6. Privacy and no-live-call confirmation
+
+No live credential, provider/network call, vault write, packaging execution, QA, merge, push,
+tag, or release was performed. No real personal data, credentials, or private paths were
+introduced into source, tests, or the evidence artifact (see privacy/secret scan above — the
+two canaries are synthetic, confined to the test file, and never appear in `src/`). The new
+`_post_egress_admission_seam` is a private, in-process callback hook with no I/O of its own;
+every production call path leaves it a no-op, mirroring the existing seams it joins. The second
+lock acquisition it follows performs no I/O and invokes no credential/provider method on the
+failure path.
+
+### X7. Clean worktree confirmation
+
+`git status --porcelain` is empty at the new executable commit `0b4d372abf72…` (verified
+directly). No `src/jarvis_core.egg-info/` or any other generated/build artifact is present,
+tracked, staged, or untracked in the worktree at this commit — `git clean -ndx` reports only
+gitignored tool caches (`.mypy_cache/`, `.pytest_cache/`, `.ruff_cache/`, `__pycache__/` under
+`scripts/`/`src/`/`tests/`), none of which are new to this cycle or were ever staged.
+
+### X8. Requested disposition
+
+Return to Chief of Staff for validation of the corrected executable commit
+`0b4d372abf7201f7a47d64cdd5f833787d268447` and its documentation/evidence-only descendant, per
+Handoff 21 §5 (do not route directly to CTO). Quality, WP4, credentials, provider/network
+activity, packaging, merge, push, tag, release, Voice Shell, Multica, and Ruflo remain
+unauthorized.

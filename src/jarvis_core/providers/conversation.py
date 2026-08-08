@@ -298,8 +298,13 @@ class MockConversationProvider:
             text = structured_answer([(self._reply, "model_knowledge", [])])
         else:
             text = structured_answer(
-                [(f"[mock:{request.transport.model_id}] deterministic offline reply.",
-                  "model_knowledge", [])]
+                [
+                    (
+                        f"[mock:{request.transport.model_id}] deterministic offline reply.",
+                        "model_knowledge",
+                        [],
+                    )
+                ]
             )
         out_tokens = len(text.split())
         return NormalizedResult(

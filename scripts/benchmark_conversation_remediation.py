@@ -17,6 +17,7 @@ paths, usernames, or raw errors are recorded.
         [--candidate-ref <sha>] [--sizes 100,500,1000,5000] [--runs 20] [--warmup 3] \
         [--json docs/evidence/v0.5/conversation-performance-remediation.json]
 """
+
 from __future__ import annotations
 
 import argparse
@@ -71,7 +72,9 @@ def _run_tree(src: Path, vault: Path, runs: int, warmup: int) -> dict[str, objec
     proc = subprocess.run(
         [sys.executable, str(_RUNNER), str(vault), str(runs), str(warmup)],
         env={"PYTHONPATH": str(src), "PATH": "/usr/bin:/bin"},
-        capture_output=True, text=True, check=True,
+        capture_output=True,
+        text=True,
+        check=True,
     )
     return json.loads(proc.stdout.strip())
 
@@ -121,6 +124,7 @@ def run(baseline: str, candidate_ref: str | None, sizes: list[int], runs: int, w
 
     # Absolute conversation gates recomputed from the candidate conversation benchmark.
     from benchmark_conversation import run as conv_run
+
     conv = conv_run(sizes, runs, warmup)
     conv_gates = conv["gate_results"]
 

@@ -6,6 +6,7 @@ query, scope, evaluation boundary, warmups, run count — is identical. Emits ra
 milliseconds and per-run peak memory (MiB) as JSON on stdout. No prompts, context,
 responses, credentials, private paths, usernames, or raw errors are emitted.
 """
+
 from __future__ import annotations
 
 import json

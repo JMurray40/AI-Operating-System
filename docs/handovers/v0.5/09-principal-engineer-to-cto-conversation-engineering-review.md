@@ -823,3 +823,136 @@ Return to Chief of Staff for validation of the corrected executable commit
 Handoff 18's explicit routing (do not route directly to CTO). Quality, WP4, credentials,
 provider/network activity, packaging, merge, push, tag, release, Voice Shell, Multica, and
 Ruflo remain unauthorized.
+
+## SUPERSEDING FINAL CORRECTION — Handoff 20 (LA-18-02)
+
+### W1. Exact commit and tree identities
+
+| Artifact | Identity |
+|---|---|
+| Reviewed executable (LA-18-01 closed) | `5cf3d167782cb79f9b1daf3369e3b2cbabb7778b` |
+| Reviewed evidence commit | `7b809d22d43b057509b0a86fcf79836d5b41a385` |
+| Controlling CTO finding | Handoff 11, Section 20 (LA-18-02) |
+| **New executable correction commit** | `5e05fc934e4631cc8ab4fefd988946a65d70ba96` |
+| **New executable tree** | `00c8a532871216fe0c7d2e43ab0b393ea0cb73d3` |
+| Branch | `feature/v0.5-visible-context-conversation` |
+| Files touched | `src/jarvis_core/conversation/application.py` (only implementation file — no `Session` field/method changes were needed); `tests/unit/test_conversation_la18_01.py` (2 tests updated — see W2 note); `tests/unit/test_conversation_la18_02.py` (new, 7 tests) — 3 files |
+| Documentation/evidence-only descendant | immediate descendant of `5e05fc93…` containing this revision plus the rebound supplemental evidence JSON; no `src/`, `tests/`, scripts, dependency, or packaging change; exact SHA recorded at commit |
+
+### W2. LA-18-02 requirement-to-fix mapping
+
+| Gap (Handoff 11 §20) | Prior state | Fix |
+|---|---|---|
+| 20.1 — credential-provider substitution after admission | `_run_attempt()` captured prepared/approval/generation/attempt-identity under `session.lock` but NOT `pending_credentials`; `_recheck_credential`/`_credential` re-read `session.pending_credentials` later, outside the lock | `pending_credentials` is captured in the SAME admission lock acquisition and threaded through as `credentials` into `_execute_attempt` → `_recheck_credential(credentials, snap)` / `_credential(credentials, snap)`; neither method reads `session`/`session.pending_credentials` any more. New private `_post_admission_seam` test hook fires immediately after admission, before any credential recheck/materialization. |
+| 20.2 — prepared history/focus not linearized with publication | `prepare_turn()` read `session.focus_titles`/`session.history_text()` outside the lock and published unconditionally; a terminal commit advances history WITHOUT bumping generation, so a paused preparation could publish a snapshot bound to now-stale history | New module-level `_prepare_inputs_still_current(session, generation, history_text, focus_titles)`. `prepare_turn()` now captures generation + immutable `history_text()`/`focus_titles` under the lock BEFORE calling `context_service.prepare()`; at publish (still holding the lock), all three must still match or the call fails closed with `DriftError` — no bounded rebuild was needed since rejection is simpler and explicitly permitted (Handoff 20 §3). |
+| 20.3 — lifecycle trace publication outside the atomic commit | `snapshot_created`/`context_removed`/`approval_created` were recorded AFTER their state commit, outside `session.lock`; `session.reset()` replaces `session.trace` with a brand-new `Trace`, so a stale write landing after a concurrent reset would append to the RESET session's new trace | Each of the three trace-record calls moved INSIDE the same `with session.lock:` block as its state write — the state write and its trace event are now one atomic commit with no gap for a reset to land in between (no separate seam was needed to prove this: the property holds by construction, and is verified directly by the W3 tests below). |
+
+Two `test_conversation_la18_01.py` tests whose PRIOR assertions encoded exactly the 20.2 defect
+(a paused replacement silently publishing a snapshot over a just-committed terminal turn) were
+corrected in place to assert the new, required fail-closed outcome, with an explanatory comment
+citing Handoff 20 §3 at each site:
+`test_old_terminal_commit_before_prepare_replacement_preserves_turn_and_starts_clean` →
+`test_old_terminal_commit_before_prepare_replacement_fails_closed_on_stale_history`, and
+`test_dispatch_claim_reads_prepared_and_approval_inside_the_same_lock`'s tail assertions. The
+stress test's `hammer_prepare()` now treats `DriftError` as an expected, well-typed lifecycle
+rejection (mirroring `hammer_dispatch()`'s existing handling), not an unexpected failure. All
+other LA-18-01, AC-05-02R-2, and AC-05-01R-2 tests are unmodified and green (verified below).
+
+### W3. Required race tests
+
+`tests/unit/test_conversation_la18_02.py`, 7 new tests, all real-thread and
+`SeamGate`/`_post_admission_seam`-controlled (no test establishes its result by directly
+mutating session-internal fields):
+
+| Handoff 20 requirement | Test(s) |
+|---|---|
+| 20.1: credential-substitution race before recheck/materialization | `test_admitted_attempt_uses_captured_credential_not_a_concurrent_replacement` (a concurrent `prepare_turn()` replaces both preparation and credential provider after admission; the admitted attempt's dispatched request carries only the OLD credential, and the stale completion is still discarded on generation mismatch), `test_admitted_attempt_credential_unaffected_by_concurrent_reset` (same proof against a full `reset_session()`, which clears `pending_credentials` to `None` entirely) |
+| 20.2 lock order 1: replacement publishes first, old terminal completion discarded | `test_replacement_publishes_first_old_terminal_completion_discarded` (unregressed LA-18-01 behavior, retained here under the LA-18-02 label for requirement-mapping completeness) |
+| 20.2 lock order 2 (newly required): terminal completion commits first, precomputed replacement rejected | `test_terminal_completion_first_precomputed_replacement_rejected` — the paused replacement's captured history predates the old attempt's terminal commit; on resume it fails closed with `DriftError` rather than publish stale-bound history; `pending_prepared` remains the old preparation |
+| 20.3: reset between state publication and lifecycle trace publication, all three operations | `test_reset_during_prepare_commit_leaves_no_stale_trace_event`, `test_reset_during_remove_context_commit_leaves_no_stale_trace_event`, `test_reset_during_approve_commit_leaves_no_stale_trace_event` — each pauses at the operation's existing pre-commit seam, races a full `reset_session()`, and asserts the reset session's NEW trace contains `session_reset` but never the paused operation's own event name |
+| Previously accepted LA-18-01/AC-05R adversarial tests remain green | `test_conversation_la18_01.py` (11 tests, 2 updated per W2), `test_conversation_ac05_02r2.py` (6), `test_conversation_ac05_01r2.py` (14) — run unmodified except the two W2 updates and pass |
+
+### W4. Gate results (this sandbox)
+
+- **`ruff format --check`** (3 changed/new files): PASS — "3 files already formatted."
+- **`ruff check`** (3 changed/new files): PASS — "All checks passed!" (one `I001`/one `E501`
+  finding during authoring of the new test file, fixed via `ruff format` + `ruff check --fix`
+  before this gate; neither changed test behavior or intent).
+- **mypy** (project's actual configured invocation, `pyproject.toml` `[tool.mypy]`,
+  `packages = ["jarvis_core"]`): **`Success: no issues found in 89 source files`.**
+- **`git diff --check`**: PASS — clean, no whitespace conflicts.
+- **Privacy/secret scan**: the two new test canaries (`OLD-CANARY…`/`NEW-CANARY…`) appear only
+  in `tests/unit/test_conversation_la18_02.py`; zero matches in `src/` or `docs/`.
+- **Focused LA-18-02 tests**: 7/7 pass; combined with `test_conversation_la18_01.py`,
+  `test_conversation_ac05_02r2.py`, `test_conversation_ac05_01r2.py` (38 tests total),
+  stress-run 5 consecutive times with zero failures.
+- **Complete conversation suite**: `pytest tests/unit -k conversation`: **201 passed, 0
+  skipped, 307 deselected** (194 prior + 7 new); stress-run 5 consecutive times with zero
+  failures.
+- **Complete regression suite**: `pytest tests` (unit + integration): **627 passed, 2 skipped,
+  3 failed.** The 3 failures and one of the two skips are the same pre-existing, unrelated
+  `test_project_resume_local_git.py` findings disclosed in every prior round (sandbox git
+  below the 2.38.0 floor those tests require); the other skip is the pre-existing CS-21
+  independent-Windows-logon item. Neither category is touched by, caused by, or related to
+  this correction — confirmed by identical failure signatures/messages to the H18 round's
+  disclosed baseline (620→627 passed is exactly +7, the size of the new test file; failed/
+  skipped counts are unchanged).
+- **Limitation, stated plainly**: this sandbox cannot reach the user's Windows host directly.
+  For the deterministic, environment-independent gates above that is not a limitation — both
+  environments read the same committed tree and produce the same result. It remains a real,
+  unclosed gap only for the three git-version-floor-sensitive `local_git` failures, unrelated
+  to LA-18-02.
+
+### W5. Rebound supplemental performance evidence
+
+The application lifecycle path changed (`prepare_turn`, `_run_attempt`/`_execute_attempt`), so
+the conversation absolute benchmark is rerun against the new exact executable
+`5e05fc934e4631cc8ab4fefd988946a65d70ba96` per Handoff 20 §6. The unchanged-query
+paired-comparison result remains cited unmodified (its inputs — the query stack — are untouched
+by this cycle).
+
+| Notes | prepare p50/p95/p99 (ms) | peak MiB | app-overhead p95 (ms) | cancel p95 (ms) |
+|---|---|---|---|---|
+| 100 | 10.434 / 15.107 / 15.927 | 1.08 | 5.817 | 1.282 |
+| 500 | 52.666 / 58.878 / 58.966 | 4.511 | 8.434 | 1.79 |
+| 1,000 | 111.53 / 125.05 / 129.759 | 8.333 | 9.849 | 2.615 |
+| 5,000 | 603.657 / 700.693 / 737.625 | 41.904 | 19.828 | 3.348 |
+
+Gate results: `prepare_p95_under_2s` PASS, `app_overhead_p95_under_250ms` PASS,
+`cancel_p95_under_500ms` PASS — `all_gates_pass: true`. Binding the credential reference,
+capturing/verifying history-focus inputs, and moving three trace writes inside their existing
+commit locks adds negligible measured overhead against the accepted gate thresholds at every
+size, including the 5,000-note ceiling. Raw per-run samples for every size are retained in the
+artifact; every reported p95 and all three gates were independently recomputed from
+`prepare_raw_ms`/`app_overhead_raw_ms`/`cancel_raw_ms` in this sandbox and matched exactly.
+
+Evidence file: `docs/evidence/v0.5/conversation-performance-remediation-h20.json`,
+**SHA-256 `7ba6eee06555c54ea465a4112882e0995db91e46102cdfb0ae32432261d6c08e`**. This supersedes
+`conversation-performance-remediation-h18.json` as the operative absolute-benchmark evidence
+for the current executable; all prior evidence files are retained unmodified as historical
+record and are not deleted or overwritten.
+
+### W6. Privacy and no-live-call confirmation
+
+No live credential, provider/network call, vault write, packaging execution, QA, merge, push,
+tag, or release was performed. No real personal data, credentials, or private paths were
+introduced into source, tests, or the evidence artifact (see privacy/secret scan above — the
+two new canaries are synthetic, confined to the new test file, and never appear in `src/` or
+`docs/`). The new `_post_admission_seam` is a private, in-process callback hook with no I/O of
+its own; every production call path leaves it a no-op, mirroring the existing seams it joins.
+
+### W7. Clean worktree confirmation
+
+`git status --porcelain` is empty at the new executable commit `5e05fc934e46…` (verified
+directly). No `src/jarvis_core.egg-info/` or any other generated/build artifact is present,
+tracked, staged, or untracked in the worktree at this commit — `git clean -ndx` reports only
+gitignored tool caches (`.mypy_cache/`, `.pytest_cache/`, `.ruff_cache/`, `__pycache__/` under
+`scripts/`/`src/`/`tests/`), none of which are new to this cycle or were ever staged.
+
+### W8. Requested disposition
+
+Return to Chief of Staff for validation of the corrected executable commit
+`5e05fc934e4631cc8ab4fefd988946a65d70ba96` and its documentation/evidence-only descendant, per
+Handoff 20 §7-8 (do not route directly to CTO). Quality, WP4, credentials, provider/network
+activity, packaging, merge, push, tag, release, Voice Shell, Multica, and Ruflo remain
+unauthorized.

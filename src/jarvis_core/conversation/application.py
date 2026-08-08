@@ -76,6 +76,18 @@ def _now(now: datetime | None) -> datetime:
     return now or datetime.now(timezone.utc)
 
 
+def _still_current(session: Session, prepared: object, generation: int) -> bool:
+    """LA-18-01: is ``prepared``/``generation`` (captured earlier) still the session's current
+    preparation? Caller MUST already hold ``session.lock``. Identity (``is``), not equality, on
+    ``pending_prepared`` — a concurrent prepare/removal always installs a genuinely NEW object
+    (never mutates the retained one in place), so identity is the correct "has this specific
+    preparation been superseded" check, and it is paired with the generation check so a removal
+    that replaces ``pending_prepared`` with an object that happened to compare equal cannot
+    slip through as "unchanged" either.
+    """
+    return session.pending_prepared is prepared and session.generation == generation
+
+
 def _revalidate_current_bytes(
     snapshot: ContextSnapshot, source_root: Path, notes_by_relpath: dict[str, Note]
 ) -> None:
@@ -121,6 +133,19 @@ class ConversationApplication:
         # a parameter to any public method and without a test ever establishing the result by
         # directly poking session.in_flight/generation/active_attempt_id itself.
         self._pre_commit_seam: Callable[[], None] = lambda: None
+        # LA-18-01 test-only instrumentation seams: private hooks invoked immediately before
+        # each OTHER lifecycle entry point's own atomic commit-lock acquisition (prepare/
+        # replacement, context removal, approval) — the same pattern as _pre_commit_seam
+        # above, extended to the rest of the lifecycle-lock protocol. Every production call
+        # path leaves each of these a no-op. They exist so a barrier-controlled test can pause
+        # a real prepare_turn()/remove_context()/approve() call at exactly its own internal
+        # pre-commit seam and run a real concurrent lifecycle operation against it, then resume
+        # and assert the real, observable outcome — without adding a parameter to any public
+        # method and without a test ever establishing the result by directly poking
+        # session.pending_prepared/pending_approval/generation itself.
+        self._prepare_commit_seam: Callable[[], None] = lambda: None
+        self._remove_context_commit_seam: Callable[[], None] = lambda: None
+        self._approve_commit_seam: Callable[[], None] = lambda: None
 
     # ------------------------------------------------------------------ session
     def create_session(
@@ -178,21 +203,31 @@ class ConversationApplication:
             credentials is None or not credentials.is_available()
         ):
             raise CredentialUnavailableError("credential unavailable for the remote destination")
-        session.pending_credentials = credentials
         session.trace.record(
             "prepare_started",
             session_id=session.session_id,
             request_id=request.request_id,
             is_remote=request.provider_profile.is_remote,
         )
+        # LA-18-01: expensive retrieval/context construction stays OUTSIDE the lifecycle lock
+        # (unchanged) — only the PUBLISH of its result is a protocol concern.
         prepared = context_service.prepare(
             request,
             notes,
             focus_titles=session.focus_titles,
             history_text=session.history_text(),  # AC-05-02: bind history for byte-identical retry
         )
-        session.pending_prepared = prepared
-        session.reset_lifecycle()
+        # Test-only pre-commit seam (LA-18-01): a no-op in every production call path.
+        self._prepare_commit_seam()
+        # LA-18-01: publish the new pending_prepared/pending_credentials and invalidate the old
+        # approval/attempt lifecycle as ONE atomic commit under session.lock, so no other lock
+        # holder (a dispatch's initial claim, another prepare/removal, a reset) can ever observe
+        # the new preparation paired with the old generation or the old approval — the exact
+        # torn-publish gap Handoff 18 (LA-18-01) identified.
+        with session.lock:
+            session.pending_prepared = prepared
+            session.pending_credentials = credentials
+            session._invalidate_lifecycle_locked()
         snap = prepared.snapshot
         session.trace.record(
             "snapshot_created",
@@ -206,13 +241,30 @@ class ConversationApplication:
         return snap
 
     def remove_context(self, session: Session, item_id: str) -> ContextSnapshot:
-        prepared = session.pending_prepared
-        if prepared is None:
-            raise ValidationError("no prepared turn to modify")
+        # LA-18-01: capture the exact prepared identity + generation this removal is computed
+        # FROM, atomically, before doing any (potentially slow) work with it.
+        with session.lock:
+            prepared = session.pending_prepared
+            if prepared is None:
+                raise ValidationError("no prepared turn to modify")
+            captured_generation = session.generation
         prepared.snapshot.verify_integrity()  # AC-05-01: recompute before removal
         new_snapshot = prepared.snapshot.without_item(item_id)
-        session.pending_prepared = replace(prepared, snapshot=new_snapshot)
-        session.reset_lifecycle()  # a new snapshot invalidates approval + attempt lifecycle
+        new_prepared = replace(prepared, snapshot=new_snapshot)
+        # Test-only pre-commit seam (LA-18-01): a no-op in every production call path.
+        self._remove_context_commit_seam()
+        # LA-18-01: verify the captured preparation is STILL the current one, and publish the
+        # new preparation + invalidate the approval/attempt lifecycle, as ONE atomic commit. If
+        # a concurrent prepare/removal/reset already replaced or invalidated what this removal
+        # was computed from, fail closed instead of publishing a snapshot derived from a
+        # preparation the session no longer holds.
+        with session.lock:
+            if not _still_current(session, prepared, captured_generation):
+                raise DriftError(
+                    "prepared turn was concurrently replaced or reset; re-prepare required"
+                )
+            session.pending_prepared = new_prepared
+            session._invalidate_lifecycle_locked()  # a new snapshot invalidates approval/attempts
         session.trace.record(
             "context_removed",
             session_id=session.session_id,
@@ -231,9 +283,13 @@ class ConversationApplication:
         now: datetime | None = None,
         ttl_seconds: int = 300,
     ) -> EgressApproval:
-        prepared = session.pending_prepared
-        if prepared is None:
-            raise ValidationError("no prepared turn to approve")
+        # LA-18-01: capture the exact prepared identity + generation this approval is built
+        # FROM, atomically, before doing any work with it.
+        with session.lock:
+            prepared = session.pending_prepared
+            if prepared is None:
+                raise ValidationError("no prepared turn to approve")
+            captured_generation = session.generation
         snap = prepared.snapshot
         snap.verify_integrity()  # AC-05-01: recompute before approval
         policy_version = str(snap.policy_summary.get("policy_version", ""))
@@ -245,7 +301,19 @@ class ConversationApplication:
             approval_time=_now(now),
             ttl_seconds=ttl_seconds,
         )
-        session.pending_approval = approval
+        # Test-only pre-commit seam (LA-18-01): a no-op in every production call path.
+        self._approve_commit_seam()
+        # LA-18-01: verify the exact prepared identity, snapshot digest, and generation used to
+        # build this approval are STILL current, and publish it, atomically. A concurrent
+        # prepare/removal/reset that happened while the approval object was being constructed
+        # must defeat this stale approval rather than let it become the session's approval for
+        # a different (or already-invalidated) preparation.
+        with session.lock:
+            if not _still_current(session, prepared, captured_generation):
+                raise DriftError(
+                    "prepared turn was concurrently replaced or reset; re-approve required"
+                )
+            session.pending_approval = approval
         session.trace.record(
             "approval_created",
             session_id=session.session_id,
@@ -286,20 +354,22 @@ class ConversationApplication:
         now: datetime | None,
         cancel: CancellationToken | None,
     ) -> TurnResult:
-        prepared = session.pending_prepared
-        approval = session.pending_approval
-        if prepared is None:
-            raise ValidationError("no prepared turn to dispatch")
-        if approval is None:
-            raise ApprovalError("dispatch requires an explicit approval")
         attempt_id = new_attempt_id()
-        # ---- AC-05-02R lifecycle gate: fail closed BEFORE prompt assembly / provider access.
-        # The read-then-write of in_flight/approval_consumed/attempts is one atomic critical
-        # section under session.lock so two REAL concurrent callers cannot both observe
-        # "not in flight" before either claims it (a bare bool has a TOCTOU race under genuine
-        # simultaneous threads; a manually-set flag in a single-threaded test does not exercise
-        # this at all).
+        # ---- AC-05-02R / LA-18-01 lifecycle gate: fail closed BEFORE prompt assembly /
+        # provider access. The AUTHORITATIVE reads of pending_prepared/pending_approval are now
+        # made inside this SAME lock acquisition (LA-18-01) — not before it — alongside the
+        # read-then-write of in_flight/approval_consumed/attempts, so two REAL concurrent
+        # callers cannot both observe "not in flight" before either claims it, AND a dispatch
+        # can never claim a prepared/approval reference read before the lock that a concurrent
+        # prepare_turn()/remove_context() replacement had already superseded by the time this
+        # attempt actually started.
         with session.lock:
+            prepared = session.pending_prepared
+            approval = session.pending_approval
+            if prepared is None:
+                raise ValidationError("no prepared turn to dispatch")
+            if approval is None:
+                raise ApprovalError("dispatch requires an explicit approval")
             if session.in_flight:
                 raise ApprovalError("a dispatch for this turn is already in progress")
             if kind == "initial":

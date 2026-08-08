@@ -88,6 +88,30 @@ def _still_current(session: Session, prepared: object, generation: int) -> bool:
     return session.pending_prepared is prepared and session.generation == generation
 
 
+def _prepare_inputs_still_current(
+    session: Session,
+    generation: int,
+    history_text: str,
+    focus_titles: tuple[str, ...],
+) -> bool:
+    """LA-18-02B: are the lifecycle generation AND the exact semantic history/focus inputs a
+    preparation was built FROM (captured earlier, atomically, under ``session.lock``) still
+    current? Caller MUST already hold ``session.lock``.
+
+    A terminal turn commit does NOT bump ``generation`` (only reset/removal/a fresh prepare
+    do), but it DOES change ``session.turns`` — and therefore ``history_text()`` — and may
+    change ``session.focus_titles``. That is the exact gap Handoff 20 (LA-18-02B) identified: a
+    preparation built from history/focus captured before such a commit must not publish a
+    snapshot whose bound history is now stale, even though the generation counter alone would
+    not detect it. Both signals are required.
+    """
+    return (
+        session.generation == generation
+        and session.history_text() == history_text
+        and session.focus_titles == focus_titles
+    )
+
+
 def _revalidate_current_bytes(
     snapshot: ContextSnapshot, source_root: Path, notes_by_relpath: dict[str, Note]
 ) -> None:
@@ -146,6 +170,16 @@ class ConversationApplication:
         self._prepare_commit_seam: Callable[[], None] = lambda: None
         self._remove_context_commit_seam: Callable[[], None] = lambda: None
         self._approve_commit_seam: Callable[[], None] = lambda: None
+        # LA-18-02A test-only instrumentation seam: a private hook invoked immediately after
+        # attempt admission (session.pending_prepared/pending_approval/pending_credentials read
+        # and in_flight/generation/attempt identity claimed, all under one lock acquisition) but
+        # BEFORE any credential recheck or materialization. Every production call path leaves
+        # this a no-op. It exists so a barrier-controlled test can pause a REAL admitted attempt
+        # at exactly this point and run a real concurrent prepare_turn() (which replaces both
+        # the preparation and the credential provider) against it, then resume and assert the
+        # admitted attempt used only its OWN captured credential reference — never rereading
+        # session.pending_credentials — without adding a parameter to any public method.
+        self._post_admission_seam: Callable[[], None] = lambda: None
 
     # ------------------------------------------------------------------ session
     def create_session(
@@ -209,35 +243,55 @@ class ConversationApplication:
             request_id=request.request_id,
             is_remote=request.provider_profile.is_remote,
         )
+        # LA-18-02B: capture the exact lifecycle generation AND the exact immutable history/
+        # focus inputs this preparation is built FROM, atomically, under the lock, before doing
+        # any (potentially slow) retrieval/context-construction work with them. A concurrent
+        # terminal commit does not bump generation, so the generation check alone cannot detect
+        # that the session's bound history advanced while this preparation was being built —
+        # the semantic history/focus values must be captured and re-verified explicitly.
+        with session.lock:
+            captured_generation = session.generation
+            captured_history_text = session.history_text()
+            captured_focus_titles = session.focus_titles
         # LA-18-01: expensive retrieval/context construction stays OUTSIDE the lifecycle lock
         # (unchanged) — only the PUBLISH of its result is a protocol concern.
         prepared = context_service.prepare(
             request,
             notes,
-            focus_titles=session.focus_titles,
-            history_text=session.history_text(),  # AC-05-02: bind history for byte-identical retry
+            focus_titles=captured_focus_titles,
+            history_text=captured_history_text,  # AC-05-02: bind history for byte-identical retry
         )
         # Test-only pre-commit seam (LA-18-01): a no-op in every production call path.
         self._prepare_commit_seam()
-        # LA-18-01: publish the new pending_prepared/pending_credentials and invalidate the old
-        # approval/attempt lifecycle as ONE atomic commit under session.lock, so no other lock
-        # holder (a dispatch's initial claim, another prepare/removal, a reset) can ever observe
-        # the new preparation paired with the old generation or the old approval — the exact
-        # torn-publish gap Handoff 18 (LA-18-01) identified.
+        # LA-18-01/LA-18-02B/LA-18-02C: verify the captured generation AND the captured
+        # semantic history/focus inputs are STILL current; if so, publish the new
+        # pending_prepared/pending_credentials, invalidate the old approval/attempt lifecycle,
+        # AND record the lifecycle trace event — all as ONE atomic commit under session.lock.
+        # No other lock holder (a dispatch's initial claim, another prepare/removal, a reset, or
+        # a terminal commit) can ever observe the new preparation paired with the old
+        # generation/approval (LA-18-01), a snapshot bound to now-stale history/focus
+        # (LA-18-02B), or a "snapshot_created" event racing a concurrent reset's trace
+        # replacement (LA-18-02C). A mismatch fails closed instead of publishing.
         with session.lock:
+            if not _prepare_inputs_still_current(
+                session, captured_generation, captured_history_text, captured_focus_titles
+            ):
+                raise DriftError(
+                    "session history/focus changed while preparing; re-prepare required"
+                )
             session.pending_prepared = prepared
             session.pending_credentials = credentials
             session._invalidate_lifecycle_locked()
-        snap = prepared.snapshot
-        session.trace.record(
-            "snapshot_created",
-            session_id=session.session_id,
-            request_id=request.request_id,
-            snapshot_digest=snap.digest,
-            items_included=len(snap.items),
-            items_omitted=len(snap.safe_omissions),
-            excluded_count=as_int(snap.authorization_summary.get("excluded_count", 0)),
-        )
+            snap = prepared.snapshot
+            session.trace.record(
+                "snapshot_created",
+                session_id=session.session_id,
+                request_id=request.request_id,
+                snapshot_digest=snap.digest,
+                items_included=len(snap.items),
+                items_omitted=len(snap.safe_omissions),
+                excluded_count=as_int(snap.authorization_summary.get("excluded_count", 0)),
+            )
         return snap
 
     def remove_context(self, session: Session, item_id: str) -> ContextSnapshot:
@@ -265,12 +319,15 @@ class ConversationApplication:
                 )
             session.pending_prepared = new_prepared
             session._invalidate_lifecycle_locked()  # a new snapshot invalidates approval/attempts
-        session.trace.record(
-            "context_removed",
-            session_id=session.session_id,
-            snapshot_digest=new_snapshot.digest,
-            items_included=len(new_snapshot.items),
-        )
+            # LA-18-02C: record the lifecycle trace event under the SAME commit lock so a
+            # concurrent reset cannot swap session.trace out from under this write and cause a
+            # stale "context_removed" event to be attributed to the reset session's new trace.
+            session.trace.record(
+                "context_removed",
+                session_id=session.session_id,
+                snapshot_digest=new_snapshot.digest,
+                items_included=len(new_snapshot.items),
+            )
         return new_snapshot
 
     # ------------------------------------------------------------------ approve
@@ -314,12 +371,15 @@ class ConversationApplication:
                     "prepared turn was concurrently replaced or reset; re-approve required"
                 )
             session.pending_approval = approval
-        session.trace.record(
-            "approval_created",
-            session_id=session.session_id,
-            snapshot_digest=snap.digest,
-            policy_version=policy_version,
-        )
+            # LA-18-02C: record the lifecycle trace event under the SAME commit lock so a
+            # concurrent reset cannot swap session.trace out from under this write and cause a
+            # stale "approval_created" event to be attributed to the reset session's new trace.
+            session.trace.record(
+                "approval_created",
+                session_id=session.session_id,
+                snapshot_digest=snap.digest,
+                policy_version=policy_version,
+            )
         return approval
 
     # ------------------------------------------------------------------ dispatch
@@ -366,6 +426,13 @@ class ConversationApplication:
         with session.lock:
             prepared = session.pending_prepared
             approval = session.pending_approval
+            # LA-18-02A: capture the admitted credential provider in the SAME lock acquisition
+            # as prepared/approval/generation/attempt identity. This exact reference is
+            # threaded through credential recheck and materialization for the whole attempt;
+            # the admitted attempt never rereads session.pending_credentials, so a later
+            # prepare_turn() can replace session credential state but cannot alter an
+            # already-admitted attempt's semantic (prepared+approval+credential) envelope.
+            credentials = session.pending_credentials
             if prepared is None:
                 raise ValidationError("no prepared turn to dispatch")
             if approval is None:
@@ -391,9 +458,23 @@ class ConversationApplication:
             if kind == "initial":
                 session.approval_consumed = True
             generation = session.generation
+        # Test-only pre-commit seam (LA-18-02A): a no-op in every production call path.
+        # Invoked immediately after admission, before ANY credential recheck or
+        # materialization, so a barrier-controlled test can pause a REAL admitted attempt here
+        # and run a real concurrent prepare_turn()/credential replacement against it.
+        self._post_admission_seam()
         try:
             return self._execute_attempt(
-                session, provider, prepared, approval, kind, now, cancel, generation, attempt_id
+                session,
+                provider,
+                prepared,
+                approval,
+                credentials,
+                kind,
+                now,
+                cancel,
+                generation,
+                attempt_id,
             )
         finally:
             # AC-05-02R-2 safety net: normally a no-op on the success path, because
@@ -417,6 +498,7 @@ class ConversationApplication:
         provider: ConversationProvider,
         prepared: context_service.PreparedTurn,
         approval: EgressApproval,
+        credentials: CredentialProvider | None,
         kind: str,
         now: datetime | None,
         cancel: CancellationToken | None,
@@ -431,7 +513,7 @@ class ConversationApplication:
         policy_version = str(snap.policy_summary.get("policy_version", ""))
         approval.check(snap, policy_version=policy_version, now=moment)
         self._recheck_eligibility(snap)
-        self._recheck_credential(session, snap)
+        self._recheck_credential(credentials, snap)
         self._recheck_cost(snap, provider)
         _revalidate_current_bytes(snap, prepared.source_root, prepared.notes_by_relpath)
         session.trace.record(
@@ -453,7 +535,7 @@ class ConversationApplication:
         )
 
         # -------- step 10: dispatch exactly once through the selected adapter
-        credential = self._credential(session, snap)
+        credential = self._credential(credentials, snap)
         request = ProviderRequest(
             request_id=snap.request_id,
             attempt_id=attempt_id,
@@ -578,13 +660,17 @@ class ConversationApplication:
                     f"item {item.item_id} is not eligible for the remote destination"
                 )
 
-    def _recheck_credential(self, session: Session, snap: ContextSnapshot) -> None:
+    def _recheck_credential(
+        self, credentials: CredentialProvider | None, snap: ContextSnapshot
+    ) -> None:
         # Decision A: repeated before dispatch. A credential that became unavailable
         # after approval blocks dispatch before prompt assembly or transport.
+        # LA-18-02A: ``credentials`` is the exact provider captured at admission time —
+        # never a fresh read of session.pending_credentials, which a concurrent
+        # prepare_turn() may have already replaced.
         if not snap.provider_policy.is_remote:
             return
-        creds = session.pending_credentials
-        if creds is None or not creds.is_available():
+        if credentials is None or not credentials.is_available():
             raise CredentialUnavailableError("provider credential is unavailable")
 
     def _recheck_cost(self, snap: ContextSnapshot, provider: ConversationProvider) -> None:
@@ -598,13 +684,16 @@ class ConversationApplication:
                 f"{snap.max_cost_usd_per_request}"
             )
 
-    def _credential(self, session: Session, snap: ContextSnapshot) -> Credential | None:
+    def _credential(
+        self, credentials: CredentialProvider | None, snap: ContextSnapshot
+    ) -> Credential | None:
         # The opaque credential materializes only here, at the adapter boundary, for the
         # one approved remote dispatch. It is never placed in the snapshot/approval/trace.
+        # LA-18-02A: ``credentials`` is the exact provider captured at admission time — see
+        # ``_recheck_credential`` above.
         if not snap.provider_policy.is_remote:
             return None
-        creds = session.pending_credentials
-        return creds.get() if creds is not None else None
+        return credentials.get() if credentials is not None else None
 
     def _interpret(
         self,

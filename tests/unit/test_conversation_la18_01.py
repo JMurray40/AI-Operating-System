@@ -160,8 +160,12 @@ def test_prepare_replacement_before_old_terminal_commit_discards_old_completion(
 
 
 # ------------------------------------------------------------------ (2) old terminal commit
-# wins before prepare replacement
-def test_old_terminal_commit_before_prepare_replacement_preserves_turn_and_starts_clean(
+# wins before prepare replacement — LA-18-02B supersedes this scenario's expected outcome: a
+# terminal commit does not bump generation, but it DOES advance session history/focus, so a
+# paused replacement whose history/focus was captured before that commit must fail closed
+# rather than publish a snapshot bound to now-stale history (Handoff 20 Section 3, 20.2, which
+# permits either rejection or an equivalent bounded rebuild; this correction chooses rejection).
+def test_old_terminal_commit_before_prepare_replacement_fails_closed_on_stale_history(
     vault: tuple[list, Path],
 ) -> None:
     notes, root = vault
@@ -175,15 +179,21 @@ def test_old_terminal_commit_before_prepare_replacement_preserves_turn_and_start
     prepare_outcome: dict[str, object] = {}
 
     def run_prepare() -> None:
-        prepare_outcome["value"] = app.prepare_turn(
-            s, _req(s.session_id, root, request_id="r2"), notes
-        )
+        try:
+            prepare_outcome["value"] = app.prepare_turn(
+                s, _req(s.session_id, root, request_id="r2"), notes
+            )
+        except DriftError as exc:
+            prepare_outcome["error"] = exc
 
     pt = threading.Thread(target=run_prepare)
     pt.start()
-    assert prepare_seam.entered.wait(timeout=5)  # replacement computed, paused before its commit
+    # Replacement's history/focus inputs are captured BEFORE the commit below, then paused
+    # before its own publish check.
+    assert prepare_seam.entered.wait(timeout=5)
 
-    # The old attempt dispatches and commits FULLY now, while the replacement is paused.
+    # The old attempt dispatches and commits FULLY now, while the replacement is paused. This
+    # advances session.turns/focus_titles WITHOUT bumping generation.
     result = app.dispatch_turn(s, prov, now=T)
     assert result.attempt.status is TerminalState.COMPLETED
     assert len(s.turns) == 1
@@ -192,12 +202,16 @@ def test_old_terminal_commit_before_prepare_replacement_preserves_turn_and_start
     prepare_seam.release()
     pt.join(timeout=5)
 
-    # The replacement publishes cleanly afterward, with its OWN new generation and no stale
-    # approval/attempt state, and the old completed turn remains a valid prior turn.
-    assert s.pending_prepared is not old_prepared
-    assert s.pending_approval is None
-    assert s.attempts == []  # invalidated by the replacement
-    assert len(s.turns) == 1  # the old completed turn is untouched
+    # The paused replacement's captured history is now stale (it predates the just-committed
+    # turn); it must fail closed instead of silently publishing a snapshot bound to that stale
+    # history, even though generation alone is unchanged.
+    assert "error" in prepare_outcome, "a replacement built from pre-commit history must fail"
+    assert isinstance(prepare_outcome["error"], DriftError)
+    assert "value" not in prepare_outcome
+    # The old completed turn is untouched, and the OLD preparation remains current (a fresh
+    # prepare_turn() is required to pick up the new history).
+    assert s.pending_prepared is old_prepared
+    assert len(s.turns) == 1
     assert s.turns[0].coverage  # sanity: it's the real completed turn, not a placeholder
 
 
@@ -405,7 +419,12 @@ def test_dispatch_claim_reads_prepared_and_approval_inside_the_same_lock(
 ) -> None:
     """A concurrent replacement landing between a would-be pre-lock read and the lock
     acquisition must never let dispatch observe a torn (new prepared, old approval) pair — the
-    exact LA-18-01 gap. Race a dispatch attempt directly against a paused replacement."""
+    exact LA-18-01 gap. Race a dispatch attempt directly against a paused replacement.
+
+    LA-18-02B supersedes the tail of this test: the dispatch below commits a terminal turn
+    while the replacement is paused, which advances history without bumping generation, so the
+    paused replacement's captured history is now stale and it must fail closed on resume
+    instead of publishing (Handoff 20 Section 3, 20.2)."""
     notes, root = vault
     app = ConversationApplication()
     s = _prepared(app, notes, root)
@@ -416,9 +435,12 @@ def test_dispatch_claim_reads_prepared_and_approval_inside_the_same_lock(
     prepare_outcome: dict[str, object] = {}
 
     def run_prepare() -> None:
-        prepare_outcome["value"] = app.prepare_turn(
-            s, _req(s.session_id, root, request_id="r2"), notes
-        )
+        try:
+            prepare_outcome["value"] = app.prepare_turn(
+                s, _req(s.session_id, root, request_id="r2"), notes
+            )
+        except DriftError as exc:
+            prepare_outcome["error"] = exc
 
     pt = threading.Thread(target=run_prepare)
     pt.start()
@@ -433,8 +455,13 @@ def test_dispatch_claim_reads_prepared_and_approval_inside_the_same_lock(
 
     prepare_seam.release()
     pt.join(timeout=5)
-    assert s.pending_prepared is not old_prepared
-    assert s.pending_approval is None
+    # LA-18-02B: the completed dispatch above advanced session history while the replacement's
+    # inputs were already captured; the replacement fails closed rather than publish stale
+    # bound history. The already-completed dispatch's own state is untouched by the failure.
+    assert "error" in prepare_outcome
+    assert isinstance(prepare_outcome["error"], DriftError)
+    assert s.pending_prepared is old_prepared
+    assert s.approval_consumed is True  # from the completed dispatch above, untouched
 
 
 # ------------------------------------------------------------------ (6) no torn intermediate
@@ -494,6 +521,11 @@ def test_concurrent_dispatch_and_replacement_stress_no_inconsistent_outcome(
         for i in range(15):
             try:
                 app.prepare_turn(s, _req(s.session_id, root, request_id=f"h{i}"), notes)
+            except DriftError:
+                # LA-18-02B: an expected, well-typed rejection when a concurrent terminal
+                # commit or lifecycle mutation advanced history/focus/generation after this
+                # preparation's inputs were captured — not a failure.
+                pass
             except BaseException as exc:  # captured for the assertion below
                 errors.append(exc)
 

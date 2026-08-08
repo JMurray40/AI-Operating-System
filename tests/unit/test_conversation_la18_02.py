@@ -38,6 +38,17 @@ recorded AFTER their state commit, outside the lock; ``session.reset()`` replace
 after a concurrent reset would append to the RESET session's new trace. Fix: record each event
 under the SAME lock acquisition as its state commit (no gap for a reset to land in between).
 
+20.1 residual (LA-18-02A-3, Handoff 23) — the second egress-admission decision (LA-18-02A-2)
+revalidated the lifecycle envelope but did not observe the supplied cancellation token; a
+token already cancelled before that decision still let the candidate perform credential
+availability, materialization, and provider dispatch before terminal cancellation caught up.
+Fix: the same short lock-protected decision now also reads ``cancel.cancelled`` (a non-
+blocking, thread-safe property — never a ``.wait()``) and fails closed with a SILENT typed
+cancelled result (zero credential/provider/transport calls, zero trace events) when the token
+already won. A token that wins AFTER egress admission follows the existing, unchanged
+cooperative-cancellation path (provider dispatch may already be underway; the result is forced
+to a terminal cancelled outcome once ``dispatch()`` returns, same as before this fix).
+
 Every test below drives the real public API with real threads and the existing private
 pre-commit/post-admission seams (production no-ops); none establishes its result by directly
 mutating session-internal fields.
@@ -61,6 +72,7 @@ from jarvis_core.conversation import (
 from jarvis_core.conversation.contract import DriftError
 from jarvis_core.policy import local_allow_all
 from jarvis_core.providers.conversation import (
+    CancellationToken,
     Credential,
     MockConversationProvider,
     NormalizedResult,
@@ -360,6 +372,103 @@ def test_egress_admission_wins_before_reset_uses_only_captured_credential(
     result = outcome["value"]
     assert result.attempt.status is TerminalState.CANCELLED  # type: ignore[union-attr]
     assert s.turns == []
+
+
+# ================================================================ LA-18-02A-3 cancellation at
+# the second egress-admission decision (Handoff 23)
+def test_cancellation_wins_before_second_egress_admission_is_silent_and_zero_activity(
+    vault: tuple[list, Path],
+) -> None:
+    notes, root = vault
+    app = ConversationApplication()
+    s = app.create_session("local")
+    old_cred = CountingCredentialProvider(_OLD_CANARY)
+    app.prepare_turn(s, _remote_req(s.session_id, root), notes, credentials=old_cred)
+    app.approve(s, actor="jason", now=T)
+    is_avail_baseline = old_cred.is_available_calls
+    trace_len_baseline = len(s.trace.events)
+
+    prov = CapturingProvider()
+    seam = SeamGate()
+    app._post_admission_seam = seam  # type: ignore[assignment]
+    outcome: dict[str, object] = {}
+    cancel = CancellationToken()
+
+    def run() -> None:
+        outcome["value"] = app.dispatch_turn(s, prov, now=T, cancel=cancel)
+
+    t = threading.Thread(target=run)
+    t.start()
+    # Admitted, but paused BEFORE the second egress-admission decision has run at all.
+    assert seam.entered.wait(timeout=5)
+
+    cancel.cancel()  # the real token, signalled while paused — non-blocking on this side too
+
+    seam.release()
+    t.join(timeout=5)
+
+    # The second decision observes the already-cancelled token and fails closed SILENTLY:
+    # zero additional credential calls, zero provider/transport calls, zero new trace events,
+    # no public turn.
+    assert old_cred.is_available_calls == is_avail_baseline
+    assert old_cred.get_calls == 0
+    assert len(prov.requests) == 0
+    assert len(s.trace.events) == trace_len_baseline
+    assert s.turns == []
+
+    result = outcome["value"]
+    assert result.attempt.status is TerminalState.CANCELLED  # type: ignore[union-attr]
+    assert result.attempt.text is None  # type: ignore[union-attr]
+    assert result.attempt.message == "attempt cancelled before egress admission"  # type: ignore[union-attr]
+
+
+def test_egress_admission_wins_before_cancellation_uses_only_captured_credential(
+    vault: tuple[list, Path],
+) -> None:
+    """Cancellation signalled AFTER the second egress-admission decision has already passed
+    must not prevent the already-admitted attempt from using its captured credential, but the
+    final result must still be a terminal, speech-ineligible cancellation (the existing
+    cooperative-cancellation path, unchanged by this correction)."""
+    notes, root = vault
+    app = ConversationApplication()
+    s = app.create_session("local")
+    old_cred = CountingCredentialProvider(_OLD_CANARY)
+    app.prepare_turn(s, _remote_req(s.session_id, root), notes, credentials=old_cred)
+    app.approve(s, actor="jason", now=T)
+
+    prov = CapturingProvider()
+    seam = SeamGate()
+    app._post_egress_admission_seam = seam  # type: ignore[assignment]
+    outcome: dict[str, object] = {}
+    cancel = CancellationToken()
+
+    def run() -> None:
+        outcome["value"] = app.dispatch_turn(s, prov, now=T, cancel=cancel)
+
+    t = threading.Thread(target=run)
+    t.start()
+    # The second egress-admission decision has ALREADY passed (token was not cancelled yet) —
+    # paused immediately after, before any credential recheck/materialization/transport.
+    assert seam.entered.wait(timeout=5)
+
+    cancel.cancel()
+
+    seam.release()
+    t.join(timeout=5)
+
+    # The already-admitted attempt proceeds using ONLY its captured credential — provider
+    # dispatch happens — but the framework's existing cooperative-cancellation handling forces
+    # the outcome to a terminal, speech-ineligible cancellation once dispatch() returns.
+    assert old_cred.get_calls == 1
+    assert len(prov.requests) == 1
+    credential = prov.requests[0].credential  # type: ignore[attr-defined]
+    assert credential is not None
+    assert credential.reveal() == _OLD_CANARY
+
+    result = outcome["value"]
+    assert result.attempt.status is TerminalState.CANCELLED  # type: ignore[union-attr]
+    assert result.attempt.text is None  # type: ignore[union-attr]
+    assert s.turns == []  # no stale/public turn from the cancelled attempt
 
 
 # ================================================================ 20.2 history/focus linearization

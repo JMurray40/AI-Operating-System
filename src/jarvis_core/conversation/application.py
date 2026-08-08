@@ -547,19 +547,30 @@ class ConversationApplication:
     ) -> TurnResult:
         snap = prepared.snapshot
 
-        # -------- LA-18-02A-2: second egress-admission linearization point. Capturing the
+        # -------- LA-18-02A-2/A-3: second egress-admission linearization point. Capturing the
         # credential provider at initial admission (LA-18-02A) prevents a concurrent
         # prepare_turn() from SUBSTITUTING the credential this attempt uses, but by itself does
         # nothing to stop the admitted attempt from using that captured credential and reaching
-        # the provider even when a replacement or reset has ALREADY invalidated it — terminal
-        # commit converts that to a discarded result, but the unauthorized egress itself would
-        # already have happened. Re-verify, under ONE short lock acquisition, that the ENTIRE
-        # admitted semantic envelope is still exactly what admission captured; if not, fail
-        # closed before any credential availability check, materialization, prompt/provider-
-        # request construction, or transport — and emit no credential/provider-attempt trace
-        # event for the discarded attempt.
+        # the provider even when a replacement, reset, OR cancellation has ALREADY invalidated
+        # it — terminal commit / cooperative-cancellation handling converts that to a discarded
+        # result, but the unauthorized egress itself would already have happened. Re-verify, at
+        # the SAME short decision point, that the ENTIRE admitted semantic envelope is still
+        # exactly what admission captured AND that the exact attempt cancellation token has not
+        # already won; if either fails, fail closed before any credential availability check,
+        # materialization, prompt/provider-request construction, or transport — and emit no
+        # credential/provider-attempt trace event for the discarded attempt. Reading
+        # ``cancel.cancelled`` is a non-blocking thread-safe property check (never a ``.wait()``
+        # call), so this remains a short, non-blocking lock acquisition.
         with session.lock:
-            if not _egress_admissible(session, prepared, credentials, generation, attempt_id):
+            envelope_ok = _egress_admissible(session, prepared, credentials, generation, attempt_id)
+            already_cancelled = envelope_ok and cancel is not None and cancel.cancelled
+            admissible = envelope_ok and not already_cancelled
+            if not admissible:
+                message = (
+                    "attempt cancelled before egress admission"
+                    if already_cancelled
+                    else "attempt discarded before egress admission: session lifecycle changed"
+                )
                 return TurnResult(
                     turn_number=session.peek_turn_number(),
                     request_id=snap.request_id,
@@ -570,9 +581,7 @@ class ConversationApplication:
                         attempt_id=attempt_id,
                         status=TerminalState.CANCELLED,
                         failure=FailureClass.CANCELLED,
-                        message=(
-                            "attempt discarded before egress admission: session lifecycle changed"
-                        ),
+                        message=message,
                     ),
                 )
         # Test-only pre-egress-access seam (LA-18-02A-2): a no-op in every production call

@@ -8,6 +8,7 @@ pre-dispatch validation; drift blocks retry and requires a fresh prepare.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -109,6 +110,17 @@ class ConversationApplication:
 
     def __init__(self) -> None:
         self._sessions: dict[str, Session] = {}
+        # AC-05-02R-2 test-only instrumentation seam: a private hook invoked immediately
+        # before the atomic terminal-commit lock is acquired in _execute_attempt — i.e. after
+        # provider dispatch AND response interpretation have both completed, but before any
+        # session-lifecycle write. Every production call path leaves this a no-op. It exists
+        # so a barrier-controlled test can pause a real dispatch at exactly this internal
+        # pre-commit seam and run a real concurrent invalidation (reset/prepare replacement/
+        # context removal/approval invalidation) against it, then resume and assert the
+        # dispatch's own terminal-commit logic detects and defeats the race — without adding
+        # a parameter to any public method and without a test ever establishing the result by
+        # directly poking session.in_flight/generation/active_attempt_id itself.
+        self._pre_commit_seam: Callable[[], None] = lambda: None
 
     # ------------------------------------------------------------------ session
     def create_session(
@@ -280,6 +292,7 @@ class ConversationApplication:
             raise ValidationError("no prepared turn to dispatch")
         if approval is None:
             raise ApprovalError("dispatch requires an explicit approval")
+        attempt_id = new_attempt_id()
         # ---- AC-05-02R lifecycle gate: fail closed BEFORE prompt assembly / provider access.
         # The read-then-write of in_flight/approval_consumed/attempts is one atomic critical
         # section under session.lock so two REAL concurrent callers cannot both observe
@@ -299,22 +312,33 @@ class ConversationApplication:
                     raise ValidationError("last attempt is not retry-eligible")
                 if len(session.attempts) >= _MAX_ATTEMPTS:
                     raise ValidationError("attempt limit reached; a fresh prepare is required")
-            # Consume permission / mark in-flight before any prompt or provider work.
+            # Consume permission / mark in-flight and bind this attempt's identity before any
+            # prompt or provider work; both generation and active_attempt_id are captured here
+            # for the atomic terminal-commit admissibility check (AC-05-02R-2).
             session.in_flight = True
+            session.active_attempt_id = attempt_id
+            session.last_attempt_id = attempt_id
             if kind == "initial":
                 session.approval_consumed = True
             generation = session.generation
         try:
             return self._execute_attempt(
-                session, provider, prepared, approval, kind, now, cancel, generation
+                session, provider, prepared, approval, kind, now, cancel, generation, attempt_id
             )
         finally:
+            # AC-05-02R-2 safety net: normally a no-op on the success path, because
+            # _execute_attempt's own atomic terminal-commit block already clears in_flight
+            # when this attempt is still admissible. It remains essential for any exception
+            # raised BEFORE that block runs (a revalidation/approval/policy/credential/cost
+            # failure prior to dispatch) — those paths never reach the terminal-commit block,
+            # so without this, in_flight would be left permanently set and the session stuck.
             with session.lock:
-                # AC-05-02R: only release in_flight if no reset/removal happened meanwhile.
-                # A reset already force-clears in_flight itself (Session.reset_lifecycle); if
-                # this stale attempt cleared it again unconditionally it could erroneously
-                # release a NEW attempt's exclusivity that started after the reset.
-                if session.generation == generation:
+                # AC-05-02R: only release in_flight if no reset/removal happened meanwhile,
+                # and only if this attempt is still the one the session considers active — a
+                # reset already force-clears in_flight/active_attempt_id itself; unconditionally
+                # clearing again here could erroneously release a NEW attempt's exclusivity
+                # that started after the reset.
+                if session.generation == generation and session.active_attempt_id == attempt_id:
                     session.in_flight = False
 
     def _execute_attempt(
@@ -327,10 +351,9 @@ class ConversationApplication:
         now: datetime | None,
         cancel: CancellationToken | None,
         generation: int,
+        attempt_id: str,
     ) -> TurnResult:
         snap = prepared.snapshot
-        attempt_id = new_attempt_id()
-        session.last_attempt_id = attempt_id
         moment = _now(now)
 
         # -------- step 8: revalidate approval, policy, eligibility, credential, cost, bytes
@@ -392,64 +415,83 @@ class ConversationApplication:
                 result, status=TerminalState.CANCELLED, text=None, finish_reason="cancelled"
             )
 
-        # AC-05-02R: a reset()/remove_context() that happened while THIS attempt was still
-        # physically in flight on another thread bumps session.generation. Such a late
-        # completion must never write a stale attempt/turn into the (now different) session
-        # state — defeat it here, before any further session mutation.
+        # -------- steps 11-12: normalize outcome, validate evidence (AC-05-02R-2: response
+        # interpretation happens here, WITHOUT holding session.lock, same as provider dispatch
+        # above — this can be real file I/O revalidation work and must not block any other
+        # session-lock holder such as a concurrent reset()).
+        attempt = self._interpret(session, prepared, snap, attempt_id, result)
+
+        # Test-only pre-commit seam (AC-05-02R-2): a no-op in every production call path; see
+        # __init__ for what this exists for.
+        self._pre_commit_seam()
+
+        # -------- atomic terminal commit (AC-05-02R-2): acquire session.lock exactly once,
+        # AFTER both provider work and interpretation are complete, and atomically (1) validate
+        # the captured generation AND this attempt's identity are still current, (2) decide
+        # whether completion is still admissible, and if so (3) append the terminal attempt,
+        # (4) record the single public turn, (5) update focus and the trace terminal event, and
+        # (6) clear in_flight — all under the one lock acquisition, so no other lock holder
+        # (a reset(), a fresh prepare_turn(), a remove_context()) can observe or interleave a
+        # partial mix of these writes. A lifecycle invalidation that happened at ANY point up
+        # to and including right now — including one that raced with interpretation itself,
+        # which the prior "check staleness before interpreting" ordering could miss — is
+        # detected here and discards this late completion instead of writing it in.
         with session.lock:
-            stale = session.generation != generation
-        if stale:
+            admissible = (
+                session.generation == generation and session.active_attempt_id == attempt_id
+            )
+            if not admissible:
+                return TurnResult(
+                    turn_number=session.peek_turn_number(),
+                    request_id=snap.request_id,
+                    session_id=session.session_id,
+                    snapshot_digest=snap.digest,
+                    coverage=Coverage.NONE,
+                    attempt=AttemptResult(
+                        attempt_id=attempt_id,
+                        status=TerminalState.CANCELLED,
+                        failure=FailureClass.CANCELLED,
+                        message="attempt discarded: session lifecycle was reset before completion",
+                        usage=result.usage,
+                        cost=result.cost,
+                        finish_reason=result.finish_reason,
+                        elapsed_ms=result.elapsed_ms,
+                    ),
+                )
+            session.attempts.append(AttemptRecord(attempt_id, attempt.status.value, kind))
+            coverage = attempt.evidence.coverage if attempt.evidence is not None else Coverage.NONE
+            turn_number = session.peek_turn_number()
+            if attempt.status is TerminalState.COMPLETED and attempt.text is not None:
+                record = session.record_turn(
+                    request_id=snap.request_id,
+                    snapshot_digest=snap.digest,
+                    user_text=snap.normalized_user_input,
+                    answer_text=attempt.text,
+                    coverage=coverage.value,
+                )
+                turn_number = record.turn_number
+                session.set_focus(prepared.focus_titles)
+            session.trace.record(
+                "dispatch_completed"
+                if attempt.status is TerminalState.COMPLETED
+                else "attempt_failed",
+                session_id=session.session_id,
+                attempt_id=attempt_id,
+                status=attempt.status.value,
+                failure=attempt.failure.value if attempt.failure else None,
+                coverage=coverage.value,
+                usage_provenance=attempt.usage.provenance.value,
+                cost_provenance=attempt.cost.provenance.value,
+            )
+            session.in_flight = False
             return TurnResult(
-                turn_number=session.peek_turn_number(),
+                turn_number=turn_number,
                 request_id=snap.request_id,
                 session_id=session.session_id,
                 snapshot_digest=snap.digest,
-                coverage=Coverage.NONE,
-                attempt=AttemptResult(
-                    attempt_id=attempt_id,
-                    status=TerminalState.CANCELLED,
-                    failure=FailureClass.CANCELLED,
-                    message="attempt discarded: session lifecycle was reset before completion",
-                    usage=result.usage,
-                    cost=result.cost,
-                    finish_reason=result.finish_reason,
-                    elapsed_ms=result.elapsed_ms,
-                ),
+                coverage=coverage,
+                attempt=attempt,
             )
-
-        # -------- steps 11-12: normalize outcome, validate evidence, record turn
-        attempt = self._interpret(session, prepared, snap, attempt_id, result)
-        session.attempts.append(AttemptRecord(attempt_id, attempt.status.value, kind))
-        coverage = attempt.evidence.coverage if attempt.evidence is not None else Coverage.NONE
-        turn_number = session.peek_turn_number()
-        if attempt.status is TerminalState.COMPLETED and attempt.text is not None:
-            record = session.record_turn(
-                request_id=snap.request_id,
-                snapshot_digest=snap.digest,
-                user_text=snap.normalized_user_input,
-                answer_text=attempt.text,
-                coverage=coverage.value,
-            )
-            turn_number = record.turn_number
-            session.set_focus(prepared.focus_titles)
-        session.trace.record(
-            "dispatch_completed" if attempt.status is TerminalState.COMPLETED else "attempt_failed",
-            session_id=session.session_id,
-            attempt_id=attempt_id,
-            status=attempt.status.value,
-            failure=attempt.failure.value if attempt.failure else None,
-            coverage=coverage.value,
-            usage_provenance=attempt.usage.provenance.value,
-            cost_provenance=attempt.cost.provenance.value,
-        )
-        return TurnResult(
-            turn_number=turn_number,
-            request_id=snap.request_id,
-            session_id=session.session_id,
-            snapshot_digest=snap.digest,
-            coverage=coverage,
-            attempt=attempt,
-        )
 
     @staticmethod
     def cancel_attempt(cancel: CancellationToken) -> None:

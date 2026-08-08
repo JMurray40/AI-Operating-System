@@ -81,6 +81,13 @@ class Session:
     # a reset/removal that happens while a dispatch is still physically in flight on another
     # thread defeats that late completion instead of silently resurrecting stale state.
     generation: int = 0
+    # AC-05-02R-2: the attempt id claimed by the current in-flight dispatch, set under the
+    # same lock acquisition that sets ``in_flight``/captures ``generation`` (application._
+    # run_attempt). The terminal-commit path re-checks this ALONGSIDE ``generation`` before
+    # writing anything, so staleness is detected by attempt identity as well as by lifecycle
+    # generation — two independent signals for the same "is this attempt still the one
+    # session state should reflect" question. Cleared by every lifecycle invalidation.
+    active_attempt_id: str | None = None
 
     # ---------------------------------------------------------------- turn numbering
     def peek_turn_number(self) -> int:
@@ -142,29 +149,46 @@ class Session:
         return "\n".join(f"turn {t.turn_number}: coverage={t.coverage}" for t in self.turns)
 
     # ---------------------------------------------------------------- lifecycle
-    def reset_lifecycle(self) -> None:
-        """Invalidate any approval + attempt lifecycle (a new prepare/removal happened)."""
+    def _invalidate_lifecycle_locked(self) -> None:
+        """Raw lifecycle-invalidation mutation. Caller MUST already hold ``self.lock``.
+
+        AC-05-02R-2: private, lock-not-acquiring helper so every public invalidation entry
+        point (``reset_lifecycle``, ``clear_pending``, ``reset``) can perform its own full set
+        of mutations under exactly ONE lock acquisition, instead of nesting a second acquire
+        of this non-reentrant ``threading.Lock`` (which would deadlock).
+        """
         self.pending_approval = None
         self.attempts.clear()
         self.approval_consumed = False
         self.in_flight = False
+        self.active_attempt_id = None
         # AC-05-02R: every invalidation is a new generation so a still-running attempt from
         # before this call can detect it happened and defeat its own late completion.
         self.generation += 1
 
+    def reset_lifecycle(self) -> None:
+        """Invalidate any approval + attempt lifecycle (a new prepare/removal happened)."""
+        with self.lock:
+            self._invalidate_lifecycle_locked()
+
     def clear_pending(self) -> None:
-        self.pending_prepared = None
-        self.pending_credentials = None
-        self.last_attempt_id = None
-        self.reset_lifecycle()
+        with self.lock:
+            self.pending_prepared = None
+            self.pending_credentials = None
+            self.last_attempt_id = None
+            self._invalidate_lifecycle_locked()
 
     def reset(self) -> None:
-        self.turns.clear()
-        self.evictions.clear()
-        self.focus_titles = ()
-        self.trace = Trace()
-        self._next_turn = 1
-        self.clear_pending()
+        with self.lock:
+            self.turns.clear()
+            self.evictions.clear()
+            self.focus_titles = ()
+            self.trace = Trace()
+            self._next_turn = 1
+            self.pending_prepared = None
+            self.pending_credentials = None
+            self.last_attempt_id = None
+            self._invalidate_lifecycle_locked()
 
 
 def new_attempt_id() -> str:

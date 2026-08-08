@@ -556,3 +556,128 @@ Return to Chief of Staff for validation of the corrected executable commit
 per Handoff 15's explicit routing (Chief-of-Staff validation only — no direct CTO review is
 requested by this Engineering return).
 Quality, WP4, packaging, live-provider activity, merge, push, and release remain unauthorized.
+
+# SUPERSEDING FINAL CORRECTION — Handoff 17 (AC-05-01R-2, AC-05-02R-2)
+
+This revision supersedes T7's disposition. Following CTO acceptance of the prior disposition,
+Chief-of-Staff Handoff 17 (Final Two-Defect Remediation) authorized one minimal, narrowly
+bounded correction against reviewed executable `30f1c3010505213db7657e9ec9c5fef0da7faeb3`
+(correction base `822fcda950fcf8944aec2829f540be42981cd71a`): copy and recursively freeze
+mapping proxies instead of aliasing their mutable backing mappings (AC-05-01R-2), and make
+generation validation plus every terminal session write one atomic lifecycle-lock operation,
+with every lifecycle invalidation path using that same lock (AC-05-02R-2). AC-05-03R,
+AC-05-04R, AC-05-05R, AE-05-01, and the unchanged-query comparison remain accepted and closed;
+no other architecture or implementation area was touched.
+
+## U1. Exact commit and tree identities
+
+| Artifact | Identity |
+|---|---|
+| Reviewed (defective) executable | `30f1c3010505213db7657e9ec9c5fef0da7faeb3` |
+| Correction base | `822fcda950fcf8944aec2829f540be42981cd71a` |
+| **New executable correction commit** | `6be2e73e769c4e9f49b85db33930475a77531818` |
+| **New executable tree** | `a37391199a17554af4ed25a0120b16ebc0e2cc84` |
+| Branch | `feature/v0.5-visible-context-conversation` |
+| Files touched | `src/jarvis_core/conversation/application.py`, `src/jarvis_core/conversation/immutable.py`, `src/jarvis_core/conversation/session.py`, `tests/unit/test_conversation_ac05_01.py` (one pre-existing assertion corrected to match the new intentional AC-05-01R-2 behavior), `tests/unit/test_conversation_ac05_01r2.py` (new), `tests/unit/test_conversation_ac05_02r2.py` (new) — 6 files |
+| Documentation/evidence-only descendant | immediate descendant of `6be2e73e…` containing this revision plus the rebound supplemental evidence JSON; no `src/`, `tests/`, scripts, dependency, or packaging change; exact SHA recorded at commit |
+
+## U2. AC-05-01R-2 / AC-05-02R-2 defect-to-fix mapping
+
+| Requirement | Root cause | Fix | Verification |
+|---|---|---|---|
+| AC-05-01R-2 copy mapping-proxy backing state | `deep_freeze()` special-cased an incoming `MappingProxyType` as "already frozen" and returned it UNCHANGED. A `MappingProxyType` is a read-only VIEW, not a copy — the proxy itself rejects writes, but its backing mapping can still be owned and mutated by the caller, and that mutation is immediately visible through the retained proxy: an alias, not a copy, despite looking read-only | Every mapping input is now treated as an untrusted view, including one that already presents as a `MappingProxyType`, at any nesting depth or through multiple proxy layers: its current key/value pairs are enumerated into a newly owned `dict`, every key AND value is itself deep-frozen, and the result is wrapped in a NEW `MappingProxyType` with no reference to the original backing mapping. An unsupported key type now fails closed the same way an unsupported value type already did | `tests/unit/test_conversation_ac05_01r2.py` (14 tests: direct proxy over a mutable backing dict, proxy nested in a mapping/sequence/snapshot digest-bearing field, proxy whose backing mapping has nested mutable mappings/sequences, multiple proxy layers, caller mutation after freezing leaves canonical bytes/digest unchanged, unsupported key/value types fail closed rather than being stringified or retained) |
+| AC-05-02R-2 atomic terminal lifecycle commit | The staleness check (captured `generation` vs current) ran BEFORE response interpretation, and every terminal write after it — append the attempt, record the turn, update focus, record the terminal trace event, clear `in_flight` — was a sequence of UNLOCKED mutations with no re-check. A lifecycle invalidation racing with interpretation itself, or landing in the unlocked window between interpretation finishing and those writes, was never defeated | Provider dispatch and response interpretation still run WITHOUT holding `session.lock` (unchanged). Immediately after interpretation, the lock is acquired exactly ONCE and atomically: validate captured generation AND attempt identity are current, decide admissibility, and if admissible append the attempt/record the turn/update focus and the terminal trace event/clear `in_flight` — all under that one acquisition. `Session` gains `active_attempt_id` (set alongside `generation` in the same initial locked claim, cleared by every invalidation). Every invalidation path (`reset()`, `prepare_turn()`'s replacement, `remove_context()`, `reset_lifecycle()` itself) performs its full mutation set under exactly one lock acquisition via a new private, lock-not-acquiring `Session._invalidate_lifecycle_locked()` helper, avoiding a deadlock from nesting a second acquisition of the non-reentrant lock | `tests/unit/test_conversation_ac05_02r2.py` (6 tests, using a private production-no-op test seam — `ConversationApplication._pre_commit_seam`, called only immediately before the terminal-commit lock — to pause a REAL dispatch at that exact internal pre-commit point): reset / prepare-replacement / context-removal / approval-invalidation each landing exactly after interpretation but before commit all defeat the late completion (no attempt, turn, focus, or trace-completion event written); a fresh dispatch after the invalidation proceeds normally; no test establishes its result by directly setting session flags |
+
+An incidental pre-existing test assumption in `test_conversation_ac05_01.py` (`deep_freeze` of
+an already-frozen value returned the identical object) was corrected to assert value-equality
+and continued immutability instead of object identity — the new intentional AC-05-01R-2
+behavior deliberately never returns the same object for a `MappingProxyType` input, since doing
+so is exactly the aliasing this correction closes. No other assertion in that file changed.
+
+## U3. Gate results (this sandbox)
+
+- **`ruff format --check`** (6 changed files): PASS — "6 files already formatted."
+- **`ruff check src tests scripts`**: PASS — "All checks passed!"
+- **mypy** (project's actual configured invocation, `pyproject.toml` `[tool.mypy]`,
+  `packages = ["jarvis_core"]`): **`Success: no issues found in 89 source files`.**
+- **`git diff --check`**: PASS — clean, no whitespace conflicts.
+- **Privacy/secret scan** on every changed/new file (path/credential/key-shaped pattern grep):
+  no matches.
+- **Focused AC-05-01R-2/AC-05-02R-2 tests**: `test_conversation_ac05_01r2.py` (14 tests) and
+  `test_conversation_ac05_02r2.py` (6 tests) — 20/20 pass. The AC-05-02R-2 tests were
+  additionally stress-run 30 consecutive times (180 executions total) after this cycle's own
+  authoring uncovered and fixed a test-HARNESS bug (not a production bug): the first draft
+  could race the test's own invalidation call ahead of the dispatch thread's initial in-flight
+  claim, which is a different, already-covered scenario, not the post-interpretation race this
+  correction targets. The corrected harness first confirms (via a gated provider's `entered`
+  signal) that the attempt has already claimed `in_flight`/`generation`/`active_attempt_id`
+  before landing the invalidation at the seam — 0 failures across all 30 runs.
+- **Complete conversation suite**: `pytest tests/unit -k conversation`: **183 passed, 0
+  skipped** (163 prior + 20 new).
+- **Complete regression suite**: `pytest tests` (unit + integration): **609 passed, 2 skipped,
+  3 failed.** The 3 failures and one of the two skips are the same pre-existing, unrelated
+  `test_project_resume_local_git.py` findings disclosed in every prior round (sandbox git
+  2.34.1 is below the 2.38.0 floor those tests require); the other skip is the pre-existing
+  CS-21 independent-Windows-logon item. Neither category is touched by, caused by, or related
+  to this correction — the affected module has no import-graph dependency on any file this
+  correction changed.
+- **Limitation, stated plainly**: this sandbox cannot reach the user's Windows host (git
+  2.55.0.windows.1) directly. For the deterministic, environment-independent gates above
+  (`ruff format`, `ruff check`, `mypy`, the focused/full pytest runs against the committed
+  tree) that is not a limitation — both environments read the same committed tree and would
+  produce the same result. It remains a real, unclosed gap only for the three git-version-
+  floor-sensitive `local_git` failures, which are unrelated to AC-05-01R-2/AC-05-02R-2.
+
+## U4. Rebound supplemental performance evidence
+
+Both corrected boundaries (`deep_freeze()` used throughout snapshot/approval/presentation
+construction, and the `_execute_attempt` terminal-commit path) are on the measured conversation
+path `scripts/benchmark_conversation.py` exercises (prepare / approve+assemble+dispatch+
+validate overhead / cancellation acknowledgement). The unchanged-query paired-comparison result
+remains cited unmodified from S3/T5 (its inputs are untouched by this cycle).
+
+Rerun against the new exact executable `6be2e73e769c4e9f49b85db33930475a77531818`:
+
+| Notes | prepare p50/p95/p99 (ms) | peak MiB | app-overhead p95 (ms) | cancel p95 (ms) |
+|---|---|---|---|---|
+| 100 | 12.104 / 14.813 / 15.283 | 1.08 | 5.539 | 1.671 |
+| 500 | 52.567 / 56.388 / 61.01 | 4.511 | 8.905 | 1.511 |
+| 1,000 | 109.372 / 116.734 / 116.791 | 8.333 | 9.491 | 1.487 |
+| 5,000 | 613.761 / 669.902 / 768.481 | 41.904 | 23.809 | 6.069 |
+
+Gate results: `prepare_p95_under_2s` PASS, `app_overhead_p95_under_250ms` PASS,
+`cancel_p95_under_500ms` PASS — `all_gates_pass: true`. An extra dict-comprehension pass over
+every mapping proxy's keys AND values (AC-05-01R-2) and one additional lock acquisition per
+completed attempt (AC-05-02R-2) show no material overhead against the accepted gate
+thresholds at any size, including the 5,000-note ceiling. Raw per-run samples for every size
+are retained in the artifact.
+
+Evidence file: `docs/evidence/v0.5/conversation-performance-remediation-h17.json`,
+**SHA-256 `c1d6f1ca1b937e7e9a14539cda84b5a3cce0958c21f9f5e35a62fb44973cc873`**. This supersedes
+`conversation-performance-remediation-vc15.json` as the operative absolute-benchmark evidence
+for the current executable; all prior evidence files are retained unmodified as historical
+record and are not deleted or overwritten.
+
+## U5. Privacy and no-live-call confirmation
+
+No live credential, provider/network call, vault write, packaging execution, QA, merge, push,
+tag, or release was performed. No real personal data, credentials, or private paths were
+introduced into source, tests, or the evidence artifact (see privacy/secret scan above). The
+test seam (`_pre_commit_seam`) is a private, in-process callback hook with no I/O of its own;
+every production call path leaves it a no-op.
+
+## U6. Clean worktree confirmation
+
+`git status --porcelain` is empty at the new executable commit `6be2e73e769c…` (verified
+directly). No `src/jarvis_core.egg-info/` or any other generated/build artifact is present,
+tracked, staged, or untracked in the worktree at this commit — `git clean -ndx` reports only
+gitignored tool caches (`.mypy_cache/`, `.pytest_cache/`, `.ruff_cache/`, `__pycache__/` under
+`scripts/`/`src/`/`tests/`), none of which are new to this cycle or were ever staged.
+
+## U7. Requested disposition
+
+Return to Chief of Staff for validation of the corrected executable commit
+`6be2e73e769c4e9f49b85db33930475a77531818` and its documentation/evidence-only descendant, per
+Handoff 17's explicit routing (Chief-of-Staff validation only — do not route directly to CTO).
+Quality, WP4, credentials, provider/network activity, packaging, merge, push, tag, release,
+Voice Shell, Multica, and Ruflo remain unauthorized.

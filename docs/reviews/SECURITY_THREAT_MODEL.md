@@ -186,3 +186,23 @@ AI outputs remain probabilistic; local device compromise can defeat application 
 | Version | Date | Change |
 |---|---|---|
 | 1.0.0 | 2026-07-27 | Initial comprehensive threat model |
+# ADR-0025 standing-grant and sensitivity-routing addendum
+
+This addendum controls the personal-prototype route expansion. It does not authorize execution.
+
+| Threat | Required control | Immediate stop |
+|---|---|---|
+| Standing-grant tamper or overbreadth | Canonical exact-byte digest; strict schema; no wildcard; owner, scope, route, model, sensitivity, limits, versions, expiry and revocation bound | Changed or broader grant remains active |
+| Implicit declassification | Missing/unknown excluded; strict approval cannot override destination eligibility | Sensitive/mixed content reaches Gemini |
+| Route chosen from content | Select exact destination from declared ceiling/policy/readiness before candidate generation | Source content or excluded identity affects route |
+| Silent provider fallback | One immutable route per request; local and remote failure are terminal/blocked | Any automatic route change |
+| Local service egress | Exact loopback authority, pinned runtime/model digests, proxy exclusion, runtime non-loopback denial, telemetry/update/cloud disabled | Any non-loopback connection |
+| Ambient provider/config injection | Environment and transport allowlists; reject endpoint/model/proxy/redirect drift | Ambient value changes selected route |
+| Stale activation | Revalidate policy digest, expiry, revocation generation, scope, versions and limits before prompt assembly | Revoked/expired policy dispatches |
+| Context splitting hides disclosure | One request/route/snapshot; lower-ceiling operation is a new visibly incomplete request | Silent split or false complete coverage |
+| Route diagnostics leak sensitivity/source facts | Fixed categorical outcomes and safe aggregates only | Private paths, identities, content or raw errors appear |
+
+Residual risk: local inference keeps source bytes off a remote provider but still exposes them to a
+separate local process and model artifact. Exact provenance, loopback/network denial, host access,
+memory pressure, model behavior, and process cleanup therefore require independent evidence before
+private data is used.

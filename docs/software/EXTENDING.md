@@ -27,6 +27,20 @@ Steps:
 
 Use **role aliases**, not provider model names, throughout the application.
 
+### ADR-0025 provider-routing constraints
+
+An adapter does not choose itself and cannot request fallback. A policy evaluator selects one exact
+destination before candidate generation from the explicit scope, sensitivity ceiling, active grant,
+and readiness metadata. `public`/`internal` may use only the exact approved Gemini profile;
+`private`/`restricted` and mixed ceilings may use only an exact approved loopback Ollama profile.
+Missing/unknown sensitivity has no route.
+
+The Ollama adapter must use the normalized non-streaming gateway, an exact loopback authority and
+pinned runtime/model identities. Non-loopback traffic, proxies, redirects, telemetry, updates,
+cloud services, ambient endpoint/model overrides, tools, memory and fallback are prohibited. Local
+failure is a blocked result, never permission for remote dispatch. New adapters or model profiles
+require separate Product Owner approval and the shared C01-C40 contract suite.
+
 ## Adding a storage adapter
 
 Implement the `KnowledgeRepository` contract

@@ -4,9 +4,9 @@
 |---|---|
 | Purpose | Index durable architecture decisions |
 | Status | Active |
-| Version | 0.6.0 |
+| Version | 0.8.0 |
 | Owner | Jason |
-| Revised | 2026-07-27 |
+| Revised | 2026-08-14 |
 | Related | [System Architecture](../SYSTEM_ARCHITECTURE.md), [Development Guide](../DEVELOPMENT_GUIDE.md) |
 
 ## Index
@@ -36,6 +36,7 @@
 | [0022](ADR-0022-Conversation-Is-A-Session-Only-Application-Layer.md) | Conversation is a session-only application layer | Accepted |
 | [0023](ADR-0023-Conversation-Uses-Immutable-Visible-Context-Snapshots.md) | Conversation uses immutable visible context snapshots | Accepted |
 | [0024](ADR-0024-V0.5-Uses-Normalized-Non-Streaming-Provider-Dispatch.md) | v0.5 uses normalized non-streaming provider dispatch | Accepted |
+| [0025](ADR-0025-Standing-Trust-Grants-And-Sensitivity-Aware-Provider-Routing.md) | Standing trust grants and sensitivity-aware provider routing | Proposed |
 
 Accepted ADRs are not rewritten to reflect a later choice. A new ADR supersedes the earlier record.
 
@@ -43,6 +44,7 @@ Accepted ADRs are not rewritten to reflect a later choice. A new ADR supersedes 
 
 | Version | Date | Change |
 |---|---|---|
+| 0.8.0 | 2026-08-14 | Added proposed ADR-0025 after Product Owner approval in principle of standing grants and sensitivity-aware routing |
 | 0.7.0 | 2026-08-01 | Recorded Product Owner acceptance of ADR-0022 through ADR-0024 |
 | 0.6.0 | 2026-08-01 | Added proposed ADR-0022 through ADR-0024 for Product Owner review of v0.5 conversation planning |
 | 0.5.0 | 2026-07-27 | Added accepted ADR-0018 through ADR-0021 for v0.4 Project Resume |

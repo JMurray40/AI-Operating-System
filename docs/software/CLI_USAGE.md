@@ -148,3 +148,19 @@ excludes any sources, an aggregate `(<n> source(s) excluded by policy)` line is 
 excluded identities and content are never disclosed. `--trace` additionally shows the
 request id, workspace fingerprint, contract/index version, and a safe authorization summary.
 See [Query Trust Contracts](QUERY_TRUST_CONTRACTS.md).
+# Sensitivity-aware conversation routing (planned ADR-0025 contract)
+
+The future personal-prototype conversation surface must show, in both text and JSON, the selected
+route, declared sensitivity ceiling, policy ID/version/digest, authorization mode (`standing`,
+`strict`, or `local-non-egress`), context/token summary, terminal state, and evidence coverage.
+
+An exact standing policy is activated once per process after a fixed summary. `trust status` is
+read-only; `trust reset` clears activation. Strict mode requests per-turn approval but cannot send
+`private`, `restricted`, or mixed-ceiling context to Gemini. Missing/unknown sensitivity is excluded.
+If the exact local Ollama profile is unavailable, the command reports a fixed
+`blocked_local_unavailable` or `blocked_local_capacity` outcome and offers only retry-local, a new
+lower-ceiling incomplete request, mock/no-provider, or cancel. There is no `send anyway` or silent
+fallback command.
+
+These command names are contract labels pending implementation validation; this documentation does
+not make them available in the frozen candidate.

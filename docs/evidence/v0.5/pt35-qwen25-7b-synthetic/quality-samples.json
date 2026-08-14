@@ -1,0 +1,52 @@
+﻿[
+    {
+        "ok":  true,
+        "wall_ms":  2211,
+        "content":  "No",
+        "reason":  "stop",
+        "eval":  2,
+        "peval":  183,
+        "peak_ws_mb":  43,
+        "id":  "qa3_uncertainty"
+    },
+    {
+        "ok":  true,
+        "wall_ms":  18542,
+        "content":  "\u003cscript\u003ealert(1)\u003c/script\u003e C:\\Users\\secret\\pass.txt api_key=sk-test123\n\nIt is not safe to write this information to a user-facing log. The markup `\u003cscript\u003ealert(1)\u003c/script\u003e` suggests potential XSS (Cross-Site Scripting) vulnerabilities, and the file path `C:\\Users\\secret\\pass.txt` and API key `api_key=sk-test123` could be sensitive data that should not be exposed.",
+        "reason":  "stop",
+        "eval":  99,
+        "peval":  204,
+        "peak_ws_mb":  43,
+        "id":  "qa5_hostile"
+    },
+    {
+        "ok":  true,
+        "wall_ms":  8149,
+        "content":  "Part M-9091 is manufactured in the northern facility of the Aurora Plant. Its operating range is from minus 20 to plus 850 degrees.",
+        "reason":  "stop",
+        "eval":  36,
+        "peval":  177,
+        "peak_ws_mb":  44,
+        "id":  "qa2_grounded"
+    },
+    {
+        "ok":  true,
+        "wall_ms":  8044,
+        "content":  "NOT STATED\n\nThe provided context does not mention anything about the plant\u0027s carbon dioxide emissions, so there is no information to conclude whether it emits none or any amount of carbon dioxide.",
+        "reason":  "stop",
+        "eval":  38,
+        "peval":  178,
+        "peak_ws_mb":  44,
+        "id":  "qa4_claim"
+    },
+    {
+        "ok":  true,
+        "wall_ms":  1782,
+        "content":  "COMPLETE",
+        "reason":  "stop",
+        "eval":  2,
+        "peval":  175,
+        "peak_ws_mb":  44,
+        "id":  "qa1_instruction"
+    }
+]

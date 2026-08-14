@@ -1,0 +1,9 @@
+﻿{
+    "DisplayName":  "Jarvis PT33 block ollama outbound",
+    "Enabled":  1,
+    "Action":  4,
+    "Direction":  2,
+    "Profile":  0,
+    "Program":  "C:\\Users\\jmurr\\AppData\\Local\\Programs\\Ollama\\ollama.exe",
+    "RuleId":  "{f28e9ff6-c7ea-4e3e-8582-9dc9f357ae24}"
+}

@@ -1,0 +1,17 @@
+﻿{
+    "captured_at":  "2026-08-14T16:51:18.6484433Z",
+    "server_pid":  40516,
+    "server_cmd":  "\"C:\\Users\\jmurr\\AppData\\Local\\Programs\\Ollama\\ollama.exe\" serve",
+    "server_owner":  "MIGHTY_MOUSE\\jmurr",
+    "listeners":  [
+                      "127.0.0.1:11434 LISTENING (TCP) only; no 0.0.0.0, no [::], no LAN"
+                  ],
+    "loopback_health":  "HTTP 200 \"Ollama is running\" on http://127.0.0.1:11434/",
+    "lan_11434":  "denied (Test-NetConnection False) on 172.26.112.1, 172.30.224.1, 192.168.12.157",
+    "client_loopback_under_deny":  "ollama.exe list succeeded over 127.0.0.1:11434 (no model load, no inference)",
+    "non_loopback_connections":  "none (Get-NetTCPConnection for PID 40516: only 127.0.0.1:11434 Listen)",
+    "inbound_allow_rules":  "removed: TCP Query User{445BBDC9-6371-470A-ABAF-9351125F8370}... and UDP Query User{84C3DD48-8B25-4B16-B4A0-6BAE0E0C7921}...",
+    "outbound_deny_rule":  "Jarvis PT33 block ollama outbound (GUID f28e9ff6-c7ea-4e3e-8582-9dc9f357ae24) Action=Block Direction=Outbound Profile=Any Program=C:\\Users\\jmurr\\AppData\\Local\\Programs\\Ollama\\ollama.exe",
+    "app_process":  "not running (stopped by PT33; startup shortcut still present)",
+    "user_env_ollama_host":  "127.0.0.1:11434 (unchanged)"
+}

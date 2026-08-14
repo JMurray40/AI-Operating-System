@@ -1,0 +1,58 @@
+﻿[
+    {
+        "test":  "oversized_output",
+        "ok":  true,
+        "done":  true,
+        "reason":  "length",
+        "eval":  5,
+        "wall_ms":  3911,
+        "content":  "",
+        "err":  ""
+    },
+    {
+        "test":  "malformed_model",
+        "ok":  false,
+        "reason":  "",
+        "wall_ms":  18,
+        "content":  "",
+        "err":  "The remote server returned an error: (404) Not Found."
+    },
+    {
+        "test":  "cancellation",
+        "cancelled":  false,
+        "wall_ms":  2922,
+        "err":  null,
+        "content":  ""
+    },
+    {
+        "test":  "timeout_30s",
+        "ok":  false,
+        "wall_ms":  30008,
+        "err":  "The request was aborted: The operation has timed out.",
+        "content":  ""
+    },
+    {
+        "test":  "context_oversize",
+        "ok":  false,
+        "done":  "",
+        "reason":  "",
+        "wall_ms":  90021,
+        "peval":  "",
+        "content":  "",
+        "err":  "The request was aborted: The operation has timed out."
+    },
+    {
+        "test":  "concurrent_2",
+        "w1":  120580,
+        "c1":  null,
+        "r1":  null,
+        "w2":  120649,
+        "c2":  null,
+        "r2":  null
+    },
+    {
+        "test":  "server_health_after",
+        "health":  "up",
+        "wall_ms":  0
+    }
+]

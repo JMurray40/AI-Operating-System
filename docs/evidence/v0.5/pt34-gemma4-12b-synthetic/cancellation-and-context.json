@@ -1,0 +1,19 @@
+﻿[
+    {
+        "test":  "cancellation_redo",
+        "cancelled":  true,
+        "wall_ms":  3338,
+        "server_health":  "up",
+        "loaded_models":  "gemma4:12b"
+    },
+    {
+        "test":  "context_18k",
+        "ok":  false,
+        "wall_ms":  60048,
+        "done":  "",
+        "reason":  "",
+        "peval":  "",
+        "content":  "",
+        "err":  "The request was aborted: The operation has timed out."
+    }
+]

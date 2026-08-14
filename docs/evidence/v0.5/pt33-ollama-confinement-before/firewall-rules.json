@@ -1,0 +1,22 @@
+﻿[
+    {
+        "DisplayName":  "ollama.exe",
+        "Enabled":  1,
+        "Action":  2,
+        "Direction":  1,
+        "Profile":  4,
+        "Program":  "C:\\users\\jmurr\\appdata\\local\\programs\\ollama\\ollama.exe",
+        "RuleId":  "TCP Query User{445BBDC9-6371-470A-ABAF-9351125F8370}C:\\users\\jmurr\\appdata\\local\\programs\\ollama\\ollama.exe",
+        "Group":  null
+    },
+    {
+        "DisplayName":  "ollama.exe",
+        "Enabled":  1,
+        "Action":  2,
+        "Direction":  1,
+        "Profile":  4,
+        "Program":  "C:\\users\\jmurr\\appdata\\local\\programs\\ollama\\ollama.exe",
+        "RuleId":  "UDP Query User{84C3DD48-8B25-4B16-B4A0-6BAE0E0C7921}C:\\users\\jmurr\\appdata\\local\\programs\\ollama\\ollama.exe",
+        "Group":  null
+    }
+]

@@ -4,13 +4,14 @@
 
 **Milestone:** v0.5 personal prototype
 
-**Phase:** PT31 sensitivity-routing documentation gate
+**Phase:** PT35 qwen2.5:7b synthetic evaluation return
 
-**Implementation:** accepted Voice candidate `08b0b113`; documentation only; PT32 remains blocked
-pending Chief-of-Staff acceptance and pinning of Handoff 139.
+**Implementation:** accepted Voice candidate `08b0b113`; documentation pinned. PT33 confinement and
+PT34 gemma4:12b evaluation accepted by CTO; PT35 exact qwen2.5:7b synthetic evaluation returned and
+pending CTO review. No local model or profile is approved or active.
 
 **Current incoming artifact:**
-[CTO sensitivity-aware routing disposition](138-cto-to-product-owner-sensitivity-aware-provider-routing-disposition.md)
+[Principal Engineer qwen2.5:7b synthetic evaluation return](145-principal-engineer-to-cto-qwen25-7b-synthetic-evaluation-return.md)
 
 ADR-0022 through ADR-0024 remain accepted. Proposed ADR-0025 supersedes only their
 per-turn-human, single-real-adapter, and no-selection portions after exact package validation.

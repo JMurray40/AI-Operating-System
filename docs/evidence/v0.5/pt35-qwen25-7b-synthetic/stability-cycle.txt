@@ -1,0 +1,4 @@
+﻿cycle1_unload: loaded=0 health=Ollama is running ws_mb=33
+cycle2_reload: wall=6793ms content=[OK] ws_mb=43
+cycle2_unload: loaded=0 ws_mb=44
+final_drift: deny_enabled=True nonloopback=0 listener=TCP    127.0.0.1:11434        0.0.0.0:0              LISTENING       40516 TCP    127.0.0.1:11434        127.0.0.1:53574        ESTABLISHED     40516 TCP    127.0.0.1:53574        127.0.0.1:11434        ESTABLISHED     3292

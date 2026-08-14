@@ -1,0 +1,229 @@
+{
+  "schema_version": "1.0",
+  "packet_id": "jarvis-v0.5-certification-readiness",
+  "project": "AI Operating System (Jarvis)",
+  "milestone": "v0.5 Visible-Context Conversation",
+  "status": "ready",
+  "prepared_by": "chief_of_staff",
+  "reviewers": ["cto", "principal_engineer", "quality_release", "product_owner"],
+  "objective": "Complete full v0.5 certification through a clean offline Windows baseline, A12, limited Quality revalidation, and explicit release decision",
+  "environments": [
+    {
+      "id": "ENV-ACQUIRE",
+      "purpose": "Official Microsoft ADK and servicing-patch acquisition",
+      "operating_system": "Windows host build 10.0.26200.8973; edition/architecture still require elevated or alternate read-only confirmation",
+      "runtime": ["Native Windows HTTPS and Authenticode tooling", "Official ADK layout bootstrap"],
+      "network_policy": "Narrow Microsoft-only HTTPS acquisition; all protected project and VM inputs absent",
+      "identity_and_privilege": "Standard native host identity unless official layout creation demonstrably requires elevation",
+      "capacity": ["Twice accepted layout size plus 5 GiB free"],
+      "verification": ["Official-link availability", "Proxy/TLS route", "free space", "protected-input absence"],
+      "status": "partial"
+    },
+    {
+      "id": "ENV-TOOLING",
+      "purpose": "Offline elevated Deployment Tools installation and servicing",
+      "operating_system": "Windows host build 10.0.26200.8973; edition/architecture still require elevated or alternate read-only confirmation",
+      "runtime": ["ADK 10.1.26100.2454 OptionId.DeploymentTools", "KB5101684"],
+      "network_policy": "DNS, HTTP, HTTPS, and proxy access independently denied",
+      "identity_and_privilege": "Native elevated Windows administrator; exact execution method to be proven",
+      "capacity": ["Installer requirement times two plus 5 GiB", "15 GiB technician workspace"],
+      "verification": ["elevation", "network denial", "pending restart", "baseline inventories", "rollback route"],
+      "status": "partial"
+    },
+    {
+      "id": "ENV-SYNTHETIC",
+      "purpose": "Two independent zero-NIC Windows installation proofs",
+      "operating_system": "Two fresh Generation 2 Hyper-V installations of accepted Windows 11 Pro image",
+      "runtime": ["Serviced Windows SIM", "ADK DISM", "Oscdimg", "Hyper-V"],
+      "network_policy": "Zero network adapters from creation through preserved shutdown",
+      "identity_and_privilege": "Elevated native Hyper-V operator plus basic-console Product Owner interactions if required",
+      "capacity": ["Two 100 GiB dynamic VHDX files plus evidence and ISO workspace"],
+      "verification": ["Hyper-V access", "zero-NIC construction", "basic console", "two-run storage capacity"],
+      "status": "planned"
+    },
+    {
+      "id": "ENV-TARGET",
+      "purpose": "JARVIS clean reinstall, private account transition, baseline, and checkpoint",
+      "operating_system": "Jarvis-A12-v05 Generation 2 VM with Windows 11 Pro 25H2 x64",
+      "runtime": ["Accepted Microsoft ISO", "Accepted answer ISO", "new 100 GiB VHDX"],
+      "network_policy": "Existing private no-uplink switch only; no Internet, NAT, bridge, ICS, or Default Switch",
+      "identity_and_privilege": "Engineering performs powered-off preparation; Jason alone performs private account actions",
+      "capacity": ["Preserved rollback VHDX plus new VHDX and one checkpoint"],
+      "verification": ["powered-off identity", "disk and media inventory", "console", "isolation", "private return"],
+      "status": "partial"
+    },
+    {
+      "id": "ENV-A12",
+      "purpose": "Offline package installation, functional fixture, uninstall, recovery, reinstall, and verification",
+      "operating_system": "Accepted clean powered-off JARVIS baseline restored for A12",
+      "runtime": ["CPython 3.14.6", "accepted jarvis-core wheel", "accepted PyYAML wheel", "reviewed fixture and driver"],
+      "network_policy": "Independently proven deny-all before fixture or candidate exposure",
+      "identity_and_privilege": "Independent non-author packaging reviewer; no live credentials",
+      "capacity": ["A12 input, output, recovery, and checkpoint storage"],
+      "verification": ["all accepted hashes", "runtime identity", "network denial", "fixture/driver integrity", "recovery plan"],
+      "status": "partial"
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "PRE-ADK-SOURCE",
+      "category": "software",
+      "requirement": "Official ADK 10.1.26100.2454 Deployment Tools and KB5101684 remain available through accepted Microsoft documentation",
+      "environment_id": "ENV-ACQUIRE",
+      "verification": "Read-only official-link, version, signature-policy, license, redirect, and proxy audit",
+      "observed": "All three controlling Microsoft documentation pages returned HTTPS 200 during the audit; Handoff 91 fixes version, feature, and source policy; payload redirect, signature, EULA, and proxy facts are intentionally Wave 1 evidence",
+      "status": "planned",
+      "failure_class": "external_change",
+      "fallback_route": "Return to CTO; no alternate version without superseding disposition",
+      "authority_needed": "Read-only audit only; acquisition requires later wave envelope"
+    },
+    {
+      "id": "PRE-HOST",
+      "category": "environment",
+      "requirement": "Host build, free space, pending restart, restore/uninstall support, and elevated identity meet Handoff 91",
+      "environment_id": "ENV-TOOLING",
+      "verification": "Consolidated read-only host and privilege inventory",
+      "observed": "Build 10.0.26200.8973 observed; vmms and vmcompute running; CBS and Windows Update restart markers absent; current audit identity is not elevated; storage capacity and full installed-product baseline remain unresolved",
+      "status": "partial",
+      "failure_class": "planning_gap",
+      "fallback_route": "Resolve before acquisition; do not install",
+      "authority_needed": "Read-only audit"
+    },
+    {
+      "id": "PRE-NETWORK",
+      "category": "security",
+      "requirement": "Acquisition allowlist and later deny-all installation/test policies are both demonstrable",
+      "environment_id": "ENV-ACQUIRE",
+      "verification": "Read-only proxy, DNS, route, firewall-policy, and operator-capability audit",
+      "observed": "Prior Windows Sandbox denial was proven; host WinHTTP reports direct access with no configured WinHTTP proxy; acquisition allowlist and enforceable host deny-all installation policy remain unverified",
+      "status": "partial",
+      "failure_class": "planning_gap",
+      "fallback_route": "No execution wave until both modes are proven",
+      "authority_needed": "Read-only audit"
+    },
+    {
+      "id": "PRE-HYPERV",
+      "category": "capability",
+      "requirement": "Elevated Hyper-V access, two zero-NIC synthetic VMs, basic console, target preservation, and storage are demonstrable",
+      "environment_id": "ENV-SYNTHETIC",
+      "verification": "Read-only elevated-capability and capacity audit without VM mutation",
+      "observed": "Hyper-V platform and target shell exist; vmms and vmcompute are running; current audit identity is not elevated and Get-VM/CIM inventory is access-denied",
+      "status": "partial",
+      "failure_class": "planning_gap",
+      "fallback_route": "Define exact elevated operator route before Wave 3",
+      "authority_needed": "Read-only audit; no elevation execution yet"
+    },
+    {
+      "id": "PRE-HUMAN",
+      "category": "human",
+      "requirement": "Jason's media-install and private-account actions have exact screens, privacy boundaries, and stop statements",
+      "environment_id": "ENV-TARGET",
+      "verification": "Review accepted handoffs and confirm no hidden interaction remains",
+      "observed": "Partial flow exercised; Autounattend-specific transition not yet proven",
+      "status": "partial",
+      "failure_class": "operator_stop",
+      "fallback_route": "Stop once and preserve both VHDX files; no retry",
+      "authority_needed": "Later Product Owner wave authorization"
+    },
+    {
+      "id": "PRE-A12",
+      "category": "release",
+      "requirement": "All accepted A12 inputs, runtime, driver, fixture, evidence paths, Quality scope, and release decision paths remain intact",
+      "environment_id": "ENV-A12",
+      "verification": "Read-only rehash and artifact-link audit",
+      "observed": "Previously accepted inputs exist; end-to-end revalidation not yet run",
+      "status": "partial",
+      "failure_class": "environment_drift",
+      "fallback_route": "Rebind only the changed prerequisite before Wave 5",
+      "authority_needed": "Read-only audit"
+    }
+  ],
+  "human_actions": [
+    {
+      "id": "HUM-PO-ACCOUNT",
+      "actor": "product_owner",
+      "action": "Create final private local administrator, authenticate once, remove synthetic bootstrap account/profile, and shut down",
+      "private_inputs": ["Final local account name", "password", "security answers"],
+      "start_boundary": "Accepted answer media, powered-off target preflight, and exact single-run authorization",
+      "stop_boundary": "Boolean success return or first non-sensitive error; no screenshot or retry"
+    },
+    {
+      "id": "HUM-PO-LICENSE",
+      "actor": "product_owner",
+      "action": "Accept or reject any newly surfaced ADK license or proxy exception",
+      "private_inputs": ["None"],
+      "start_boundary": "Acquisition audit identifies exact terms or proxy",
+      "stop_boundary": "Recorded approval, rejection, or route cancellation"
+    }
+  ],
+  "execution_waves": [
+    {
+      "id": "WAVE-01",
+      "objective": "Acquire and independently accept exact official tooling",
+      "tasks": ["acquisition", "independent acquisition validation"],
+      "entry_criteria": ["Readiness ready", "official links and proxy/license route accepted", "capacity green"],
+      "exit_evidence": ["Immutable accepted offline layout and patch inventory"],
+      "failure_routes": ["External change to CTO", "proxy/license issue to Product Owner", "no retry by default"],
+      "retry_budget": 0,
+      "estimated_active_time": "1–3 hours",
+      "estimated_elapsed_time": "Same day when downloads and review complete"
+    },
+    {
+      "id": "WAVE-02",
+      "objective": "Install and accept serviced Deployment Tools entirely offline",
+      "tasks": ["offline elevated install", "independent host/tool validation"],
+      "entry_criteria": ["Wave 1 accepted", "network denial and rollback green", "no pending restart"],
+      "exit_evidence": ["Serviced Windows SIM, DISM, and Oscdimg accepted with bounded host delta"],
+      "failure_routes": ["Supported uninstall stop", "restart decision", "no repair or retry"],
+      "retry_budget": 0,
+      "estimated_active_time": "1–2 hours",
+      "estimated_elapsed_time": "Same day absent restart"
+    },
+    {
+      "id": "WAVE-03",
+      "objective": "Create reproducible answer media and prove it twice in zero-NIC synthetic VMs",
+      "tasks": ["catalog/media build", "two synthetic installs", "independent media/behavior validation"],
+      "entry_criteria": ["Wave 2 accepted", "two-run capacity and Hyper-V elevation green"],
+      "exit_evidence": ["Accepted answer ISO and two equivalent offline results"],
+      "failure_routes": ["Classified defect return", "no automatic third installation"],
+      "retry_budget": 0,
+      "estimated_active_time": "3–6 hours",
+      "estimated_elapsed_time": "1–2 days with review"
+    },
+    {
+      "id": "WAVE-04",
+      "objective": "Prepare target, complete private install/account transition, verify baseline, and checkpoint",
+      "tasks": ["powered-off target preparation", "independent preflight", "Product Owner install", "powered-off verification", "checkpoint"],
+      "entry_criteria": ["Wave 3 accepted", "rollback disk preserved", "Jason available"],
+      "exit_evidence": ["Accepted clean powered-off baseline and one controlled checkpoint"],
+      "failure_routes": ["Preserve both disks and stop", "separate rollback decision", "no retry"],
+      "retry_budget": 0,
+      "estimated_active_time": "2–4 hours plus Product Owner interaction",
+      "estimated_elapsed_time": "1 day"
+    },
+    {
+      "id": "WAVE-05",
+      "objective": "Complete A12, limited Quality review, WP4 decision, and release disposition",
+      "tasks": ["A12", "limited Quality revalidation", "WP4 decision", "release or developer-preview decision"],
+      "entry_criteria": ["Wave 4 accepted", "all A12 inputs rebound to clean checkpoint"],
+      "exit_evidence": ["Explicit accepted A12/Quality and Product Owner disposition"],
+      "failure_routes": ["Preserve baseline/evidence and route exact defect", "candidate changes invalidate bindings"],
+      "retry_budget": 0,
+      "estimated_active_time": "2–4 hours",
+      "estimated_elapsed_time": "1 day"
+    }
+  ],
+  "authorization_envelope": {
+    "decision_id": "PO-05-CERTIFICATION-WAVES",
+    "artifact": "docs/coordination/V0.5_READINESS_AUDIT_RESULT.md",
+    "covered_waves": ["WAVE-01", "WAVE-02", "WAVE-03", "WAVE-04", "WAVE-05"],
+    "automatic_activation_rule": "Chief of Staff may activate only the next covered task after accepted predecessor evidence and green task preflight",
+    "excluded_actions": ["Vendor/tool substitution", "proxy or license exception", "restart", "retry beyond budget", "network-policy change", "destructive cleanup", "real credential exposure", "candidate change", "formal release decision"]
+  },
+  "unresolved": [],
+  "approval": {
+    "product_owner": "full certification and PO-05-CERTIFICATION-WAVES approved",
+    "cto": "Handoff 91 technical controls accepted as input",
+    "chief_of_staff": "audit accepted; Wave 1 activation permitted"
+  }
+}

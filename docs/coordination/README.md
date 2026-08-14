@@ -6,21 +6,48 @@
 | Status | Active |
 | Owner | Chief of Staff |
 | Product Owner | Jason Murray |
-| Updated | 2026-08-01 |
+| Updated | 2026-08-09 |
 | Governing documents | [Governance](../GOVERNANCE.md), [Ways of Working](../WAYS_OF_WORKING.md), [Operating Handbook](../../Operating%20Handbook%20-%20AI%20Agent%20Roles.md) |
-| Handoff router | [Global handoff router](../handovers/README.md) |
 
 ## Start here
 
 Every role starts a new assignment by reading this file. Do not rely on conversation
 history for project state.
 
-1. Confirm the active milestone and assigned role below.
-2. Open the linked incoming artifact.
-3. Read the governing PRDs, ADRs, and requirements named by that artifact.
+1. Open the canonical [Current Handoff](CURRENT_HANDOFF.md).
+2. Confirm the active worklist, task, assigned role, latest artifact, and required action there.
+3. Open the linked incoming artifact and governing PRDs, ADRs, and requirements.
 4. Verify the branch, base commit, scope, exclusions, and acceptance evidence before work.
 5. Produce the required outgoing handoff file before declaring the stage complete.
-6. Tell the Chief of Staff where the handoff was written so this index can be updated.
+6. Update the Current Handoff before stopping. Follow the
+   [Agent Relay Process](AGENT_RELAY_PROCESS.md).
+
+The Product Owner does not relay detailed agent reports. Ordinarily, the Product Owner tells
+the next agent only: **“It is your turn. Read `docs/coordination/CURRENT_HANDOFF.md`.”**
+Agents likewise return only the standard concise status defined in the
+[Agent Relay Process](AGENT_RELAY_PROCESS.md); detailed output stays in the repository.
+
+## Active machine-readable work queue
+
+The current operational queue is
+[v0.5 Full Certification](worklists/v0.5-certification.json). The predecessor
+[v0.5 Visible-Context Conversation queue](worklists/v0.5.json) is closed and retained as
+history. Every contributor must read the active queue and
+run the offline validator before beginning or returning assigned work:
+
+```text
+python scripts/validate_worklist.py docs/coordination/worklists/v0.5-certification.json
+```
+
+Follow [the Version Worklist Process](WORKLIST_PROCESS.md). Start only a task assigned to your
+role whose status is `authorized` or `in_progress`. The JSON queue does not grant authority:
+open and verify the linked authorization artifact. An owner may mark its work in progress or
+ready for review, but only the assigned reviewer may accept it, and only the Chief of Staff may
+authorize the next task.
+
+The narrative program-state sections below are retained historical context and may lag the
+active worklist. Where they differ, use the worklist to locate the latest handoff, then apply the
+project's normal artifact precedence. Never treat the worklist itself as higher authority.
 
 If this index conflicts with an accepted Product Owner decision, ADR, PRD, roadmap, or
 governance document, follow the order of precedence in
@@ -28,35 +55,33 @@ governance document, follow the order of precedence in
 
 ## Current program state
 
-### Active priority: v0.5 — visible-context conversation planning
-
-**Latest effective handoff state:** [v0.5 Handoff Index](../handovers/v0.5/README.md)
+### Active priority: v0.3.1 — Query Trust Contracts
 
 | Item | Current state |
 |---|---|
-| Current incoming handoff | [Chief of Staff v0.5 implementation authorization](../handovers/v0.5/08-chief-of-staff-to-principal-engineer-conversation-implementation-authorization.md) |
-| Acceptance tests | [Accepted v0.4 Project Resume tests](../product/V0.4_PROJECT_RESUME_ACCEPTANCE_TESTS.md) |
-| Planning brief | [CTO Project Resume planning brief](../handovers/v0.4/00-cto-to-principal-engineer-project-resume-planning-brief.md) |
-| Planning validation | [Chief of Staff validation](../handovers/v0.4/00-chief-of-staff-project-resume-planning-validation.md) |
-| v0.3.1 release | Complete as `v0.3.1` |
-| v0.4 release | Published as annotated tag `v0.4.0` from integrated release commit `6cf9b72355d65768d3ea549a5af34006e2b6d3b6` |
-| Frozen executable | `ff402d7f82c061426a5e960f7177d916c355bbf2` (tree `a7ff2c023b0e59df1f8bbc2ad05a3af843a5e344`) |
-| Evidence / final QA | `2c0e1204fb47d81fe8c7b873c973dd8c6026201b` / `cc43b0e918bc0164089b7d7120c92095058cc618` (`Ready`) |
-| Repository activity | [Fixtures plus local read-only Git](../handovers/v0.4/00-product-owner-repository-activity-scope-decision.md); live GitHub excluded |
-| Current gate | Principal Engineering WP1–WP3; WP4 and live-provider activity unauthorized |
-| A11 strategic outcome | Eight-week dogfood outcome remains pending and unproven |
-| v0.5 conversation | WP1–WP3 implementation authorized from exact base `e11703974219425b463a45a97e1d7d2a04de81dc`; WP4 blocked |
+| Product Owner direction | Complete v0.3.1 before advancing the release sequence |
+| Requirements | [v0.3.1 Query Trust Contracts Requirements](../software/V0.3.1_QUERY_TRUST_CONTRACTS_REQUIREMENTS.md) |
+| Current incoming handoff | [Chief of Staff to CTO](../handovers/v0.3.1/00-chief-of-staff-to-cto-finalize-implementation-brief.md) |
+| Requirements status | Accepted by Product Owner on 2026-07-27 |
+| Trust-contract ADRs | [ADR-0014](../adr/ADR-0014-Retrieval-Relevance-Is-Separate-From-Answer-Confidence.md), [ADR-0015](../adr/ADR-0015-Authorization-Precedes-Retrieval-And-Graph-Expansion.md), [ADR-0016](../adr/ADR-0016-Citations-Bind-Passages-To-Source-Revisions.md), and [ADR-0017](../adr/ADR-0017-Stable-Source-Identity-Is-Separate-From-Location.md) — accepted |
+| Product Owner decision | [Architecture approval](../handovers/v0.3.1/01-product-owner-to-cto-architecture-approval.md) |
+| Implementation brief | [CTO implementation brief](../handovers/v0.3.1/02-cto-to-principal-engineer-implementation-brief.md) — content-complete; Chief of Staff validation blocked by base/artifact contradiction |
+| Principal Engineer work | Not authorized to begin until an implementation-ready brief is accepted |
+| QA review | Not started |
+| Librarian pass | Not started |
+| Primary gate | Close ARB conditions C1–C5 before conversational/generated-answer release |
 
-**Next responsible role:** Principal Engineer — implement WP1–WP3 and produce Handoff 09
+**Next responsible role:** Chief Architect / CTO
 
 **Required next actions:**
 
-1. Verify Handoff 08's exact branch, base, worktree, and exclusions.
-2. Present the pre-implementation plan before editing.
-3. Implement and validate only Handoff 07 WP1–WP3 without dependencies or live providers.
-4. Produce Handoff 09 and stop for CTO review.
+1. Establish a clean documentation commit containing the accepted governance, ADR,
+   requirements, coordination, and handoff artifacts without disturbing the parked
+   conversation worktree.
+2. CTO repins the implementation brief to that documentation commit.
+3. Chief of Staff completes validation and issues the Principal Engineer prompt package.
 
-### Parked candidate: conversation branch with historical v0.4 identity
+### Parked candidate: conversational implementation currently named v0.4
 
 | Item | Current state |
 |---|---|
@@ -66,13 +91,13 @@ governance document, follow the order of precedence in
 | Engineering report | [v0.4 Implementation Report](../software/V0.4_IMPLEMENTATION_REPORT.md) |
 | Existing QA review | [Quality & Release Review](../reviews/QUALITY_RELEASE_REVIEW_V0.4_CONVERSATION_2026-07-27.md) — **Not ready** |
 | Release status | Parked; do not merge or release |
-| Sequencing decision | Project Resume is v0.4; conversation is planned for v0.5 |
+| Sequencing decision | v0.3.1 is completed first |
 | Known blockers | Trust-contract C1/C3, trace numbering, streaming scope/evidence, complete re-review package, release-name reconciliation |
 
-The existing QA review says the implementation report was absent at review time; the
-historical report now exists. This does not invalidate the other findings. QA must perform
-a fresh review only after the candidate has been reconciled as v0.5 with the approved
-sequence and released trust contracts.
+The existing QA review says the implementation report was absent at review time; the report
+now exists. This does not invalidate the other findings. QA must perform a fresh review only
+after v0.3.1 is complete and the conversation candidate has been reconciled with the approved
+release sequence and trust contracts.
 
 ## Role queue
 
@@ -158,8 +183,6 @@ Prompts coordinate work; they do not override governance or grant authority.
 | ADR-0014 through ADR-0017 | Approved 2026-07-27 | Recorded |
 | Release identity | Approved 2026-07-27 | Project Resume is v0.4; visible-context conversation moves to v0.5 |
 | Streaming in the first conversation release | Before conversation rework | Defer provider-response streaming unless it is necessary to validate the core workflow |
-| v0.5 scope and ADR-0022 through ADR-0024 | Approved 2026-08-01 | Session-only, visible-context, non-streaming conversation |
-| v0.5 real provider and evidence spend | Approved 2026-08-01 | Google `gemini-3.5-flash-lite`; USD 0.05/request and USD 10 evidence ceiling; use remains gated |
 
 ## Chief of Staff maintenance rules
 

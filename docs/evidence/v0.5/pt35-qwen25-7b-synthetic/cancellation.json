@@ -1,0 +1,9 @@
+﻿{
+    "id":  "cancellation_redo",
+    "cancelled":  true,
+    "abort_elapsed_ms":  120034,
+    "server_health":  "Ollama is running",
+    "loaded_models":  1,
+    "loaded_model":  "qwen2.5:7b",
+    "note":  "stream=true request aborted client-side mid-response; server responsive; model remains loaded (expected)"
+}

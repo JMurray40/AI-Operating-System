@@ -22,6 +22,7 @@ from jarvis_core.conversation.request import Budgets, LOCAL_LIMITS, LocalLimits,
 from jarvis_core.policy import local_allow_all
 from jarvis_core.providers.local_ollama import (
     LOCAL_WARM_CLASS_SPECS,
+    LocalClaim,
     LocalGatewayBlocked,
     LocalResponse,
     build_qwen_prompt,
@@ -271,7 +272,17 @@ def _snapshot_with_user_text(text: str):
     return ctx.prepare(_local_request(root, text=text), notes).snapshot
 
 
-# ------------------------------------------------------------------ validate_local_response (147 sec 4)
+# ------------------------------------------------------------------ validate_local_response
+# (147 sec 4, amended by Handoff 151/151a -- V05-PT-37 PT37-CTO-03 closure: the closed local
+# response shape is now ``{"claims": [{"text","type","evidence"}, ...], "limitations": [...]}``,
+# mirroring the remote/mock claims taxonomy's field names. ``validate_local_response`` proves
+# only the LOCAL closed-schema/hostile-content boundary (shape, per-claim taxonomy-string
+# allowlist, hostile-content/canonical-text on claim text, citation-id-exists-in-allowlist);
+# it deliberately does NOT enforce fact/inference-requires-evidence or
+# model_knowledge/unknown/assumption-forbids-evidence coherence -- that taxonomy/support
+# semantics is exclusively ``evidence.validate_response``'s job once ``application.py`` routes
+# the validated shape into it unchanged (Handoff 151a §3 item 2), so it is proven once, not
+# duplicated here.
 _ALLOWED = frozenset({"C1", "C2"})
 
 
@@ -279,20 +290,70 @@ def _body(obj: object) -> bytes:
     return canonical_json(obj).encode("utf-8")
 
 
-def test_validate_local_response_accepts_a_minimal_valid_answer() -> None:
+def _claim(text: str = "x", type_: str = "model_knowledge", evidence: list | None = None) -> dict:
+    return {"text": text, "type": type_, "evidence": evidence if evidence is not None else []}
+
+
+def test_validate_local_response_accepts_a_minimal_valid_claim() -> None:
     out = validate_local_response(
-        _body({"answer": "hello", "limitations": [], "citations": []}),
+        _body({"claims": [_claim("hello")], "limitations": []}),
         allowed_citation_ids=_ALLOWED,
     )
-    assert out == LocalResponse(answer="hello", limitations=(), citations=())
+    assert out == LocalResponse(
+        claims=(LocalClaim(text="hello", type="model_knowledge", evidence=()),),
+        limitations=(),
+    )
 
 
 def test_validate_local_response_accepts_a_real_citation() -> None:
     out = validate_local_response(
-        _body({"answer": "hello [C1]", "limitations": [], "citations": ["C1"]}),
+        _body({"claims": [_claim("hello", "fact", ["C1"])], "limitations": []}),
         allowed_citation_ids=_ALLOWED,
     )
-    assert out.citations == ("C1",)
+    assert out.claims[0].evidence == ("C1",)
+
+
+def test_validate_local_response_accepts_several_claims_and_limitations() -> None:
+    out = validate_local_response(
+        _body(
+            {
+                "claims": [
+                    _claim("first fact", "fact", ["C1"]),
+                    _claim("second inference", "inference", ["C1", "C2"]),
+                    _claim("unsupported knowledge", "model_knowledge"),
+                    _claim("cannot answer", "unknown"),
+                    _claim("assumed reference", "assumption"),
+                ],
+                "limitations": ["not fully covered"],
+            }
+        ),
+        allowed_citation_ids=_ALLOWED,
+    )
+    assert [c.type for c in out.claims] == [
+        "fact",
+        "inference",
+        "model_knowledge",
+        "unknown",
+        "assumption",
+    ]
+    assert out.limitations == ("not fully covered",)
+
+
+def test_same_citation_id_across_different_claims_is_allowed() -> None:
+    # A single closed-schema validation pass does not know whether two claims citing the
+    # same source are each independently exactly supported by it -- that per-claim support
+    # test is evidence.validate_response's job. Re-citing the same real id from a different
+    # claim is legitimate shape and must not be rejected as a "duplicate" here.
+    out = validate_local_response(
+        _body(
+            {
+                "claims": [_claim("first", "fact", ["C1"]), _claim("second", "fact", ["C1"])],
+                "limitations": [],
+            }
+        ),
+        allowed_citation_ids=_ALLOWED,
+    )
+    assert out.claims[0].evidence == out.claims[1].evidence == ("C1",)
 
 
 @pytest.mark.parametrize(
@@ -300,13 +361,13 @@ def test_validate_local_response_accepts_a_real_citation() -> None:
     [(16384, False), (16385, True)],
 )
 def test_raw_response_bytes_boundary(raw_bytes_len: int, should_raise: bool) -> None:
-    # Pad via a *limitations* entry (not the answer) so the whole canonical JSON body
-    # lands exactly at/one-over the raw-bytes limit without separately tripping the
-    # much smaller answer-bytes limit (8192).
-    scaffold = canonical_json({"answer": "x", "limitations": [""], "citations": []}).encode("utf-8")
+    # Pad via a *limitations* entry (not a claim's text) so the whole canonical JSON body
+    # lands exactly at/one-over the raw-bytes limit without separately tripping the much
+    # smaller per-claim-text-bytes limit (8192).
+    scaffold = canonical_json({"claims": [_claim("x")], "limitations": [""]}).encode("utf-8")
     pad = raw_bytes_len - len(scaffold)
     assert pad > 0
-    body = canonical_json({"answer": "x", "limitations": ["a" * pad], "citations": []}).encode("utf-8")
+    body = canonical_json({"claims": [_claim("x")], "limitations": ["a" * pad]}).encode("utf-8")
     assert len(body) == raw_bytes_len
     if should_raise:
         with pytest.raises(LocalGatewayBlocked) as ei:
@@ -334,49 +395,147 @@ def test_non_object_json_rejected() -> None:
     assert ei.value.details["reason"] == "not_an_object"
 
 
-def test_unknown_field_rejected() -> None:
-    body = _body({"answer": "x", "limitations": [], "citations": [], "extra": "nope"})
+def test_unknown_top_level_field_rejected() -> None:
+    body = _body({"claims": [_claim("x")], "limitations": [], "extra": "nope"})
     with pytest.raises(LocalGatewayBlocked) as ei:
         validate_local_response(body, allowed_citation_ids=_ALLOWED)
     assert ei.value.details["reason"] == "unknown_fields"
     assert ei.value.details["fields"] == ["extra"]
 
 
-def test_answer_missing_or_wrong_typed_rejected() -> None:
+def test_claims_missing_or_wrong_typed_rejected() -> None:
     with pytest.raises(LocalGatewayBlocked) as ei:
-        validate_local_response(_body({"limitations": [], "citations": []}), allowed_citation_ids=_ALLOWED)
-    assert ei.value.details["reason"] == "answer_wrong_type"
-    with pytest.raises(LocalGatewayBlocked):
-        validate_local_response(_body({"answer": 5, "limitations": [], "citations": []}), allowed_citation_ids=_ALLOWED)
+        validate_local_response(_body({"limitations": []}), allowed_citation_ids=_ALLOWED)
+    assert ei.value.details["reason"] == "claims_wrong_type"
+    with pytest.raises(LocalGatewayBlocked) as ei2:
+        validate_local_response(
+            _body({"claims": "nope", "limitations": []}), allowed_citation_ids=_ALLOWED
+        )
+    assert ei2.value.details["reason"] == "claims_wrong_type"
+
+
+def test_empty_claims_rejected() -> None:
+    with pytest.raises(LocalGatewayBlocked) as ei:
+        validate_local_response(
+            _body({"claims": [], "limitations": []}), allowed_citation_ids=_ALLOWED
+        )
+    assert ei.value.details["reason"] == "claims_empty"
 
 
 def test_limitations_wrong_typed_rejected() -> None:
     with pytest.raises(LocalGatewayBlocked) as ei:
-        validate_local_response(_body({"answer": "x", "limitations": "not-a-list", "citations": []}), allowed_citation_ids=_ALLOWED)
+        validate_local_response(
+            _body({"claims": [_claim("x")], "limitations": "not-a-list"}),
+            allowed_citation_ids=_ALLOWED,
+        )
     assert ei.value.details["reason"] == "limitations_wrong_type"
     with pytest.raises(LocalGatewayBlocked):
-        validate_local_response(_body({"answer": "x", "limitations": [1], "citations": []}), allowed_citation_ids=_ALLOWED)
+        validate_local_response(
+            _body({"claims": [_claim("x")], "limitations": [1]}), allowed_citation_ids=_ALLOWED
+        )
 
 
-def test_citations_wrong_typed_rejected() -> None:
+def test_claim_not_an_object_rejected() -> None:
+    body = _body({"claims": ["not-an-object"], "limitations": []})
     with pytest.raises(LocalGatewayBlocked) as ei:
-        validate_local_response(_body({"answer": "x", "limitations": [], "citations": "C1"}), allowed_citation_ids=_ALLOWED)
-    assert ei.value.details["reason"] == "citations_wrong_type"
+        validate_local_response(body, allowed_citation_ids=_ALLOWED)
+    assert ei.value.details["reason"] == "claim_not_an_object"
+    assert ei.value.details["index"] == 0
 
 
-def test_duplicate_citations_rejected() -> None:
+def test_claim_unknown_field_rejected() -> None:
+    claim = {"text": "x", "type": "unknown", "evidence": [], "extra": "nope"}
+    body = _body({"claims": [claim], "limitations": []})
+    with pytest.raises(LocalGatewayBlocked) as ei:
+        validate_local_response(body, allowed_citation_ids=_ALLOWED)
+    assert ei.value.details["reason"] == "claim_unknown_fields"
+    assert ei.value.details["fields"] == ["extra"]
+
+
+def test_claim_with_evidence_key_omitted_defaults_to_no_evidence() -> None:
+    # "evidence" is optional-with-default in the raw per-claim lookup (mirroring the old
+    # flat schema's "citations" default) -- a claim object with only text/type still
+    # parses, defaulting evidence to an empty tuple rather than being rejected.
+    out = validate_local_response(
+        _body({"claims": [{"text": "x", "type": "unknown"}], "limitations": []}),
+        allowed_citation_ids=_ALLOWED,
+    )
+    assert out.claims[0].evidence == ()
+
+
+def test_claim_missing_text_rejected() -> None:
+    body = _body({"claims": [{"type": "unknown", "evidence": []}], "limitations": []})
+    with pytest.raises(LocalGatewayBlocked) as ei:
+        validate_local_response(body, allowed_citation_ids=_ALLOWED)
+    assert ei.value.details["reason"] == "claim_text_wrong_type"
+
+
+def test_claim_text_missing_or_wrong_typed_rejected() -> None:
     with pytest.raises(LocalGatewayBlocked) as ei:
         validate_local_response(
-            _body({"answer": "x", "limitations": [], "citations": ["C1", "C1"]}), allowed_citation_ids=_ALLOWED
+            _body({"claims": [{"type": "unknown", "evidence": []}], "limitations": []}),
+            allowed_citation_ids=_ALLOWED,
         )
-    assert ei.value.details["reason"] == "duplicate_citations"
+    assert ei.value.details["reason"] == "claim_text_wrong_type"
+    with pytest.raises(LocalGatewayBlocked):
+        validate_local_response(
+            _body({"claims": [_claim(5, "unknown")]}), allowed_citation_ids=_ALLOWED  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.parametrize(
+    "claim_type", ["fact", "inference", "model_knowledge", "unknown", "assumption"]
+)
+def test_every_recognized_claim_type_is_accepted(claim_type: str) -> None:
+    evidence = ["C1"] if claim_type in ("fact", "inference") else []
+    validate_local_response(
+        _body({"claims": [_claim("x", claim_type, evidence)], "limitations": []}),
+        allowed_citation_ids=_ALLOWED,
+    )  # must not raise
+
+
+def test_claim_type_missing_or_wrong_typed_or_unrecognized_rejected() -> None:
+    bad_claims = [
+        {"text": "x", "evidence": []},
+        _claim("x", 5),  # type: ignore[arg-type]
+        _claim("x", "opinion"),
+    ]
+    for bad in bad_claims:
+        body = _body({"claims": [bad], "limitations": []})
+        with pytest.raises(LocalGatewayBlocked) as ei:
+            validate_local_response(body, allowed_citation_ids=_ALLOWED)
+        assert ei.value.details["reason"] == "claim_type_invalid"
+
+
+def test_claim_evidence_wrong_typed_rejected() -> None:
+    with pytest.raises(LocalGatewayBlocked) as ei:
+        validate_local_response(
+            _body({"claims": [{"text": "x", "type": "fact", "evidence": "C1"}], "limitations": []}),
+            allowed_citation_ids=_ALLOWED,
+        )
+    assert ei.value.details["reason"] == "claim_evidence_wrong_type"
+    with pytest.raises(LocalGatewayBlocked):
+        validate_local_response(
+            _body({"claims": [{"text": "x", "type": "fact", "evidence": [1]}], "limitations": []}),
+            allowed_citation_ids=_ALLOWED,
+        )
+
+
+def test_duplicate_evidence_within_one_claim_rejected() -> None:
+    body = _body({"claims": [_claim("x", "fact", ["C1", "C1"])], "limitations": []})
+    with pytest.raises(LocalGatewayBlocked) as ei:
+        validate_local_response(body, allowed_citation_ids=_ALLOWED)
+    assert ei.value.details["reason"] == "duplicate_claim_evidence"
+    assert ei.value.details["index"] == 0
 
 
 @pytest.mark.parametrize(("count", "should_raise"), [(12, False), (13, True)])
-def test_citations_count_boundary(count: int, should_raise: bool) -> None:
+def test_total_citations_count_boundary(count: int, should_raise: bool) -> None:
     allowed = frozenset(f"C{i}" for i in range(1, 14))
-    citations = [f"C{i}" for i in range(1, count + 1)]
-    body = _body({"answer": "x", "limitations": [], "citations": citations})
+    # Spread the citations across several claims (one per citation) so the boundary is on
+    # the aggregate, not any single claim's evidence list.
+    claims = [_claim(f"c{i}", "fact", [f"C{i}"]) for i in range(1, count + 1)]
+    body = _body({"claims": claims, "limitations": []})
     if should_raise:
         with pytest.raises(LocalGatewayBlocked) as ei:
             validate_local_response(body, allowed_citation_ids=allowed)
@@ -386,18 +545,18 @@ def test_citations_count_boundary(count: int, should_raise: bool) -> None:
 
 
 @pytest.mark.parametrize(("n", "should_raise"), [(8192, False), (8193, True)])
-def test_answer_bytes_boundary(n: int, should_raise: bool) -> None:
-    body = _body({"answer": "a" * n, "limitations": [], "citations": []})
+def test_claim_text_bytes_boundary(n: int, should_raise: bool) -> None:
+    body = _body({"claims": [_claim("a" * n)], "limitations": []})
     if should_raise:
         with pytest.raises(LocalGatewayBlocked) as ei:
             validate_local_response(body, allowed_citation_ids=_ALLOWED)
-        assert ei.value.details["reason"] == "answer_bytes_exceeded"
+        assert ei.value.details["reason"] == "claim_text_bytes_exceeded"
     else:
         validate_local_response(body, allowed_citation_ids=_ALLOWED)  # must not raise
 
 
 def test_fake_citation_id_rejected() -> None:
-    body = _body({"answer": "x [Z9]", "limitations": [], "citations": ["Z9"]})
+    body = _body({"claims": [_claim("x [Z9]", "fact", ["Z9"])], "limitations": []})
     with pytest.raises(LocalGatewayBlocked) as ei:
         validate_local_response(body, allowed_citation_ids=_ALLOWED)
     assert ei.value.code == "blocked_local_unsafe_output"
@@ -405,14 +564,15 @@ def test_fake_citation_id_rejected() -> None:
     assert ei.value.details["citation_id"] == "Z9"
 
 
-def test_non_canonical_answer_text_rejected() -> None:
-    body = _body({"answer": "bad\rline", "limitations": [], "citations": []})
+def test_non_canonical_claim_text_rejected() -> None:
+    body = _body({"claims": [_claim("bad\rline")], "limitations": []})
     with pytest.raises(LocalGatewayBlocked) as ei:
         validate_local_response(body, allowed_citation_ids=_ALLOWED)
     assert ei.value.details["reason"] == "cr_present"
 
 
-# ------------------------------------------------------------------ hostile-output corpus (147 sec 4)
+# ------------------------------------------------------------------ hostile-output corpus
+# (147 sec 4)
 _HOSTILE_ANSWERS = [
     ("control_char", "hello\x01world"),
     ("bidi_override", "hello\u202eworld"),
@@ -429,17 +589,20 @@ _HOSTILE_ANSWERS = [
 ]
 
 
-@pytest.mark.parametrize(("label", "hostile_text"), _HOSTILE_ANSWERS, ids=[l for l, _ in _HOSTILE_ANSWERS])
-def test_hostile_output_corpus_rejected_in_answer(label: str, hostile_text: str) -> None:
-    body = _body({"answer": hostile_text, "limitations": [], "citations": []})
+_HOSTILE_IDS = [label for label, _ in _HOSTILE_ANSWERS]
+
+
+@pytest.mark.parametrize(("label", "hostile_text"), _HOSTILE_ANSWERS, ids=_HOSTILE_IDS)
+def test_hostile_output_corpus_rejected_in_claim_text(label: str, hostile_text: str) -> None:
+    body = _body({"claims": [_claim(hostile_text)], "limitations": []})
     with pytest.raises(LocalGatewayBlocked) as ei:
         validate_local_response(body, allowed_citation_ids=_ALLOWED)
     assert ei.value.code == "blocked_local_unsafe_output"
-    assert ei.value.details["field"] == "answer"
+    assert ei.value.details["field"] == "claims[0].text"
 
 
 def test_hostile_output_corpus_rejected_in_limitations() -> None:
-    body = _body({"answer": "fine", "limitations": ["<script>evil()</script>"], "citations": []})
+    body = _body({"claims": [_claim("fine")], "limitations": ["<script>evil()</script>"]})
     with pytest.raises(LocalGatewayBlocked) as ei:
         validate_local_response(body, allowed_citation_ids=_ALLOWED)
     assert ei.value.code == "blocked_local_unsafe_output"
@@ -448,7 +611,7 @@ def test_hostile_output_corpus_rejected_in_limitations() -> None:
 
 def test_benign_urls_and_words_are_not_falsely_flagged() -> None:
     # Sanity check the corpus isn't so broad it rejects ordinary safe text.
+    benign = _claim("The file is small and the pathway is clear.")
     validate_local_response(
-        _body({"answer": "The file is small and the pathway is clear.", "limitations": [], "citations": []}),
-        allowed_citation_ids=_ALLOWED,
+        _body({"claims": [benign], "limitations": []}), allowed_citation_ids=_ALLOWED
     )  # must not raise

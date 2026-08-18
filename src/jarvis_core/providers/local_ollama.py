@@ -659,7 +659,25 @@ _HOSTILE_PATTERNS: tuple[tuple[str, re.Pattern[str]], ...] = (
     ("provider_error_syntax", _PROVIDER_ERROR_SYNTAX_RE),
 )
 
-_ALLOWED_RESPONSE_KEYS = frozenset({"answer", "limitations", "citations"})
+# V05-PT-37 / Handoff 151, 151a (PT37-CTO-03 closure): the closed local response
+# shape is amended from the flat ``{"answer","limitations","citations"}`` (147/150)
+# to ``{"claims": [{"text","type","evidence"}, ...], "limitations": [str, ...]}`` --
+# structurally mirroring the remote/mock claims taxonomy's field names so the
+# validated shape can be routed unchanged into ``evidence.validate_response``
+# (Handoff 151 §3, 151a §3 item 2). ``_ALLOWED_CLAIM_TYPES`` is a LITERAL duplicate
+# of ``jarvis_core.conversation.contract.EvidenceType``'s exact value strings, never
+# an import: providers must never depend on conversation (conversation -> providers
+# is the only allowed dependency direction; contract.py itself re-exports
+# ``LocalReadinessState`` FROM this module for the same reason, in the other
+# direction). This module only proves the value is one of the five recognized
+# taxonomy strings; it never itself decides fact/inference exact-support -- that
+# stays exclusively in ``evidence.validate_response``, the single source of truth
+# for the taxonomy.
+_ALLOWED_RESPONSE_KEYS = frozenset({"claims", "limitations"})
+_ALLOWED_CLAIM_KEYS = frozenset({"text", "type", "evidence"})
+_ALLOWED_CLAIM_TYPES = frozenset(
+    {"fact", "inference", "model_knowledge", "unknown", "assumption"}
+)
 
 
 def _reject_hostile_text(text: str, *, field_name: str) -> None:
@@ -673,12 +691,24 @@ def _reject_hostile_text(text: str, *, field_name: str) -> None:
 
 
 @dataclass(frozen=True)
-class LocalResponse:
-    """The validated, closed local response shape (147 §4)."""
+class LocalClaim:
+    """One validated claim in the closed local response shape (147 §4, amended by
+    Handoff 151/151a). ``type`` is checked only against the literal
+    ``_ALLOWED_CLAIM_TYPES`` allowlist here -- the real taxonomy/support semantics
+    are applied once, downstream, by ``evidence.validate_response``.
+    """
 
-    answer: str
+    text: str
+    type: str
+    evidence: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class LocalResponse:
+    """The validated, closed local response shape (147 §4, amended by Handoff 151/151a)."""
+
+    claims: tuple[LocalClaim, ...]
     limitations: tuple[str, ...]
-    citations: tuple[str, ...]
 
 
 def validate_local_response(
@@ -687,7 +717,17 @@ def validate_local_response(
     allowed_citation_ids: frozenset[str],
     limits: LocalLimits = LOCAL_LIMITS,
 ) -> LocalResponse:
-    """The complete hostile-output validation boundary (147 §4).
+    """The complete hostile-output validation boundary (147 §4), amended by Handoff
+    151/151a (V05-PT-37 PT37-CTO-03 closure).
+
+    This proves only the LOCAL closed-schema/hostile-content boundary -- shape,
+    per-claim taxonomy-string allowlist, per-claim-text/per-limitation hostile-
+    content and (claim text only, mirroring the retired ``answer`` field's prior
+    scope) canonical-text rules, and citation-id-exists-in-allowlist. It never
+    performs current-byte revalidation, exact-support matching, or coverage
+    derivation -- ``application.py`` routes this validated shape unchanged into
+    ``evidence.validate_response``, the sole owner of that taxonomy (Handoff 151a
+    §3 item 2).
 
     Retains raw bytes only for the duration of this call (no bounded buffer is
     retained by the caller beyond it); raises exactly one typed error on any
@@ -731,57 +771,115 @@ def validate_local_response(
             "raw response has unknown fields",
             details={"reason": "unknown_fields", "fields": sorted(extra_keys)},
         )
-    answer = obj.get("answer")
+    raw_claims = obj.get("claims")
     limitations = obj.get("limitations", [])
-    citations = obj.get("citations", [])
-    if not isinstance(answer, str):
+    if not isinstance(raw_claims, list):
         raise LocalGatewayBlocked(
             ERROR_LOCAL_OUTPUT_CONTRACT,
-            "answer field is missing or wrong-typed", details={"reason": "answer_wrong_type"}
+            "claims field is missing or wrong-typed", details={"reason": "claims_wrong_type"}
+        )
+    if not raw_claims:
+        raise LocalGatewayBlocked(
+            ERROR_LOCAL_OUTPUT_CONTRACT,
+            "claims field is empty", details={"reason": "claims_empty"}
         )
     if not isinstance(limitations, list) or not all(isinstance(x, str) for x in limitations):
         raise LocalGatewayBlocked(
             ERROR_LOCAL_OUTPUT_CONTRACT,
             "limitations field is wrong-typed", details={"reason": "limitations_wrong_type"}
         )
-    if not isinstance(citations, list) or not all(isinstance(x, str) for x in citations):
-        raise LocalGatewayBlocked(
-            ERROR_LOCAL_OUTPUT_CONTRACT,
-            "citations field is wrong-typed", details={"reason": "citations_wrong_type"}
+
+    claims: list[LocalClaim] = []
+    total_citation_refs = 0
+    for index, raw_claim in enumerate(raw_claims):
+        if not isinstance(raw_claim, dict):
+            raise LocalGatewayBlocked(
+                ERROR_LOCAL_OUTPUT_CONTRACT,
+                "claim is not an object",
+                details={"reason": "claim_not_an_object", "index": index},
+            )
+        claim_extra_keys = set(raw_claim.keys()) - _ALLOWED_CLAIM_KEYS
+        if claim_extra_keys:
+            raise LocalGatewayBlocked(
+                ERROR_LOCAL_OUTPUT_CONTRACT,
+                "claim has unknown fields",
+                details={
+                    "reason": "claim_unknown_fields",
+                    "index": index,
+                    "fields": sorted(claim_extra_keys),
+                },
+            )
+        claim_text = raw_claim.get("text")
+        claim_type = raw_claim.get("type")
+        claim_evidence = raw_claim.get("evidence", [])
+        if not isinstance(claim_text, str):
+            raise LocalGatewayBlocked(
+                ERROR_LOCAL_OUTPUT_CONTRACT,
+                "claim text is missing or wrong-typed",
+                details={"reason": "claim_text_wrong_type", "index": index},
+            )
+        if not isinstance(claim_type, str) or claim_type not in _ALLOWED_CLAIM_TYPES:
+            raise LocalGatewayBlocked(
+                ERROR_LOCAL_OUTPUT_CONTRACT,
+                "claim type is missing, wrong-typed, or not a recognized claim type",
+                details={"reason": "claim_type_invalid", "index": index},
+            )
+        if not isinstance(claim_evidence, list) or not all(
+            isinstance(x, str) for x in claim_evidence
+        ):
+            raise LocalGatewayBlocked(
+                ERROR_LOCAL_OUTPUT_CONTRACT,
+                "claim evidence is wrong-typed",
+                details={"reason": "claim_evidence_wrong_type", "index": index},
+            )
+        if len(claim_evidence) != len(set(claim_evidence)):
+            raise LocalGatewayBlocked(
+                ERROR_LOCAL_OUTPUT_CONTRACT,
+                "duplicate evidence ids within one claim",
+                details={"reason": "duplicate_claim_evidence", "index": index},
+            )
+        if len(claim_text.encode("utf-8")) > limits.answer_bytes_max:
+            raise LocalGatewayBlocked(
+                ERROR_LOCAL_OUTPUT_CONTRACT,
+                "claim text exceeds the validated answer-text byte limit",
+                details={
+                    "reason": "claim_text_bytes_exceeded",
+                    "index": index,
+                    "limit": limits.answer_bytes_max,
+                },
+            )
+        for citation_id in claim_evidence:
+            if citation_id not in allowed_citation_ids:
+                raise LocalGatewayBlocked(
+                    ERROR_LOCAL_UNSAFE_OUTPUT,
+                    "citation id is absent from the immutable current snapshot",
+                    details={
+                        "reason": "fake_citation",
+                        "citation_id": citation_id,
+                        "index": index,
+                    },
+                )
+        _reject_hostile_text(claim_text, field_name=f"claims[{index}].text")
+        validate_canonical_text(claim_text, field_name=f"claims[{index}].text")
+        total_citation_refs += len(claim_evidence)
+        claims.append(
+            LocalClaim(text=claim_text, type=claim_type, evidence=tuple(claim_evidence))
         )
-    if len(citations) != len(set(citations)):
-        raise LocalGatewayBlocked(
-            ERROR_LOCAL_OUTPUT_CONTRACT,
-            "duplicate citation ids", details={"reason": "duplicate_citations"}
-        )
-    if len(citations) > limits.citations_max:
+
+    if total_citation_refs > limits.citations_max:
         raise LocalGatewayBlocked(
             ERROR_LOCAL_OUTPUT_CONTRACT,
             "too many citations",
             details={
                 "reason": "citations_exceeded",
-                "actual": len(citations),
+                "actual": total_citation_refs,
                 "limit": limits.citations_max,
             },
         )
-    if len(answer.encode("utf-8")) > limits.answer_bytes_max:
-        raise LocalGatewayBlocked(
-            ERROR_LOCAL_OUTPUT_CONTRACT,
-            "answer exceeds the validated answer-text byte limit",
-            details={"reason": "answer_bytes_exceeded", "limit": limits.answer_bytes_max},
-        )
-    for citation_id in citations:
-        if citation_id not in allowed_citation_ids:
-            raise LocalGatewayBlocked(
-                ERROR_LOCAL_UNSAFE_OUTPUT,
-                "citation id is absent from the immutable current snapshot",
-                details={"reason": "fake_citation", "citation_id": citation_id},
-            )
-    _reject_hostile_text(answer, field_name="answer")
     for limitation in limitations:
         _reject_hostile_text(limitation, field_name="limitations")
-    validate_canonical_text(answer, field_name="answer")
-    return LocalResponse(answer=answer, limitations=tuple(limitations), citations=tuple(citations))
+
+    return LocalResponse(claims=tuple(claims), limitations=tuple(limitations))
 
 
 _ALLOWED_ENVELOPE_KEYS = frozenset(
@@ -1071,11 +1169,18 @@ class LocalOllamaAdapter:
                 return self._blocked(request, exc.code, exc.details)
 
             succeeded = True
+            # V05-PT-37 / Handoff 151, 151a: re-serialize the validated closed shape as
+            # canonical JSON in the SAME ``{"claims": [...], "limitations": [...]}``
+            # form ``evidence.validate_response`` expects, so ``application.py`` can
+            # route it in unchanged (Handoff 151a §3 item 2) instead of decoding a
+            # local-only shape.
             answer_text = canonical_json(
                 {
-                    "answer": validated.answer,
+                    "claims": [
+                        {"text": c.text, "type": c.type, "evidence": list(c.evidence)}
+                        for c in validated.claims
+                    ],
                     "limitations": list(validated.limitations),
-                    "citations": list(validated.citations),
                 }
             )
             return NormalizedResult(
@@ -1135,6 +1240,7 @@ __all__ = [
     "RUNTIME_SAMPLES",
     "CapacityProbe",
     "Clock",
+    "LocalClaim",
     "LocalGatewayBlocked",
     "LocalLimits",
     "LocalOllamaAdapter",

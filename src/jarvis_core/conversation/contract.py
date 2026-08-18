@@ -16,6 +16,11 @@ from jarvis_core.providers.conversation import (
     UsageProvenance,
 )
 
+# V05-PT-37: the local profile's readiness taxonomy is owned by the provider-layer
+# gateway (Handoff 147 §5) and re-exported here, exactly like ``TerminalState``/
+# ``UsageProvenance`` above — this module never defines it independently.
+from jarvis_core.providers.local_ollama import LocalReadinessState
+
 
 def as_int(value: object) -> int:
     """Coerce a loosely-typed dict value to int without an unsafe cast (0 on failure)."""
@@ -85,6 +90,21 @@ class FailureClass(str, Enum):
     EVIDENCE_FAILED = "evidence_failed"
     DRIFT_BLOCKED = "drift_blocked"
     INTERNAL = "internal"
+    # V05-PT-37: typed pre-provider/lifecycle outcomes for the inactive, dependency-
+    # injected `local-sensitive-conversation/qwen25-7b-constrained-v1` application
+    # contract (Handoff 147 §3.2, 147b §5). Values are the exact public outcome
+    # strings; each carries only fixed safe fields (see AttemptResult.details),
+    # never raw runtime/model/host/error text (Handoff 148 §3).
+    LOCAL_NOT_READY = "blocked_local_not_ready"
+    LOCAL_UNAVAILABLE = "blocked_local_unavailable"
+    LOCAL_CAPACITY = "blocked_local_capacity"
+    LOCAL_CONTEXT_LIMIT = "blocked_local_context_limit"
+    LOCAL_TIMEOUT = "blocked_local_timeout"
+    LOCAL_UNSAFE_OUTPUT = "blocked_local_unsafe_output"
+    LOCAL_OUTPUT_CONTRACT = "blocked_local_output_contract"
+    # Exact literal from Handoff 147b §2.1/§2.3; distinct from the existing generic
+    # DRIFT_BLOCKED ("drift_blocked") so no prior remote-path meaning changes.
+    LOCAL_POLICY_DRIFT = "blocked_policy_drift"
 
 
 # ------------------------------------------------------------------ remote eligibility
@@ -133,6 +153,14 @@ _FAILURE_EXIT = {
     FailureClass.EVIDENCE_FAILED: ExitCode.VALIDATION_FAILED,
     FailureClass.DRIFT_BLOCKED: ExitCode.VALIDATION_FAILED,
     FailureClass.INTERNAL: ExitCode.INTERNAL_ERROR,
+    FailureClass.LOCAL_NOT_READY: ExitCode.PROVIDER_UNAVAILABLE,
+    FailureClass.LOCAL_UNAVAILABLE: ExitCode.PROVIDER_UNAVAILABLE,
+    FailureClass.LOCAL_CAPACITY: ExitCode.PROVIDER_UNAVAILABLE,
+    FailureClass.LOCAL_CONTEXT_LIMIT: ExitCode.VALIDATION_FAILED,
+    FailureClass.LOCAL_TIMEOUT: ExitCode.PROVIDER_UNAVAILABLE,
+    FailureClass.LOCAL_UNSAFE_OUTPUT: ExitCode.VALIDATION_FAILED,
+    FailureClass.LOCAL_OUTPUT_CONTRACT: ExitCode.VALIDATION_FAILED,
+    FailureClass.LOCAL_POLICY_DRIFT: ExitCode.VALIDATION_FAILED,
 }
 
 
@@ -180,6 +208,52 @@ class EvidenceError(ConversationError):
     failure_class = FailureClass.EVIDENCE_FAILED
 
 
+# ------------------------------------------------------------------ local-profile errors
+# V05-PT-37: typed, redacted errors for the inactive constrained-qwen local profile
+# (Handoff 147/147b). Each carries only fixed safe fields via ``details``; never raw
+# runtime/model/host/error text. Core raises these before or in place of a provider
+# call; the application layer converts them into a typed ``AttemptResult`` (no
+# exception ever crosses into presentation/speech/trace as free text).
+class LocalConversationError(ConversationError):
+    """Base for every typed local-profile block. ``details`` holds only safe fields."""
+
+    def __init__(self, message: str, *, details: dict[str, object] | None = None) -> None:
+        super().__init__(message)
+        self.details: dict[str, object] = dict(details or {})
+
+
+class LocalNotReadyError(LocalConversationError):
+    failure_class = FailureClass.LOCAL_NOT_READY
+
+
+class LocalUnavailableError(LocalConversationError):
+    failure_class = FailureClass.LOCAL_UNAVAILABLE
+
+
+class LocalCapacityError(LocalConversationError):
+    failure_class = FailureClass.LOCAL_CAPACITY
+
+
+class LocalContextLimitError(LocalConversationError):
+    failure_class = FailureClass.LOCAL_CONTEXT_LIMIT
+
+
+class LocalTimeoutError(LocalConversationError):
+    failure_class = FailureClass.LOCAL_TIMEOUT
+
+
+class LocalUnsafeOutputError(LocalConversationError):
+    failure_class = FailureClass.LOCAL_UNSAFE_OUTPUT
+
+
+class LocalOutputContractError(LocalConversationError):
+    failure_class = FailureClass.LOCAL_OUTPUT_CONTRACT
+
+
+class LocalPolicyDriftError(LocalConversationError):
+    failure_class = FailureClass.LOCAL_POLICY_DRIFT
+
+
 __all__ = [
     "CONTEXT_SNAPSHOT_VERSION",
     "CONVERSATION_CONTRACT_VERSION",
@@ -204,6 +278,16 @@ __all__ = [
     "EvidenceType",
     "ExitCode",
     "FailureClass",
+    "LocalCapacityError",
+    "LocalContextLimitError",
+    "LocalConversationError",
+    "LocalNotReadyError",
+    "LocalOutputContractError",
+    "LocalPolicyDriftError",
+    "LocalReadinessState",
+    "LocalTimeoutError",
+    "LocalUnavailableError",
+    "LocalUnsafeOutputError",
     "PolicyBlockedError",
     "ProviderUnavailableError",
     "RemoteEligibility",

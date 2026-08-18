@@ -7,6 +7,7 @@ redacted and taxonomic — never a raw provider error.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 from jarvis_core.conversation.contract import (
@@ -40,6 +41,15 @@ class AttemptResult:
     cost: Cost = field(default_factory=_unknown_cost)
     finish_reason: str = "unknown"
     elapsed_ms: float | None = None
+    # V05-PT-37: fixed, redacted safe fields for a typed local-profile block (never
+    # raw runtime/model/host/error text). Empty for every existing provider/path.
+    details: Mapping[str, object] = field(default_factory=dict)
+    # V05-PT-37 (Handoff 147 §4): the local profile's closed response shape carries its
+    # own model-declared ``limitations``/``citations`` directly — never a claims-derived
+    # ``evidence.AnswerEvidence`` (that taxonomy belongs to the remote/mock claims
+    # contract only). Empty for every non-local attempt.
+    local_limitations: tuple[str, ...] = ()
+    local_citations: tuple[str, ...] = ()
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -53,6 +63,9 @@ class AttemptResult:
             "cost": self.cost.to_dict(),
             "finish_reason": self.finish_reason,
             "elapsed_ms": self.elapsed_ms,
+            "details": dict(self.details),
+            "local_limitations": list(self.local_limitations),
+            "local_citations": list(self.local_citations),
         }
 
 

@@ -15,6 +15,22 @@ from pathlib import Path
 from jarvis_core.conversation.contract import CONVERSATION_CONTRACT_VERSION
 from jarvis_core.policy.scope import AuthorizationScope
 
+# V05-PT-37: the local profile's fixed identity and frozen numeric contract are owned
+# by the provider-layer gateway module (Handoff 147 §5: "Core-local provider gateway
+# exposes typed readiness metadata to route evaluation") and re-exported here so this
+# module keeps its existing one-way dependency (conversation -> providers, never the
+# reverse — see providers.conversation's module docstring).
+from jarvis_core.providers.local_ollama import (
+    LOCAL_LIMITS,
+    LOCAL_QWEN_PROFILE_ID,
+    LOCAL_WARM_CLASS_SPECS,
+    LocalLimits,
+    LocalWarmClass,
+    LocalWarmClassSpec,
+    select_warm_class,
+)
+from jarvis_core.providers.local_ollama import PROVIDER_ID as LOCAL_PROVIDER_ID
+
 # The features that MUST be disabled/omitted for the approved Google surface (H07 §4.2).
 DISABLED_PROVIDER_FEATURES = (
     "streaming",
@@ -58,6 +74,10 @@ class ProviderProfile:
     is_remote: bool = True
     retention_disclosure: str = ""
     disabled_features: tuple[str, ...] = DISABLED_PROVIDER_FEATURES
+    # V05-PT-37: set only by ``local_qwen_profile`` to ``LOCAL_QWEN_PROFILE_ID``. Every
+    # existing profile (remote Google, mock) leaves this ``None`` and is completely
+    # unaffected by the local-profile checks gated on this field.
+    destination_profile_id: str | None = None
 
     def __post_init__(self) -> None:
         if self.streaming:
@@ -88,6 +108,7 @@ class ProviderProfile:
             "price_table_version": self.price_table_version,
             "is_remote": self.is_remote,
             "disabled_features": list(self.disabled_features),
+            "destination_profile_id": self.destination_profile_id,
         }
 
 
@@ -170,11 +191,52 @@ def mock_profile(*, max_input_tokens: int = 64000, max_output_tokens: int = 800)
     )
 
 
+def local_qwen_profile(
+    *,
+    host: str = "127.0.0.1",
+    port: int = 11434,
+) -> ProviderProfile:
+    """The fixed, inactive local destination identity (Handoff 147 §1, 148 §3).
+
+    Loopback-only by construction (``host`` defaults to the loopback address); no
+    egress, no streaming, no automatic retries, exactly one request per approval —
+    all already enforced by ``ProviderProfile.__post_init__``. Constructing this
+    profile does not start, warm, or contact anything: activation is the caller's
+    (Voice's) explicit, separately dependency-injected concern via
+    ``jarvis_core.providers.local_ollama``.
+    """
+    return ProviderProfile(
+        provider_id=LOCAL_PROVIDER_ID,
+        model_id="qwen2.5:7b",
+        scheme="http",
+        host=f"{host}:{port}",
+        path="/api/generate",
+        operation="complete",
+        max_input_tokens=LOCAL_LIMITS.prompt_tokens_max,
+        max_output_tokens=LOCAL_WARM_CLASS_SPECS[LocalWarmClass.LOCAL_MAX].num_predict,
+        timeout_seconds=LOCAL_WARM_CLASS_SPECS[LocalWarmClass.LOCAL_MAX].per_attempt_deadline_seconds,
+        is_remote=False,
+        price_table_version="local",
+        retention_disclosure=(
+            "Local-only Ollama loopback adapter; inactive by default; no data leaves the host."
+        ),
+        destination_profile_id=LOCAL_QWEN_PROFILE_ID,
+    )
+
+
 __all__ = [
     "DISABLED_PROVIDER_FEATURES",
+    "LOCAL_LIMITS",
+    "LOCAL_QWEN_PROFILE_ID",
+    "LOCAL_WARM_CLASS_SPECS",
     "Budgets",
     "HistoryLimits",
+    "LocalLimits",
+    "LocalWarmClass",
+    "LocalWarmClassSpec",
     "PrepareTurnRequest",
     "ProviderProfile",
+    "local_qwen_profile",
     "mock_profile",
+    "select_warm_class",
 ]

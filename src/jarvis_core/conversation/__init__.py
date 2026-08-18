@@ -15,15 +15,20 @@ from jarvis_core.conversation.contract import (
     EvidenceType,
     ExitCode,
     FailureClass,
+    LocalReadinessState,
     RemoteEligibility,
     TerminalState,
 )
 from jarvis_core.conversation.presentation import PresentationResult, present
 from jarvis_core.conversation.request import (
+    LOCAL_QWEN_PROFILE_ID,
     Budgets,
     HistoryLimits,
+    LocalLimits,
+    LocalWarmClass,
     PrepareTurnRequest,
     ProviderProfile,
+    local_qwen_profile,
     mock_profile,
 )
 from jarvis_core.conversation.results import AttemptResult, TurnResult
@@ -32,6 +37,7 @@ from jarvis_core.conversation.snapshot import ContextItem, ContextSnapshot
 
 __all__ = [
     "CONVERSATION_CONTRACT_VERSION",
+    "LOCAL_QWEN_PROFILE_ID",
     "AttemptResult",
     "Budgets",
     "ContextItem",
@@ -43,6 +49,9 @@ __all__ = [
     "ExitCode",
     "FailureClass",
     "HistoryLimits",
+    "LocalLimits",
+    "LocalReadinessState",
+    "LocalWarmClass",
     "PrepareTurnRequest",
     "PresentationResult",
     "ProviderProfile",
@@ -51,6 +60,7 @@ __all__ = [
     "TerminalState",
     "TurnResult",
     "create_approval",
+    "local_qwen_profile",
     "mock_profile",
     "present",
 ]

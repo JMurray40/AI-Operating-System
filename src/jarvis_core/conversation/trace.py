@@ -30,6 +30,12 @@ _ALLOWED_EVENTS = frozenset(
         "evidence_validated",
         "rendered",
         "session_reset",
+        # V05-PT-37: local-profile readiness/capacity lifecycle events (Handoff 147
+        # §3.2/§5). Never carry raw runtime/model/host/error text — only the fixed
+        # safe fields allowlisted below.
+        "local_admission_checked",
+        "local_admission_blocked",
+        "local_readiness_changed",
     }
 )
 
@@ -64,6 +70,13 @@ _ALLOWED_FIELDS = frozenset(
         "elapsed_ms",
         "eligible",
         "is_remote",
+        # V05-PT-37: local-profile fixed safe fields (never raw runtime/model/host/
+        # error text; see LocalGatewayBlocked.details / AttemptResult.details).
+        "destination_profile_id",
+        "local_state",
+        "reason",
+        "warm_class",
+        "retry_eligible",
     }
 )
 

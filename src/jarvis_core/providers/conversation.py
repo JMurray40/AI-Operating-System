@@ -173,6 +173,10 @@ class NormalizedResult:
     cost: Cost = field(default_factory=lambda: Cost(None, "USD", "unset", UsageProvenance.UNKNOWN))
     error_code: str | None = None  # redacted, taxonomic; never a raw provider error
     elapsed_ms: float | None = None
+    # V05-PT-37: fixed, redacted safe fields for a typed block (e.g. the local
+    # profile's ``blocked_local_capacity`` available_mib/memory_load_percent/...).
+    # Every existing adapter leaves this empty and is unaffected.
+    details: Mapping[str, object] = field(default_factory=dict)
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -186,6 +190,7 @@ class NormalizedResult:
             "cost": self.cost.to_dict(),
             "error_code": self.error_code,
             "elapsed_ms": self.elapsed_ms,
+            "details": dict(self.details),
         }
 
 

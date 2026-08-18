@@ -18,8 +18,9 @@ mutating them can never reach back into the retained object or any later render 
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
+from jarvis_core.conversation.contract import TerminalState
 from jarvis_core.conversation.evidence import AnswerEvidence, Claim
 from jarvis_core.conversation.immutable import deep_thaw, freeze_mapping, freeze_tuple_of_mappings
 from jarvis_core.conversation.results import TurnResult
@@ -63,6 +64,9 @@ class PresentationResult:
     citations: tuple[str, ...]
     usage: dict[str, object]
     cost: dict[str, object]
+    # V05-PT-37: fixed, redacted safe fields for a typed local-profile block. Empty
+    # (and inert) for every non-local turn.
+    details: dict[str, object] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         # AC-05-05R: deep-freeze every retained collection so no caller-held reference —
@@ -73,6 +77,7 @@ class PresentationResult:
         object.__setattr__(self, "citations", tuple(self.citations))
         object.__setattr__(self, "usage", freeze_mapping(self.usage))
         object.__setattr__(self, "cost", freeze_mapping(self.cost))
+        object.__setattr__(self, "details", freeze_mapping(self.details))
 
     def to_dict(self) -> dict[str, object]:
         # Deep-thaw fresh, fully DETACHED mutable copies for the output: a caller is free to
@@ -94,6 +99,7 @@ class PresentationResult:
                 "citations": list(self.citations),
                 "usage": deep_thaw(self.usage),
                 "cost": deep_thaw(self.cost),
+                "details": deep_thaw(self.details),
             },
         }
 
@@ -122,11 +128,24 @@ def present(turn: TurnResult) -> PresentationResult:
     """Build the single sanitized presentation object from a turn result."""
     a = turn.attempt
     evidence = a.evidence
-    claims = evidence.claims if evidence is not None else ()
-    pub_claims = tuple(_public_claim(c) for c in claims)
-    supported = tuple(sorted({cid for c in claims for cid in c.citations}))
-    limitations = evidence.limitations if evidence is not None else ()
-    answer = answer_from_claims(evidence) if a.text is not None else None
+    if evidence is None and a.status is TerminalState.COMPLETED:
+        # V05-PT-37 (Handoff 147 §4): a completed local-profile turn carries the
+        # model's own closed-schema answer/limitations/citations directly — there is
+        # no claims taxonomy to render here (that belongs to the remote/mock contract
+        # only; a completed remote/mock attempt always has ``evidence`` set). ``a.text``
+        # was already fully validated by the adapter's hostile-output boundary before
+        # reaching COMPLETED; it still passes through ``sanitize_markdown`` here for
+        # the same defense-in-depth every other public-surface string gets.
+        pub_claims: tuple[dict[str, object], ...] = ()
+        supported = tuple(a.local_citations)
+        limitations = tuple(sanitize_markdown(lim) for lim in a.local_limitations)
+        answer = sanitize_markdown(a.text) if a.text is not None else None
+    else:
+        claims = evidence.claims if evidence is not None else ()
+        pub_claims = tuple(_public_claim(c) for c in claims)
+        supported = tuple(sorted({cid for c in claims for cid in c.citations}))
+        limitations = evidence.limitations if evidence is not None else ()
+        answer = answer_from_claims(evidence) if a.text is not None else None
     return PresentationResult(
         turn_number=turn.turn_number,
         request_id=turn.request_id,
@@ -142,6 +161,7 @@ def present(turn: TurnResult) -> PresentationResult:
         citations=supported,
         usage=a.usage.to_dict(),
         cost=a.cost.to_dict(),
+        details=dict(a.details),
     )
 
 

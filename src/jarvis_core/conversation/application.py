@@ -8,6 +8,7 @@ pre-dispatch validation; drift blocks retry and requires a fresh prepare.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime, timezone
@@ -23,6 +24,14 @@ from jarvis_core.conversation.contract import (
     DriftError,
     EvidenceError,
     FailureClass,
+    LocalCapacityError,
+    LocalConversationError,
+    LocalNotReadyError,
+    LocalOutputContractError,
+    LocalPolicyDriftError,
+    LocalTimeoutError,
+    LocalUnavailableError,
+    LocalUnsafeOutputError,
     PolicyBlockedError,
     RemoteEligibility,
     ValidationError,
@@ -31,8 +40,12 @@ from jarvis_core.conversation.contract import (
 )
 from jarvis_core.conversation.evidence import validate_response
 from jarvis_core.conversation.presentation import answer_from_claims
-from jarvis_core.conversation.prompt import assemble_prompt
-from jarvis_core.conversation.request import HistoryLimits, PrepareTurnRequest
+from jarvis_core.conversation.prompt import assemble_local_prompt, assemble_prompt
+from jarvis_core.conversation.request import (
+    LOCAL_QWEN_PROFILE_ID,
+    HistoryLimits,
+    PrepareTurnRequest,
+)
 from jarvis_core.conversation.results import AttemptResult, TurnResult
 from jarvis_core.conversation.session import AttemptRecord, Session, new_attempt_id
 from jarvis_core.conversation.snapshot import ContextSnapshot
@@ -52,6 +65,21 @@ from jarvis_core.providers.conversation import (
     TerminalState,
     TransportMetadata,
 )
+from jarvis_core.providers.local_ollama import (
+    ERROR_LOCAL_CAPACITY,
+    ERROR_LOCAL_CONTEXT_LIMIT,
+    ERROR_LOCAL_NOT_READY,
+    ERROR_LOCAL_OUTPUT_CONTRACT,
+    ERROR_LOCAL_POLICY_DRIFT,
+    ERROR_LOCAL_TIMEOUT,
+    ERROR_LOCAL_UNAVAILABLE,
+    ERROR_LOCAL_UNSAFE_OUTPUT,
+    LocalGatewayBlocked,
+    LocalReadinessGateway,
+)
+from jarvis_core.providers.local_ollama import (
+    PROVIDER_ID as LOCAL_PROVIDER_ID,
+)
 from jarvis_core.query.evidence import CurrentSourceResolver
 from jarvis_core.query.passages import Locator
 from jarvis_core.query.passages import validate as validate_passage
@@ -63,7 +91,121 @@ _FAILURE_BY_CODE = {
     ERROR_MALFORMED: FailureClass.MALFORMED_RESPONSE,
     ERROR_ENDPOINT_DENIED: FailureClass.POLICY_BLOCKED,
     ERROR_UNAVAILABLE_CREDENTIAL: FailureClass.UNAVAILABLE_CREDENTIAL,
+    # V05-PT-37: the local adapter never raises — it returns these redacted codes on
+    # ``NormalizedResult.error_code`` exactly like every existing adapter (C23).
+    ERROR_LOCAL_NOT_READY: FailureClass.LOCAL_NOT_READY,
+    ERROR_LOCAL_UNAVAILABLE: FailureClass.LOCAL_UNAVAILABLE,
+    ERROR_LOCAL_CAPACITY: FailureClass.LOCAL_CAPACITY,
+    ERROR_LOCAL_CONTEXT_LIMIT: FailureClass.LOCAL_CONTEXT_LIMIT,
+    ERROR_LOCAL_TIMEOUT: FailureClass.LOCAL_TIMEOUT,
+    ERROR_LOCAL_UNSAFE_OUTPUT: FailureClass.LOCAL_UNSAFE_OUTPUT,
+    ERROR_LOCAL_OUTPUT_CONTRACT: FailureClass.LOCAL_OUTPUT_CONTRACT,
+    ERROR_LOCAL_POLICY_DRIFT: FailureClass.LOCAL_POLICY_DRIFT,
 }
+
+# V05-PT-37: translate the provider-layer LocalGatewayBlocked.code into the matching
+# typed conversation.contract error, raised directly from prepare_turn (pre-retrieval
+# — a raised exception there, not a NormalizedResult, matching this method's existing
+# style, e.g. CredentialUnavailableError above).
+_LOCAL_ERROR_BY_CODE: dict[str, type[LocalConversationError]] = {
+    ERROR_LOCAL_NOT_READY: LocalNotReadyError,
+    ERROR_LOCAL_UNAVAILABLE: LocalUnavailableError,
+    ERROR_LOCAL_CAPACITY: LocalCapacityError,
+    ERROR_LOCAL_TIMEOUT: LocalTimeoutError,
+    ERROR_LOCAL_UNSAFE_OUTPUT: LocalUnsafeOutputError,
+    ERROR_LOCAL_OUTPUT_CONTRACT: LocalOutputContractError,
+    ERROR_LOCAL_POLICY_DRIFT: LocalPolicyDriftError,
+}
+
+
+def _raise_typed_local_error(exc: LocalGatewayBlocked) -> None:
+    error_cls = _LOCAL_ERROR_BY_CODE.get(exc.code, LocalNotReadyError)
+    raise error_cls(str(exc), details=exc.details) from exc
+
+
+def _local_coverage() -> Coverage:
+    """Handoff 150 §4 (PT37-CTO-03) correction — SUPERSEDES the prior ``_local_coverage``.
+
+    The prior version inferred ``Coverage.COMPLETE``/``PARTIAL`` from citation-ID presence
+    and model-declared limitations alone, with no binding of the answer's text to the cited
+    passages. The CTO review found this let a hostile or fabricated answer cite one
+    valid-but-unrelated snapshot item and reach ``COMPLETE`` coverage. That mapping is
+    REMOVED here, not merely tightened: "Do not infer support or coverage from citation-ID
+    presence or model-declared limitations" (Handoff 150 §4) rules out any citation/
+    limitation-keyed heuristic, however strict.
+
+    The remote/mock contract's ``Coverage`` is derived from PER-CLAIM typed, exactly
+    verified support (``evidence.validate_response`` — each claim independently declares
+    fact/inference/model_knowledge/unknown/assumption and, for source-backed types, is
+    checked against an exact current source span or the deterministic premise conjunction).
+    Handoff 147/147b's closed local schema (``{"answer","limitations","citations"}``, frozen
+    and outside this correction's path ceiling) has no per-claim decomposition and no
+    self-declared per-claim type at all — there is no field the model sets that would let
+    Engineering honestly reconstruct a ``Claim`` without Engineering itself deciding, on the
+    model's behalf, what kind of statement the answer is making. Fabricating that decision
+    would not be "entering the same claim/evidence semantics"; it would be a different,
+    self-authorized taxonomy standing in for it — the same category of overreach this
+    correction round exists to close, just tightened rather than removed.
+
+    Handoff 150 §4 explicitly authorizes stopping instead: "or Engineering must stop and
+    request a separately authorized public-contract amendment if the closed local schema
+    cannot express them." That is the path taken for THIS correction round (recorded in the
+    Handoff 149 superseding revision, with a concrete proposed amendment for Product
+    Owner/CTO to adjudicate): every completed local turn is unconditionally ``Coverage.NONE``
+    until such an amendment defines real per-claim local evidence semantics. This does not
+    weaken safety relative to the prior (returned) version — ``_revalidate_local_citations``
+    (added alongside this fix) still fails the WHOLE attempt closed if any cited source is
+    unknown, removed, or has drifted since the snapshot was built; the adapter still rejects
+    fake/duplicate citation ids and hostile output before ``COMPLETED`` is even reachable; and
+    no local turn can now present as more supported than ``NONE`` regardless of citation
+    count, so citation presence can no longer manufacture an elevated coverage reading.
+    """
+    return Coverage.NONE
+
+
+def _revalidate_local_citations(
+    snap: ContextSnapshot,
+    citations: tuple[str, ...],
+    source_root: Path,
+    notes_by_relpath: dict[str, Note],
+) -> None:
+    """Handoff 150 §4 (PT37-CTO-03): re-validate every item the model actually cited against
+    CURRENT source bytes, at interpretation time — i.e. AFTER the (potentially slow) local
+    inference call returns, not only at pre-dispatch admission (step 8 /
+    ``_revalidate_current_bytes``, which runs once for the whole snapshot before the request
+    is sent). Pre-dispatch revalidation closes the window up to the moment the request left
+    Core; it cannot see a source edited or removed WHILE the local model was generating. A
+    cited item that is no longer in the current snapshot, whose source note has disappeared,
+    or whose source bytes have drifted since the snapshot was built fails the WHOLE attempt
+    closed (``EvidenceError``) rather than letting a now-stale citation stand — the same
+    current-byte validation semantics ``evidence.validate_response`` applies to every remote/
+    mock fact/inference citation (``_validate_current_premise`` in ``evidence.py``), reused
+    here directly against the local citation list rather than reimplemented.
+    """
+    resolver = CurrentSourceResolver(source_root)
+    for item_id in citations:
+        item = snap.item(item_id)
+        if item is None:
+            raise EvidenceError(f"cited evidence {item_id} is no longer in the current snapshot")
+        note = notes_by_relpath.get(item.relpath)
+        if note is None:
+            raise EvidenceError(f"cited evidence {item_id} source is no longer present")
+        current_bytes = resolver.current_bytes(note)
+        current_text = current_bytes.decode("utf-8", "replace")
+        locator = Locator(
+            heading_path=item.heading_path,
+            line_start=item.line_start,
+            line_end=item.line_end,
+        )
+        result = validate_passage(
+            locator=locator,
+            excerpt=item.excerpt,
+            source_fingerprint=item.source_fingerprint,
+            current_bytes=current_bytes,
+            current_text=current_text,
+        )
+        if not result.ok:
+            raise EvidenceError(f"cited evidence {item_id} failed current-byte validation")
 
 # AC-05-02 attempt-lifecycle bounds.
 _MAX_ATTEMPTS = 5
@@ -265,6 +407,7 @@ class ConversationApplication:
         notes: list[Note],
         *,
         credentials: CredentialProvider | None = None,
+        local_gateway: LocalReadinessGateway | None = None,
     ) -> ContextSnapshot:
         if request.session_id != session.session_id:
             raise ValidationError("request session_id does not match session")
@@ -277,6 +420,37 @@ class ConversationApplication:
             credentials is None or not credentials.is_available()
         ):
             raise CredentialUnavailableError("credential unavailable for the remote destination")
+        # V05-PT-37 (Handoff 147 §5): for the inactive constrained-local profile,
+        # verify readiness + capacity BEFORE any retrieval/graph/context/prompt work —
+        # the same "fail closed before the expensive work" seam as the credential
+        # check above, gated on ``destination_profile_id`` so every existing (remote/
+        # mock) profile is completely unaffected. A caller that supplies the local
+        # profile without a gateway is a configuration error (fails closed).
+        if request.provider_profile.destination_profile_id == LOCAL_QWEN_PROFILE_ID:
+            if local_gateway is None:
+                raise LocalNotReadyError(
+                    "local_gateway is required to prepare a turn for the local profile",
+                    details={"reason": "gateway_not_injected", "retry_eligible": False},
+                )
+            try:
+                local_gateway.check_admission()
+            except LocalGatewayBlocked as exc:
+                session.trace.record(
+                    "local_admission_blocked",
+                    session_id=session.session_id,
+                    request_id=request.request_id,
+                    destination_profile_id=LOCAL_QWEN_PROFILE_ID,
+                    reason=exc.details.get("reason"),
+                    retry_eligible=exc.details.get("retry_eligible"),
+                )
+                _raise_typed_local_error(exc)
+            session.trace.record(
+                "local_admission_checked",
+                session_id=session.session_id,
+                request_id=request.request_id,
+                destination_profile_id=LOCAL_QWEN_PROFILE_ID,
+                local_state=local_gateway.state.value,
+            )
         session.trace.record(
             "prepare_started",
             session_id=session.session_id,
@@ -607,7 +781,16 @@ class ConversationApplication:
         )
 
         # -------- step 9: deterministically assemble the prompt within budget (bound history)
-        projection = assemble_prompt(snap)
+        # V05-PT-37: the local profile has its own frozen limits/template/counter
+        # (Handoff 147/147b §2-3) and is never mixed with the remote budget path.
+        # NOTE: ``ProviderPolicy`` (snapshot.py) is out of the Handoff 148 path ceiling
+        # and carries no ``destination_profile_id`` field, so the local/remote branch is
+        # keyed off ``provider_id`` (already present on ``ProviderPolicy`` and copied
+        # verbatim from ``ProviderProfile.provider_id`` by ``context.py``) instead.
+        if snap.provider_policy.provider_id == LOCAL_PROVIDER_ID:
+            projection = assemble_local_prompt(snap)
+        else:
+            projection = assemble_prompt(snap)
         session.trace.record(
             "prompt_assembled",
             session_id=session.session_id,
@@ -619,6 +802,15 @@ class ConversationApplication:
 
         # -------- step 10: dispatch exactly once through the selected adapter
         credential = self._credential(credentials, snap)
+        # V05-PT-37: ``diagnostics`` never reaches the wire (ProviderRequest docstring)
+        # — it is the only channel through which the local adapter's citation-identity
+        # check (``validate_local_response``'s "fake citation" rejection, Handoff 147
+        # §4) can see which item ids are actually current-snapshot-authorized. Scoped
+        # to the local profile only; every existing (remote/mock) adapter ignores
+        # ``diagnostics`` entirely and is unaffected.
+        diagnostics: dict[str, object] = {}
+        if snap.provider_policy.provider_id == LOCAL_PROVIDER_ID:
+            diagnostics["allowed_citation_ids"] = tuple(item.item_id for item in snap.items)
         request = ProviderRequest(
             request_id=snap.request_id,
             attempt_id=attempt_id,
@@ -634,6 +826,7 @@ class ConversationApplication:
                 max_input_tokens=snap.provider_policy.max_input_tokens,
             ),
             credential=credential,
+            diagnostics=diagnostics,
         )
         session.trace.record(
             "dispatch_started",
@@ -694,7 +887,18 @@ class ConversationApplication:
                     ),
                 )
             session.attempts.append(AttemptRecord(attempt_id, attempt.status.value, kind))
-            coverage = attempt.evidence.coverage if attempt.evidence is not None else Coverage.NONE
+            # V05-PT-37 / Handoff 150 §4 (PT37-CTO-03 correction): a completed local-profile
+            # attempt carries no ``evidence`` (that taxonomy belongs to the remote/mock claims
+            # contract only). It no longer infers an elevated coverage from citations/
+            # limitations either — see ``_local_coverage``'s docstring for why that inference
+            # was removed rather than tightened. Every completed local turn is unconditionally
+            # ``Coverage.NONE``.
+            if attempt.evidence is not None:
+                coverage = attempt.evidence.coverage
+            elif attempt.status is TerminalState.COMPLETED:
+                coverage = _local_coverage()
+            else:
+                coverage = Coverage.NONE
             turn_number = session.peek_turn_number()
             if attempt.status is TerminalState.COMPLETED and attempt.text is not None:
                 record = session.record_turn(
@@ -818,7 +1022,84 @@ class ConversationApplication:
                 cost=cost,
                 finish_reason=result.finish_reason,
                 elapsed_ms=result.elapsed_ms,
+                details=result.details,
             )
+        # V05-PT-37: a completed local-profile attempt is already fully validated by
+        # the adapter (``validate_local_response`` — hostile-output boundary, closed
+        # schema, unknown-field rejection, duplicate/fake-citation rejection; Handoff
+        # 147 §4) BEFORE it can reach COMPLETED. This is therefore a trusted decode of
+        # OUR OWN adapter's canonical JSON (``LocalOllamaAdapter.dispatch``), never a
+        # re-validation of untrusted model output, and never the remote claims
+        # taxonomy (``evidence.validate_response`` expects a `claims` list the local
+        # closed schema does not have and never will).
+        if snap.provider_policy.provider_id == LOCAL_PROVIDER_ID:
+            try:
+                payload = json.loads(result.text or "")
+                local_answer = payload["answer"]
+                local_limitations = tuple(payload.get("limitations") or ())
+                local_citations = tuple(payload.get("citations") or ())
+                if not isinstance(local_answer, str):
+                    raise TypeError("answer is not a string")
+            except (ValueError, KeyError, TypeError) as exc:
+                return AttemptResult(
+                    attempt_id=attempt_id,
+                    status=TerminalState.FAILED,
+                    failure=FailureClass.LOCAL_OUTPUT_CONTRACT,
+                    message="local response could not be decoded after adapter validation",
+                    usage=usage,
+                    cost=cost,
+                    finish_reason=result.finish_reason,
+                    elapsed_ms=result.elapsed_ms,
+                    details={
+                        "reason": "post_validation_decode_failed",
+                        "error": type(exc).__name__,
+                    },
+                )
+            # Handoff 150 §4 (PT37-CTO-03): re-validate every cited item against CURRENT
+            # source bytes at interpretation time, after the (potentially slow) local
+            # inference call — closes the drift window pre-dispatch revalidation (step 8)
+            # cannot see. An unknown, removed, or drifted citation fails the WHOLE attempt
+            # closed; it can never reach COMPLETED.
+            try:
+                _revalidate_local_citations(
+                    snap, local_citations, prepared.source_root, prepared.notes_by_relpath
+                )
+            except EvidenceError as exc:
+                return AttemptResult(
+                    attempt_id=attempt_id,
+                    status=TerminalState.FAILED,
+                    failure=FailureClass.EVIDENCE_FAILED,
+                    message=str(exc),
+                    usage=usage,
+                    cost=cost,
+                    finish_reason=result.finish_reason,
+                    elapsed_ms=result.elapsed_ms,
+                )
+            coverage = _local_coverage()
+            # supported_count is 0, never len(local_citations): Handoff 150 §4 prohibits
+            # treating citation presence as support. This trace event now records only that
+            # every citation named was verified current (not fake, not drifted) — never that
+            # any claim in the answer was actually supported by it. See ``_local_coverage``.
+            session.trace.record(
+                "evidence_validated",
+                session_id=session.session_id,
+                attempt_id=attempt_id,
+                coverage=coverage.value,
+                supported_count=0,
+                model_knowledge_count=0,
+            )
+            return AttemptResult(
+                attempt_id=attempt_id,
+                status=TerminalState.COMPLETED,
+                text=local_answer,
+                usage=usage,
+                cost=cost,
+                finish_reason=result.finish_reason,
+                elapsed_ms=result.elapsed_ms,
+                local_limitations=local_limitations,
+                local_citations=local_citations,
+            )
+
         # completed -> validate claim evidence against current bytes
         text = result.text or ""
         try:

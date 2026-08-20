@@ -858,12 +858,16 @@ def validate_local_response(
             )
         for citation_id in claim_evidence:
             if citation_id not in allowed_citation_ids:
+                # PT37-CTO-07: citation_id is an arbitrary, untrusted string supplied by the
+                # local model in the raw response -- the same class of raw-content leak
+                # channel PT37-CTO-05 closed for unknown key names. Only the fixed reason and
+                # the Core-computed, safe numeric claim index are recorded; the untrusted
+                # identifier itself must never cross into details.
                 raise LocalGatewayBlocked(
                     ERROR_LOCAL_UNSAFE_OUTPUT,
                     "citation id is absent from the immutable current snapshot",
                     details={
                         "reason": "fake_citation",
-                        "citation_id": citation_id,
                         "index": index,
                     },
                 )

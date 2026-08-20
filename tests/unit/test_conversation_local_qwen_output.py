@@ -947,6 +947,31 @@ def test_hostile_per_claim_unknown_key_name_never_leaks_across_any_public_surfac
     assert session.turns == []
 
 
+def test_hostile_fake_citation_id_never_leaks_across_any_public_surface(vault) -> None:
+    """PT37-CTO-07 canary: a fact claim citing an id absent from the immutable current
+    snapshot must never leak that untrusted, model-supplied citation_id VALUE across the
+    public attempt/presentation/trace boundary -- only the fixed reason and the
+    Core-computed, safe numeric claim index may cross it."""
+    app = ConversationApplication()
+    session, _snap, gw = _prepared_and_approved(app, vault)
+    hostile_id = "AKIAABCDEFGHIJKLMNOP-<script>evil()</script>-../../etc/passwd"
+    payload = _claims_payload([(f"x [{hostile_id}]", "fact", [hostile_id])])
+    adapter = LocalOllamaAdapter(gateway=gw, transport=FakeTransport(payload), enabled=True)
+
+    turn = app.dispatch_turn(session, adapter, now=T)
+
+    assert turn.attempt.status.value == "blocked"
+    assert turn.attempt.failure.value == "blocked_local_unsafe_output"
+    assert turn.attempt.details.get("reason") == "fake_citation"
+    assert turn.attempt.details.get("index") == 0
+    assert "citation_id" not in turn.attempt.details
+    assert hostile_id not in json.dumps(turn.attempt.to_dict())
+    assert hostile_id not in json.dumps(present(turn).to_dict())
+    trace_dump = json.dumps(session.trace.to_dict())
+    assert hostile_id not in trace_dump
+    assert session.turns == []
+
+
 def test_raw_wire_response_bytes_never_appear_verbatim_in_the_presentation(vault) -> None:
     app = ConversationApplication()
     session, snap, gw = _prepared_and_approved(app, vault)

@@ -593,7 +593,25 @@ def test_fake_citation_id_rejected() -> None:
         validate_local_response(body, allowed_citation_ids=_ALLOWED)
     assert ei.value.code == "blocked_local_unsafe_output"
     assert ei.value.details["reason"] == "fake_citation"
-    assert ei.value.details["citation_id"] == "Z9"
+    assert ei.value.details["index"] == 0
+    # PT37-CTO-07: the untrusted citation_id VALUE must never appear in details -- only
+    # the fixed reason and the Core-computed, safe numeric claim index.
+    assert "citation_id" not in ei.value.details
+
+
+def test_hostile_fake_citation_id_never_appears_in_details() -> None:
+    """PT37-CTO-07 canary: citation_id is an arbitrary, untrusted string supplied by the
+    local model -- the same class of raw-content leak channel PT37-CTO-05 closed for
+    unknown key names. Only a count/index may ever appear in ``details``, never the
+    literal untrusted identifier, so this rejection path cannot become a raw-content leak
+    channel."""
+    hostile_id = "AKIAABCDEFGHIJKLMNOP-<script>evil()</script>-../../etc/passwd"
+    body = _body({"claims": [_claim(f"x [{hostile_id}]", "fact", [hostile_id])], "limitations": []})
+    with pytest.raises(LocalGatewayBlocked) as ei:
+        validate_local_response(body, allowed_citation_ids=_ALLOWED)
+    assert ei.value.details["reason"] == "fake_citation"
+    assert ei.value.details["index"] == 0
+    assert hostile_id not in json.dumps(ei.value.details)
 
 
 def test_non_canonical_claim_text_rejected() -> None:

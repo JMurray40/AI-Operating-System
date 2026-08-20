@@ -894,6 +894,59 @@ def test_hostile_output_blocks_without_recording_a_turn_or_leaking_raw_text(vaul
     assert hostile_marker not in trace_dump
 
 
+def test_hostile_unknown_top_level_key_name_never_leaks_across_any_public_surface(vault) -> None:
+    """PT37-CTO-05 canary: an adversarial/malformed local response smuggling a hostile
+    string AS a JSON key name (not a value) must never appear in AttemptResult.to_dict(),
+    the trace, or the presentation surface -- only a safe count crosses the boundary."""
+    app = ConversationApplication()
+    session, _snap, gw = _prepared_and_approved(app, vault)
+    hostile_key = "AKIAABCDEFGHIJKLMNOP-<script>evil()</script>-../../etc/passwd"
+    payload = {
+        "claims": [{"text": "x", "type": "unknown", "evidence": []}],
+        "limitations": [],
+        hostile_key: "nope",
+    }
+    adapter = LocalOllamaAdapter(gateway=gw, transport=FakeTransport(payload), enabled=True)
+
+    turn = app.dispatch_turn(session, adapter, now=T)
+
+    assert turn.attempt.status.value == "blocked"
+    assert turn.attempt.failure.value == "blocked_local_output_contract"
+    assert turn.attempt.details.get("reason") == "unknown_fields"
+    assert turn.attempt.details.get("count") == 1
+    assert "fields" not in turn.attempt.details
+    assert hostile_key not in json.dumps(turn.attempt.to_dict())
+    assert hostile_key not in json.dumps(present(turn).to_dict())
+    trace_dump = json.dumps(session.trace.to_dict())
+    assert hostile_key not in trace_dump
+    assert session.turns == []
+
+
+def test_hostile_per_claim_unknown_key_name_never_leaks_across_any_public_surface(vault) -> None:
+    """PT37-CTO-05 canary: same as above at the per-claim boundary -- only a count and the
+    Core-computed numeric claim index may cross the boundary, never the untrusted key name."""
+    app = ConversationApplication()
+    session, _snap, gw = _prepared_and_approved(app, vault)
+    hostile_key = "sk-abcdefghijklmnopqrstuvwx-<script>evil()</script>"
+    claim = {"text": "x", "type": "unknown", "evidence": [], hostile_key: "nope"}
+    payload = {"claims": [claim], "limitations": []}
+    adapter = LocalOllamaAdapter(gateway=gw, transport=FakeTransport(payload), enabled=True)
+
+    turn = app.dispatch_turn(session, adapter, now=T)
+
+    assert turn.attempt.status.value == "blocked"
+    assert turn.attempt.failure.value == "blocked_local_output_contract"
+    assert turn.attempt.details.get("reason") == "claim_unknown_fields"
+    assert turn.attempt.details.get("index") == 0
+    assert turn.attempt.details.get("count") == 1
+    assert "fields" not in turn.attempt.details
+    assert hostile_key not in json.dumps(turn.attempt.to_dict())
+    assert hostile_key not in json.dumps(present(turn).to_dict())
+    trace_dump = json.dumps(session.trace.to_dict())
+    assert hostile_key not in trace_dump
+    assert session.turns == []
+
+
 def test_raw_wire_response_bytes_never_appear_verbatim_in_the_presentation(vault) -> None:
     app = ConversationApplication()
     session, snap, gw = _prepared_and_approved(app, vault)

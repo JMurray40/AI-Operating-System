@@ -766,10 +766,15 @@ def validate_local_response(
         )
     extra_keys = set(obj.keys()) - _ALLOWED_RESPONSE_KEYS
     if extra_keys:
+        # PT37-CTO-05: the unknown key NAMES themselves are untrusted provider/model-
+        # controlled text (this is the same closed response an adversarial local model
+        # could shape) -- only a count is recorded in details, never the literal key
+        # strings, mirroring the envelope unknown-fields check below. Never a raw-
+        # content leak channel.
         raise LocalGatewayBlocked(
             ERROR_LOCAL_OUTPUT_CONTRACT,
             "raw response has unknown fields",
-            details={"reason": "unknown_fields", "fields": sorted(extra_keys)},
+            details={"reason": "unknown_fields", "count": len(extra_keys)},
         )
     raw_claims = obj.get("claims")
     limitations = obj.get("limitations", [])
@@ -800,13 +805,16 @@ def validate_local_response(
             )
         claim_extra_keys = set(raw_claim.keys()) - _ALLOWED_CLAIM_KEYS
         if claim_extra_keys:
+            # PT37-CTO-05: same rationale as the top-level unknown-fields check above --
+            # only a count and the (Core-computed, safe) numeric claim index are
+            # recorded, never the untrusted key names themselves.
             raise LocalGatewayBlocked(
                 ERROR_LOCAL_OUTPUT_CONTRACT,
                 "claim has unknown fields",
                 details={
                     "reason": "claim_unknown_fields",
                     "index": index,
-                    "fields": sorted(claim_extra_keys),
+                    "count": len(claim_extra_keys),
                 },
             )
         claim_text = raw_claim.get("text")

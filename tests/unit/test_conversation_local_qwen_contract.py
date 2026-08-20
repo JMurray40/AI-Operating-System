@@ -8,6 +8,7 @@ model.
 
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -400,7 +401,21 @@ def test_unknown_top_level_field_rejected() -> None:
     with pytest.raises(LocalGatewayBlocked) as ei:
         validate_local_response(body, allowed_citation_ids=_ALLOWED)
     assert ei.value.details["reason"] == "unknown_fields"
-    assert ei.value.details["fields"] == ["extra"]
+    assert ei.value.details["count"] == 1
+    assert "fields" not in ei.value.details
+
+
+def test_unknown_top_level_field_name_never_appears_in_details() -> None:
+    """PT37-CTO-05: the unknown key NAME itself is untrusted model-controlled text --
+    only a count may ever appear in ``details``, never the literal key string, so this
+    rejection path cannot become a raw-content leak channel."""
+    hostile_key = "AKIAABCDEFGHIJKLMNOP-<script>evil()</script>-../../etc/passwd"
+    body = _body({"claims": [_claim("x")], "limitations": [], hostile_key: "nope"})
+    with pytest.raises(LocalGatewayBlocked) as ei:
+        validate_local_response(body, allowed_citation_ids=_ALLOWED)
+    assert ei.value.details["reason"] == "unknown_fields"
+    assert ei.value.details["count"] == 1
+    assert hostile_key not in json.dumps(ei.value.details)
 
 
 def test_claims_missing_or_wrong_typed_rejected() -> None:
@@ -449,7 +464,24 @@ def test_claim_unknown_field_rejected() -> None:
     with pytest.raises(LocalGatewayBlocked) as ei:
         validate_local_response(body, allowed_citation_ids=_ALLOWED)
     assert ei.value.details["reason"] == "claim_unknown_fields"
-    assert ei.value.details["fields"] == ["extra"]
+    assert ei.value.details["index"] == 0
+    assert ei.value.details["count"] == 1
+    assert "fields" not in ei.value.details
+
+
+def test_claim_unknown_field_name_never_appears_in_details() -> None:
+    """PT37-CTO-05: same rationale as the top-level canary above, at the per-claim
+    boundary -- only the count and the (Core-computed, safe) numeric claim index may
+    appear, never the untrusted key name itself."""
+    hostile_key = "sk-abcdefghijklmnopqrstuvwx-<script>evil()</script>"
+    claim = {"text": "x", "type": "unknown", "evidence": [], hostile_key: "nope"}
+    body = _body({"claims": [claim], "limitations": []})
+    with pytest.raises(LocalGatewayBlocked) as ei:
+        validate_local_response(body, allowed_citation_ids=_ALLOWED)
+    assert ei.value.details["reason"] == "claim_unknown_fields"
+    assert ei.value.details["index"] == 0
+    assert ei.value.details["count"] == 1
+    assert hostile_key not in json.dumps(ei.value.details)
 
 
 def test_claim_with_evidence_key_omitted_defaults_to_no_evidence() -> None:

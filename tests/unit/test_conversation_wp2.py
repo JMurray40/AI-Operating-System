@@ -33,6 +33,7 @@ from jarvis_core.providers.google_gemini import (
     APPROVED_HOST,
     APPROVED_MAX_OUTPUT_TOKENS,
     APPROVED_THINKING_LEVEL,
+    GOOGLE_PRICE_TABLE_VERSION,
     GoogleGeminiAdapter,
     google_gemini_profile,
 )
@@ -171,6 +172,23 @@ def test_c13_credential_in_header_only_not_body() -> None:
     GoogleGeminiAdapter(cap).dispatch(_preq())
     assert cap.last.headers["x-goog-api-key"] == CANARY
     assert CANARY not in cap.last.body.decode("utf-8")
+
+
+def test_paid_price_table_and_absolute_pilot_bound_are_current() -> None:
+    assert GOOGLE_PRICE_TABLE_VERSION == "google-gemini-3.5-flash-lite-paid-2026-08-29"
+
+    class _MaximumPilotSnapshot:
+        def __init__(self) -> None:
+            self.budget_accounting = {
+                "context_tokens_used": 63_744,
+                "output_reserve_tokens": 8_000,
+            }
+
+    estimate = GoogleGeminiAdapter(
+        CapturingTransport(TransportResponse(200, {}, _ok_body()))
+    ).estimate_cost_usd(_MaximumPilotSnapshot())
+    assert estimate == 0.0392
+    assert estimate < google_gemini_profile().max_cost_usd_per_request
 
 
 def test_c13_endpoint_host_escape_denied_without_send() -> None:

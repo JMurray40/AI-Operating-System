@@ -108,13 +108,13 @@ def _content_ok(c: object) -> bool:
 
 # Documentation reference for the wire shape; reconfirm at the WP4 preflight.
 GOOGLE_DOC_REFERENCE = "https://ai.google.dev/api/generate-content (v1beta models.generateContent)"
-GOOGLE_DOC_VERIFIED = "2026-08-01 implementation reference; reconfirm at WP4 preflight"
+GOOGLE_DOC_VERIFIED = "2026-08-29 paid-tier preflight reference"
 
-# Versioned price table (USD per token). Placeholder rates recorded for the estimate/ceiling
-# mechanism; exact pricing is reconfirmed at the WP4 preflight before any real spend.
-GOOGLE_PRICE_TABLE_VERSION = "google-gemini-3.5-flash-lite-2026-08-est"
-_USD_PER_INPUT_TOKEN = 0.10 / 1_000_000
-_USD_PER_OUTPUT_TOKEN = 0.40 / 1_000_000
+# Versioned paid-tier standard rates (USD per token), verified from Google's official Gemini
+# pricing page on 2026-08-29 for the bounded PT48 pilot.
+GOOGLE_PRICE_TABLE_VERSION = "google-gemini-3.5-flash-lite-paid-2026-08-29"
+_USD_PER_INPUT_TOKEN = 0.30 / 1_000_000
+_USD_PER_OUTPUT_TOKEN = 2.50 / 1_000_000
 
 _MAX_RESPONSE_TEXT_CHARS = 100_000
 

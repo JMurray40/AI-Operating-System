@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "policy_id": "personal-recall-s0s1",
+  "policy_version": "1",
+  "workspace_id": "brain-personal-recall",
+  "vault_root": "C:\\Users\\jmurr\\The BRAIN",
+  "max_sensitivity": "private",
+  "rules": [
+    {"pattern": "00 Inbox/**/*.md", "sensitivity": "private"},
+    {"pattern": "01 Daily Notes/**/*.md", "sensitivity": "private"},
+    {"pattern": "02 Projects/**/*.md", "sensitivity": "private"},
+    {"pattern": "03 Areas/**/*.md", "sensitivity": "private"},
+    {"pattern": "04 Wiki (Resources)/**/*.md", "sensitivity": "private"}
+  ]
+}

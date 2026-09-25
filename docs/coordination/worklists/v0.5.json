@@ -1,0 +1,1095 @@
+{
+  "schema_version": "1.0",
+  "worklist_id": "jarvis-v0.5",
+  "project": "AI Operating System (Jarvis)",
+  "milestone": "v0.5 Visible-Context Conversation",
+  "repository_root": ".",
+  "owner_role": "chief_of_staff",
+  "updated_at": "2026-08-10T03:20:00Z",
+  "authority_note": "This file is an operational index. Product Owner decisions, accepted ADRs and requirements, and linked handoffs remain authoritative.",
+  "current_focus_ids": [],
+  "tasks": [
+    {
+      "id": "V05-TECH-01",
+      "title": "Accept the frozen v0.5 technical candidate",
+      "workstream": "technical_candidate",
+      "priority": "P0",
+      "owner_role": "product_owner",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": {
+        "state": "approved",
+        "decision_id": "PO-05-TECH",
+        "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/28-chief-of-staff-to-product-owner-technical-candidate-decision.md"
+      },
+      "depends_on": [],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "repository_state": {
+        "branch": "feature/v0.5-visible-context-conversation",
+        "executable_commit": "d7105e4f6793f1317ba15f98c7e9c9f03c9f8910",
+        "tree": "f221c7451726437956acf61ecad2fc701bbbbefe",
+        "evidence_head": "57a343187e11c69fa1d5371d6017ce3d55886884"
+      },
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/25-quality-to-product-owner-conversation-release-review.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/28-chief-of-staff-to-product-owner-technical-candidate-decision.md"
+      ],
+      "scope": ["Record Product Owner acceptance of the exact technical candidate"],
+      "exclusions": ["Packaging, A12, WP4, merge, publication, and release"],
+      "acceptance_criteria": ["Exact executable and tree are recorded", "Quality's technical disposition is accepted"],
+      "required_evidence": ["Quality release review", "Product Owner decision"],
+      "stop_conditions": ["Any executable or tree mismatch"],
+      "history": [
+        {
+          "at": "2026-08-08T00:00:00Z",
+          "actor_role": "chief_of_staff",
+          "from_status": null,
+          "to_status": "accepted",
+          "reason": "Product Owner approved the exact technical candidate",
+          "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/28-chief-of-staff-to-product-owner-technical-candidate-decision.md"
+        }
+      ]
+    },
+    {
+      "id": "V05-PKG-02",
+      "title": "Acquire and accept frozen packaging inputs",
+      "workstream": "packaging",
+      "priority": "P0",
+      "owner_role": "principal_engineer",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": {
+        "state": "approved",
+        "decision_id": "PO-05-PKG-ACQUIRE-PROXY-SUPERSESSION",
+        "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/35-chief-of-staff-to-product-owner-acquisition-proxy-supersession-decision.md"
+      },
+      "depends_on": ["V05-TECH-01"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "repository_state": {
+        "branch": "feature/v0.5-visible-context-conversation",
+        "executable_commit": "d7105e4f6793f1317ba15f98c7e9c9f03c9f8910",
+        "tree": "f221c7451726437956acf61ecad2fc701bbbbefe",
+        "evidence_head": "fcb6a199397a5c161b096dde820229a570aa4aef"
+      },
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/30-cto-v0.5-packaging-and-a12-plan.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/32-chief-of-staff-to-principal-engineer-packaging-acquisition-authorization.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.5-engineering/docs/evidence/v0.5/packaging-acquisition-d7105e4.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/34-cto-packaging-acquisition-proxy-disposition.md"
+      ],
+      "scope": ["Accept four exact retained packaging wheels after authoritative byte-identity validation"],
+      "exclusions": ["Candidate wheel construction and A12"],
+      "acceptance_criteria": ["Four filenames, sizes, tags, and hashes match authoritative records", "Proxy breach remains disclosed"],
+      "required_evidence": ["Private acquisition manifest", "Public acquisition report", "CTO authoritative comparison"],
+      "stop_conditions": ["Any retained-wheel identity or authoritative-record mismatch"],
+      "history": [
+        {
+          "at": "2026-08-08T00:00:00Z",
+          "actor_role": "chief_of_staff",
+          "from_status": null,
+          "to_status": "accepted",
+          "reason": "Product Owner approved the one-run proxy supersession for four exact byte identities",
+          "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/35-chief-of-staff-to-product-owner-acquisition-proxy-supersession-decision.md"
+        }
+      ]
+    },
+    {
+      "id": "V05-PKG-03",
+      "title": "Build the reproducible candidate wheel on native Windows",
+      "workstream": "packaging",
+      "priority": "P0",
+      "owner_role": "principal_engineer",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": {
+        "state": "approved",
+        "decision_id": "PO-05-PKG-BUILD",
+        "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/43-chief-of-staff-to-principal-engineer-wheel-evidence-correction.md"
+      },
+      "depends_on": ["V05-TECH-01", "V05-PKG-02"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "repository_state": {
+        "branch": "feature/v0.5-visible-context-conversation",
+        "executable_commit": "d7105e4f6793f1317ba15f98c7e9c9f03c9f8910",
+        "tree": "f221c7451726437956acf61ecad2fc701bbbbefe",
+        "evidence_head": "fcb6a199397a5c161b096dde820229a570aa4aef"
+      },
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/30-cto-v0.5-packaging-and-a12-plan.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/41-cto-build-runtime-refreeze-disposition.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/42-chief-of-staff-to-principal-engineer-cpython-3146-build-continuation.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.5-engineering/docs/handovers/v0.5/38-principal-engineer-to-chief-of-staff-wheel-build-return.md",
+        ".worktrees/v0.5-engineering/docs/evidence/v0.5/wheel-build-d7105e4.md"
+      ],
+      "scope": ["Build twice offline from exact executable d7105e4 using native Windows CPython 3.14.6", "Stage one identity-bound reproducible wheel", "Preserve and report stale-wheel quarantine"],
+      "exclusions": ["Independent acceptance", "A12", "Candidate execution", "Provider use", "Merge or release"],
+      "acceptance_criteria": ["Two wheel outputs are byte-identical", "All 90 runtime payloads match Git blobs", "Metadata and RECORD pass", "Staging contains exactly wheel plus identity manifest"],
+      "required_evidence": ["Superseding Handoff 38 revision", "Private build evidence", "Public redacted build report", "Network and configuration denial evidence"],
+      "stop_conditions": ["Any candidate, interpreter, tool-wheel, source-export, payload, metadata, RECORD, reproducibility, staging, privacy, or network mismatch"],
+      "history": [
+        {
+          "at": "2026-08-08T00:00:00Z",
+          "actor_role": "chief_of_staff",
+          "from_status": null,
+          "to_status": "blocked",
+          "reason": "Wheel construction awaited accepted packaging inputs and Product Owner build authority",
+          "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/30-cto-v0.5-packaging-and-a12-plan.md"
+        },
+        {
+          "at": "2026-08-08T17:30:00Z",
+          "actor_role": "chief_of_staff",
+          "from_status": "blocked",
+          "to_status": "authorized",
+          "reason": "Product Owner approved PO-05-PKG-BUILD",
+          "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/37-chief-of-staff-to-principal-engineer-wheel-build-authorization.md"
+        },
+        {
+          "at": "2026-08-08T18:30:00Z",
+          "actor_role": "principal_engineer",
+          "from_status": "authorized",
+          "to_status": "in_progress",
+          "reason": "Native-Windows build continuation activated after CTO re-froze CPython at 3.14.6",
+          "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/42-chief-of-staff-to-principal-engineer-cpython-3146-build-continuation.md"
+        },
+        {
+          "at": "2026-08-08T18:50:00Z",
+          "actor_role": "principal_engineer",
+          "from_status": "in_progress",
+          "to_status": "ready_for_review",
+          "reason": "Engineering returned the completed native-Windows build and staged wheel",
+          "artifact": ".worktrees/v0.5-engineering/docs/handovers/v0.5/38-principal-engineer-to-chief-of-staff-wheel-build-return.md"
+        },
+        {
+          "at": "2026-08-08T19:00:00Z",
+          "actor_role": "chief_of_staff",
+          "from_status": "ready_for_review",
+          "to_status": "returned_for_correction",
+          "reason": "Independent review found three bounded evidence and quarantine defects",
+          "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/43-chief-of-staff-to-principal-engineer-wheel-evidence-correction.md"
+        },
+        {
+          "at": "2026-08-08T19:00:00Z",
+          "actor_role": "chief_of_staff",
+          "from_status": "returned_for_correction",
+          "to_status": "authorized",
+          "reason": "Bounded Handoff 43 correction authorized under existing PO-05-PKG-BUILD",
+          "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/43-chief-of-staff-to-principal-engineer-wheel-evidence-correction.md"
+        },
+        {
+          "at": "2026-08-08T19:10:00Z",
+          "actor_role": "principal_engineer",
+          "from_status": "authorized",
+          "to_status": "in_progress",
+          "reason": "Engineering began the bounded Handoff 43 correction",
+          "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/43-chief-of-staff-to-principal-engineer-wheel-evidence-correction.md"
+        },
+        {
+          "at": "2026-08-08T19:20:00Z",
+          "actor_role": "principal_engineer",
+          "from_status": "in_progress",
+          "to_status": "ready_for_review",
+          "reason": "Engineering returned all three corrected evidence and quarantine items",
+          "artifact": ".worktrees/v0.5-engineering/docs/handovers/v0.5/38-principal-engineer-to-chief-of-staff-wheel-build-return.md"
+        },
+        {
+          "at": "2026-08-08T19:30:00Z",
+          "actor_role": "chief_of_staff",
+          "from_status": "ready_for_review",
+          "to_status": "accepted",
+          "reason": "Independent verification closed WE-43-01 through WE-43-03",
+          "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/44-chief-of-staff-to-cto-independent-wheel-verification.md"
+        }
+      ]
+    },
+    {
+      "id": "V05-PKG-04",
+      "title": "Independently verify wheel payload and staging identity",
+      "workstream": "packaging",
+      "priority": "P0",
+      "owner_role": "chief_of_staff",
+      "reviewer_role": "cto",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "PO-05-PKG-BUILD", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/43-chief-of-staff-to-principal-engineer-wheel-evidence-correction.md" },
+      "depends_on": ["V05-PKG-03"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [".worktrees/v0.5-engineering/docs/handovers/v0.5/38-principal-engineer-to-chief-of-staff-wheel-build-return.md"],
+      "outputs": [".worktrees/v0.3.1-release/docs/handovers/v0.5/44-chief-of-staff-to-cto-independent-wheel-verification.md"],
+      "scope": ["Verify archive safety, all payload bytes, generated metadata, RECORD, reproducibility, staging, quarantine, and evidence identities independently"],
+      "exclusions": ["A12 and candidate execution"],
+      "acceptance_criteria": ["Every Handoff 30 independent verification check passes"],
+      "required_evidence": ["Independent verification manifest and redacted disposition"],
+      "stop_conditions": ["Any builder claim cannot be independently reproduced"],
+      "history": [
+        {"at":"2026-08-08T18:30:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"blocked","reason":"Awaiting reproducible wheel return","artifact":"docs/coordination/WORKLIST_PROCESS.md"},
+        {"at":"2026-08-08T19:20:00Z","actor_role":"chief_of_staff","from_status":"blocked","to_status":"authorized","reason":"Corrected build return was available for independent verification","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/43-chief-of-staff-to-principal-engineer-wheel-evidence-correction.md"},
+        {"at":"2026-08-08T19:20:00Z","actor_role":"chief_of_staff","from_status":"authorized","to_status":"in_progress","reason":"Chief of Staff began independent payload and evidence verification","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/43-chief-of-staff-to-principal-engineer-wheel-evidence-correction.md"},
+        {"at":"2026-08-08T19:30:00Z","actor_role":"chief_of_staff","from_status":"in_progress","to_status":"ready_for_review","reason":"Independent verification passed and was routed to CTO","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/44-chief-of-staff-to-cto-independent-wheel-verification.md"},
+        {"at":"2026-08-08T19:45:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Chief of Staff accepted the completed independent wheel verification and released its dependent CTO binding task","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/44-chief-of-staff-to-cto-independent-wheel-verification.md"}
+      ]
+    },
+    {
+      "id": "V05-PKG-05",
+      "title": "Bind exact wheel evidence in CTO disposition",
+      "workstream": "packaging",
+      "priority": "P0",
+      "owner_role": "cto",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "COS-05-PKG-CTO-BINDING", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/44-chief-of-staff-to-cto-independent-wheel-verification.md" },
+      "depends_on": ["V05-PKG-04"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [".worktrees/v0.3.1-release/docs/handovers/v0.5/44-chief-of-staff-to-cto-independent-wheel-verification.md"],
+      "outputs": [".worktrees/v0.3.1-release/docs/handovers/v0.5/45-cto-wheel-evidence-binding-and-a12-disposition.md"],
+      "scope": ["Bind exact candidate wheel hash, payload verification, staging identity, and accepted reusable evidence"],
+      "exclusions": ["A12 execution and release"],
+      "acceptance_criteria": ["CTO disposition names exact candidate, tree, wheel, dependency, manifest, and evidence hashes"],
+      "required_evidence": ["Independent verification return"],
+      "stop_conditions": ["Any unbound identity or unresolved packaging defect"],
+      "history": [
+        {"at":"2026-08-08T18:30:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"blocked","reason":"Awaiting independent wheel verification","artifact":"docs/coordination/WORKLIST_PROCESS.md"},
+        {"at":"2026-08-08T19:45:00Z","actor_role":"chief_of_staff","from_status":"blocked","to_status":"authorized","reason":"Handoff 44 passed independent verification and now authorizes exact-evidence binding by the CTO; A12 execution remains excluded","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/44-chief-of-staff-to-cto-independent-wheel-verification.md"},
+        {"at":"2026-08-08T19:50:00Z","actor_role":"cto","from_status":"authorized","to_status":"in_progress","reason":"CTO began the authorized exact wheel evidence-binding review","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/44-chief-of-staff-to-cto-independent-wheel-verification.md"},
+        {"at":"2026-08-08T19:55:00Z","actor_role":"cto","from_status":"in_progress","to_status":"ready_for_review","reason":"CTO completed exact wheel evidence binding and returned Handoff 45","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/45-cto-wheel-evidence-binding-and-a12-disposition.md"},
+        {"at":"2026-08-08T20:00:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Handoff 45 accepted and bound the exact wheel and packaging evidence","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/45-cto-wheel-evidence-binding-and-a12-disposition.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-01",
+      "title": "Decide exact offline A12 activation",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "product_owner",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-DECISION-ROUTING", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/45-cto-wheel-evidence-binding-and-a12-disposition.md" },
+      "depends_on": ["V05-PKG-05"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [".worktrees/v0.3.1-release/docs/handovers/v0.5/45-cto-wheel-evidence-binding-and-a12-disposition.md"],
+      "outputs": [".worktrees/v0.3.1-release/docs/handovers/v0.5/46-chief-of-staff-to-product-owner-a12-activation-decision.md"],
+      "scope": ["Approve or reject A12 against exact wheel, dependency hashes, fixture, documentation, and network-denial procedure"],
+      "exclusions": ["WP4, merge, publication, and release"],
+      "acceptance_criteria": ["Decision is exact, recorded, and non-transitive"],
+      "required_evidence": ["CTO-bound wheel disposition"],
+      "stop_conditions": ["Any missing wheel, dependency, documentation, fixture, or network-denial identity"],
+      "history": [
+        {"at":"2026-08-08T18:30:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"blocked","reason":"A12 decision waits for accepted wheel","artifact":"docs/coordination/WORKLIST_PROCESS.md"},
+        {"at":"2026-08-08T20:00:00Z","actor_role":"chief_of_staff","from_status":"blocked","to_status":"authorized","reason":"Handoff 45 bound the exact wheel and authorizes routing the separate PO-05-A12 decision; execution remains blocked","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/45-cto-wheel-evidence-binding-and-a12-disposition.md"},
+        {"at":"2026-08-08T20:05:00Z","actor_role":"product_owner","from_status":"authorized","to_status":"in_progress","reason":"Product Owner considered the exact offline A12 activation decision","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/46-chief-of-staff-to-product-owner-a12-activation-decision.md"},
+        {"at":"2026-08-08T20:10:00Z","actor_role":"product_owner","from_status":"in_progress","to_status":"ready_for_review","reason":"Product Owner approved PO-05-A12 under the exact bounded scope","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/46-chief-of-staff-to-product-owner-a12-activation-decision.md"},
+        {"at":"2026-08-08T20:15:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Chief of Staff recorded the Product Owner approval and issued the bounded A12 execution authorization","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/47-chief-of-staff-to-independent-reviewer-a12-execution-authorization.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-03",
+      "title": "Prepare the hash-bound A12 fixture, driver, and native-runtime bundle",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "principal_engineer",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-INPUT-BUNDLE", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/48-chief-of-staff-to-principal-engineer-a12-input-bundle-authorization.md" },
+      "depends_on": ["V05-A12-01"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/30-cto-v0.5-packaging-and-a12-plan.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/45-cto-wheel-evidence-binding-and-a12-disposition.md",
+        ".worktrees/v0.3.1-release/docs/evidence/v0.5/a12-d7105e4-packaging-recovery.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/48-chief-of-staff-to-principal-engineer-a12-input-bundle-authorization.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.5-engineering/docs/handovers/v0.5/49-principal-engineer-to-chief-of-staff-a12-input-bundle-return.md"
+      ],
+      "scope": ["Create and validate the deterministic synthetic fixture, non-author A12 driver, native-runtime launcher, and complete hash-bound execution manifest"],
+      "exclusions": ["Candidate or wheel changes, candidate installation/execution, A12, network, providers, credentials, pilots, vaults, Quality, WP4, cleanup, merge, and release"],
+      "acceptance_criteria": ["All stopped-preflight prerequisites exist, are independently recomputable, privacy-safe, and bound without changing the candidate or wheel"],
+      "required_evidence": ["Two-build deterministic fixture proof", "Driver structural and offline test evidence", "Native-runtime fail-closed launcher evidence", "Complete bundle manifest"],
+      "stop_conditions": ["Any candidate change, installation, network access, private-data use, unavailable required identity, or undocumented substitution"],
+      "history": [
+        {"at":"2026-08-08T21:30:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"The accepted stopped preflight identified three missing A12 inputs; Handoff 48 authorizes one consolidated preparation cycle","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/48-chief-of-staff-to-principal-engineer-a12-input-bundle-authorization.md"},
+        {"at":"2026-08-08T21:40:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Principal Engineer began the authorized private fixture, driver, launcher, and manifest preparation","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/48-chief-of-staff-to-principal-engineer-a12-input-bundle-authorization.md"},
+        {"at":"2026-08-08T21:50:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"ready_for_review","reason":"Handoff 49 returned the prepared private bundle and validation evidence","artifact":".worktrees/v0.5-engineering/docs/handovers/v0.5/49-principal-engineer-to-chief-of-staff-a12-input-bundle-return.md"},
+        {"at":"2026-08-08T21:55:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"returned_for_correction","reason":"Independent review accepted fixture and driver core but found four consolidated execution-boundary defects","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/50-chief-of-staff-to-principal-engineer-a12-bundle-validation-return.md"},
+        {"at":"2026-08-08T22:00:00Z","actor_role":"chief_of_staff","from_status":"returned_for_correction","to_status":"authorized","reason":"One bounded correction cycle is authorized for all A12B-50-01 through A12B-50-04 findings together","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/50-chief-of-staff-to-principal-engineer-a12-bundle-validation-return.md"},
+        {"at":"2026-08-08T22:10:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Principal Engineer began the consolidated Handoff 50 correction","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/50-chief-of-staff-to-principal-engineer-a12-bundle-validation-return.md"},
+        {"at":"2026-08-08T22:20:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"ready_for_review","reason":"Handoff 49 Sections 11 through 13 returned the corrected 17-member transfer package","artifact":".worktrees/v0.5-engineering/docs/handovers/v0.5/49-principal-engineer-to-chief-of-staff-a12-input-bundle-return.md"},
+        {"at":"2026-08-08T22:25:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"returned_for_correction","reason":"Composed-path review found five final execution-readiness defects not covered by the predicate-level tests","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/51-chief-of-staff-to-principal-engineer-a12-end-to-end-readiness-return.md"},
+        {"at":"2026-08-08T22:30:00Z","actor_role":"chief_of_staff","from_status":"returned_for_correction","to_status":"authorized","reason":"One final bounded correction is authorized with a mandatory full end-to-end synthetic readiness gate","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/51-chief-of-staff-to-principal-engineer-a12-end-to-end-readiness-return.md"},
+        {"at":"2026-08-08T22:40:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Principal Engineer authored the Handoff 51 launcher corrections and two private execution scripts","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/51-chief-of-staff-to-principal-engineer-a12-end-to-end-readiness-return.md"},
+        {"at":"2026-08-08T22:45:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"blocked","reason":"Pre-execution disclosure shows the matrix uses real candidate source in its synthetic seam and does not assert denial-evidence extra/reparse cases; Chief of Staff did not execute it","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/51-chief-of-staff-to-principal-engineer-a12-end-to-end-readiness-return.md"},
+        {"at":"2026-08-08T22:50:00Z","actor_role":"chief_of_staff","from_status":"blocked","to_status":"authorized","reason":"Corrected r2 tooling removed candidate-source access and made every mandatory readiness row asserted","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/51-chief-of-staff-to-principal-engineer-a12-end-to-end-readiness-return.md"},
+        {"at":"2026-08-08T22:55:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Principal Engineer returned the corrected authored-only r2 tooling for independent execution","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/49-principal-engineer-to-chief-of-staff-a12-input-bundle-return.md"},
+        {"at":"2026-08-08T23:10:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"ready_for_review","reason":"Chief-of-Staff execution service completed the retained deterministic rebuild and eight-area readiness matrix","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/52-chief-of-staff-a12-bundle-acceptance-and-renewed-execution-authorization.md"},
+        {"at":"2026-08-08T23:15:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"All eight readiness areas passed; transfer and accepted identities recomputed exactly; input bundle accepted","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/52-chief-of-staff-a12-bundle-acceptance-and-renewed-execution-authorization.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-04",
+      "title": "Decide and provision an isolated Windows A12 execution environment",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "product_owner",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-ENVIRONMENT-ROUTING", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/53-chief-of-staff-to-product-owner-a12-execution-environment-decision.md" },
+      "depends_on": ["V05-A12-03"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/52-chief-of-staff-a12-bundle-acceptance-and-renewed-execution-authorization.md",
+        ".worktrees/v0.3.1-release/docs/evidence/v0.5/a12-d7105e4-packaging-recovery.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/53-chief-of-staff-to-product-owner-a12-execution-environment-decision.md"
+      ],
+      "outputs": [".worktrees/v0.3.1-release/docs/handovers/v0.5/53-chief-of-staff-to-product-owner-a12-execution-environment-decision.md"],
+      "scope": ["Approve Windows Sandbox, identify a managed offline Windows VM, or defer A12"],
+      "exclusions": ["Unapproved Windows changes, host-wide firewall changes, downloads, Python installation, candidate changes, A12 execution before provisioning validation, Quality, WP4, merge, and release"],
+      "acceptance_criteria": ["One exact environment decision is recorded and any approved route preserves the accepted runtime, network-denial, privacy, and isolation requirements"],
+      "required_evidence": ["Product Owner environment decision", "Read-only capability evidence before provisioning"],
+      "stop_conditions": ["Unsupported Windows edition/feature, reboot without separate confirmation, required download, runtime substitution, or inability to prove network denial"],
+      "history": [
+        {"at":"2026-08-09T00:10:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"Two mandatory preflight stops prove the current reviewer environment cannot satisfy network denial, policy inspection, or runtime access; Handoff 53 routes an explicit Product Owner environment decision","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/53-chief-of-staff-to-product-owner-a12-execution-environment-decision.md"},
+        {"at":"2026-08-09T11:45:00Z","actor_role":"product_owner","from_status":"authorized","to_status":"in_progress","reason":"Product Owner selected the Windows Sandbox route and began the approved feature-enablement and restart sequence","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/53-chief-of-staff-to-product-owner-a12-execution-environment-decision.md"},
+        {"at":"2026-08-09T11:55:00Z","actor_role":"product_owner","from_status":"in_progress","to_status":"ready_for_review","reason":"Windows Sandbox was enabled, the required restart completed, and the Product Owner confirmed the disposable environment opens","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/53-chief-of-staff-to-product-owner-a12-execution-environment-decision.md"},
+        {"at":"2026-08-09T12:00:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Chief of Staff verified the Sandbox executable is present, no restart remains pending, and the Product Owner confirmed Windows Sandbox opens; package construction remains separately gated","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/54-chief-of-staff-to-principal-engineer-windows-sandbox-package-authorization.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-05",
+      "title": "Prepare and validate the locked-down Windows Sandbox A12 package",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "principal_engineer",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-SANDBOX-PACKAGE", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/54-chief-of-staff-to-principal-engineer-windows-sandbox-package-authorization.md" },
+      "depends_on": ["V05-A12-03", "V05-A12-04"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/52-chief-of-staff-a12-bundle-acceptance-and-renewed-execution-authorization.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/54-chief-of-staff-to-principal-engineer-windows-sandbox-package-authorization.md"
+      ],
+      "outputs": [".worktrees/v0.3.1-release/docs/handovers/v0.5/55-principal-engineer-to-chief-of-staff-windows-sandbox-package-return.md"],
+      "scope": ["Create and validate the exact network-disabled Windows Sandbox configuration and hash-bound startup package without executing A12"],
+      "exclusions": ["Candidate or dependency installation, fixture exposure, A12 execution, host firewall changes, downloads, private mappings, Quality, WP4, merge, and release"],
+      "acceptance_criteria": ["Configuration is fail-closed and exact", "Inputs are read-only and outputs are isolated", "Network denial and evidence export are proven with neutral canaries", "No private or candidate content is exposed during validation"],
+      "required_evidence": ["Exact package inventory and hashes", "Configuration assertions", "Neutral canary network-denial and evidence-export results", "Privacy and closed-world validation"],
+      "stop_conditions": ["Any network availability, identity mismatch, writable input, unapproved mapping, private exposure, required download, or A12 execution"],
+      "history": [
+        {"at":"2026-08-09T12:00:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"Windows Sandbox is installed and opens; Handoff 54 authorizes a separate fail-closed configuration and startup-package cycle before A12","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/54-chief-of-staff-to-principal-engineer-windows-sandbox-package-authorization.md"},
+        {"at":"2026-08-09T12:15:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Codex accepted the Product Owner assignment and began exact-input inventory and fail-closed Sandbox package preparation under Handoff 54","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/54-chief-of-staff-to-principal-engineer-windows-sandbox-package-authorization.md"},
+        {"at":"2026-08-09T12:35:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"ready_for_review","reason":"Locked-down production configuration and startup preflight are complete; neutral network, read-only mapping, evidence export, and accepted-runtime canaries passed without candidate or fixture exposure","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/55-principal-engineer-to-chief-of-staff-windows-sandbox-package-return.md"},
+        {"at":"2026-08-09T13:00:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Independent review recomputed the exact package inventory, hashes, mappings, transfer equality, runtime identity, empty output, fail-closed script structure, and neutral canary evidence","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/56-chief-of-staff-windows-sandbox-package-acceptance-and-a12-authorization.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-06",
+      "title": "Correct the Windows Sandbox bootstrap and identity-independent runtime mapping",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "principal_engineer",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-SANDBOX-BOOTSTRAP-CORRECTION", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/57-chief-of-staff-to-principal-engineer-sandbox-bootstrap-correction.md" },
+      "depends_on": ["V05-A12-03", "V05-A12-04", "V05-A12-05"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/55-principal-engineer-to-chief-of-staff-windows-sandbox-package-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/56-chief-of-staff-windows-sandbox-package-acceptance-and-a12-authorization.md",
+        ".worktrees/v0.3.1-release/docs/evidence/v0.5/a12-d7105e4-packaging-recovery.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/57-chief-of-staff-to-principal-engineer-sandbox-bootstrap-correction.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/58-principal-engineer-to-chief-of-staff-sandbox-bootstrap-correction-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/60-principal-engineer-to-chief-of-staff-sandbox-launch-matrix-return.md"
+      ],
+      "scope": ["Add fail-closed bootstrap diagnostics, align the result filename, and replace the per-user runtime mapping with a manifest-bound private runtime copy"],
+      "exclusions": ["A12 retry, fixture exposure, candidate installation or execution, downloads, host firewall changes, Quality, WP4, merge, and release"],
+      "acceptance_criteria": ["Every startup failure exports a typed bootstrap record", "The governed result filename is exact", "The staged runtime is byte-bound and identity-independent", "Neutral independent-identity canaries pass without candidate or fixture exposure"],
+      "required_evidence": ["Correction and runtime manifests", "Bootstrap failure matrix", "Independent-identity canary results", "Privacy and closed-world validation"],
+      "stop_conditions": ["Any runtime mismatch, missing diagnostic, network availability, writable input, candidate or fixture exposure, download, or undocumented step"],
+      "history": [
+        {"at":"2026-08-09T14:30:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"The exact Handoff 56 run stopped with empty output; Handoff 57 authorizes a bounded bootstrap and identity-independent runtime correction without retrying A12","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/57-chief-of-staff-to-principal-engineer-sandbox-bootstrap-correction.md"},
+        {"at":"2026-08-09T15:00:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Principal Engineer began the bounded Handoff 57 bootstrap, result-contract, staged-runtime, and independent-identity canary correction","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/57-chief-of-staff-to-principal-engineer-sandbox-bootstrap-correction.md"},
+        {"at":"2026-08-09T15:40:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"ready_for_review","reason":"Neutral validation stopped when the PowerShell-failure canary exported no first-instruction marker or typed diagnostic; partial correction preserved and A12 not retried","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/58-principal-engineer-to-chief-of-staff-sandbox-bootstrap-correction-return.md"},
+        {"at":"2026-08-09T16:00:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"returned_for_correction","reason":"The repeated Sandbox-canary protocol cannot distinguish guest-bootstrap failure from a guest that never started; Handoff 59 requires a host launch ledger and one-session neutral failure matrix","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/59-chief-of-staff-to-principal-engineer-sandbox-launch-matrix-correction.md"},
+        {"at":"2026-08-09T16:00:00Z","actor_role":"chief_of_staff","from_status":"returned_for_correction","to_status":"authorized","reason":"One bounded host-attested neutral correction is authorized under Handoff 59; A12 remains blocked","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/59-chief-of-staff-to-principal-engineer-sandbox-launch-matrix-correction.md"},
+        {"at":"2026-08-09T16:10:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Principal Engineer began the Handoff 59 host-ledger and one-session neutral failure-matrix correction","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/59-chief-of-staff-to-principal-engineer-sandbox-launch-matrix-correction.md"},
+        {"at":"2026-08-09T16:40:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"ready_for_review","reason":"One host-attested Sandbox instance completed all six neutral rows; runtime and corrected production package manifests finalized with zero closed-world mismatches; A12 remained unexecuted","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/60-principal-engineer-to-chief-of-staff-sandbox-launch-matrix-return.md"},
+        {"at":"2026-08-09T16:50:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Chief of Staff independently recomputed all 55 package and 5,442 runtime members, the single host launch, six typed rows, isolation controls, and empty production output; Handoff 61 binds the accepted correction","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/61-chief-of-staff-sandbox-correction-acceptance-and-a12-authorization.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-07",
+      "title": "Correct the Windows Sandbox runtime-path contract",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "principal_engineer",
+      "reviewer_role": "chief_of_staff",
+      "status": "blocked",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-SANDBOX-LAUNCHER-STUB", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/66-chief-of-staff-to-principal-engineer-sandbox-launcher-stub-correction.md" },
+      "depends_on": ["V05-A12-03", "V05-A12-04", "V05-A12-05", "V05-A12-06"],
+      "blocked_by": ["The current host produced no governed Sandbox guest evidence; Product Owner environment decision V05-A12-08 is required"],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/60-principal-engineer-to-chief-of-staff-sandbox-launch-matrix-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/61-chief-of-staff-sandbox-correction-acceptance-and-a12-authorization.md",
+        ".worktrees/v0.3.1-release/docs/evidence/v0.5/a12-d7105e4-packaging-recovery.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/62-chief-of-staff-to-principal-engineer-sandbox-runtime-path-correction.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/63-principal-engineer-to-chief-of-staff-sandbox-runtime-path-correction-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/64-chief-of-staff-to-principal-engineer-neutral-launch-lifecycle-correction.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/65-principal-engineer-to-chief-of-staff-neutral-launch-lifecycle-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/66-chief-of-staff-to-principal-engineer-sandbox-launcher-stub-correction.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/63-principal-engineer-to-chief-of-staff-sandbox-runtime-path-correction-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/65-principal-engineer-to-chief-of-staff-neutral-launch-lifecycle-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/67-principal-engineer-to-chief-of-staff-sandbox-launcher-stub-return.md"
+      ],
+      "scope": ["Align the governed preflight runtime path with the production WSB mapping, rebuild package identities, and validate the exact production topology using one neutral host-attested Sandbox instance"],
+      "exclusions": ["A12 production retry, candidate or fixture exposure, installation, downloads, host firewall changes, Quality, WP4, merge, and release"],
+      "acceptance_criteria": ["Production mapping and preflight use C:\\A12\\Runtime\\python.exe", "Closed-world and runtime identities pass", "Six typed neutral rows pass", "One neutral production-topology success reaches passed_preflight_only"],
+      "required_evidence": ["New package and runtime bindings", "Static cross-file path assertion", "Neutral host launch ledger and six-row matrix", "Privacy and closed-world validation"],
+      "stop_conditions": ["Any network availability, second Sandbox instance, runtime or manifest mismatch, missing typed result, candidate or fixture exposure, installation, download, private leak, or undocumented semantic change"],
+      "history": [
+        {"at":"2026-08-09T17:30:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"The sole Handoff 61 run validly stopped on an independently reproduced WSB/preflight runtime-path mismatch; Handoff 62 authorizes one bounded package correction without A12 execution","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/62-chief-of-staff-to-principal-engineer-sandbox-runtime-path-correction.md"},
+        {"at":"2026-08-09T17:40:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Principal Engineer began the bounded Handoff 62 runtime-path contract correction and neutral topology validation","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/62-chief-of-staff-to-principal-engineer-sandbox-runtime-path-correction.md"},
+        {"at":"2026-08-09T18:10:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"ready_for_review","reason":"Single neutral launch preserved its host start ledger but produced no guest marker, matrix evidence, or final typed host result before the bounded execution window ended; no second Sandbox launch occurred","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/63-principal-engineer-to-chief-of-staff-sandbox-runtime-path-correction-return.md"},
+        {"at":"2026-08-09T18:30:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"returned_for_correction","reason":"The runtime-path correction is statically sound, but the neutral launcher embedded expensive runtime reconciliation and could not guarantee a typed terminal record within the outer execution window","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/64-chief-of-staff-to-principal-engineer-neutral-launch-lifecycle-correction.md"},
+        {"at":"2026-08-09T18:30:00Z","actor_role":"chief_of_staff","from_status":"returned_for_correction","to_status":"authorized","reason":"Handoff 64 freezes the semantic correction and authorizes one launch-harness-only continuation with precomputed attestation and a single-writer host watchdog","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/64-chief-of-staff-to-principal-engineer-neutral-launch-lifecycle-correction.md"},
+        {"at":"2026-08-09T18:40:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Principal Engineer verified the frozen production identities and began the Handoff 64 launcher-only lifecycle correction","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/64-chief-of-staff-to-principal-engineer-neutral-launch-lifecycle-correction.md"},
+        {"at":"2026-08-09T19:10:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"ready_for_review","reason":"The single authorized neutral launch produced one atomic typed guest_marker_missing terminal record before any guest evidence; no retry occurred","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/65-principal-engineer-to-chief-of-staff-neutral-launch-lifecycle-return.md"},
+        {"at":"2026-08-09T19:20:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"returned_for_correction","reason":"Independent review proved the harness incorrectly treated the short-lived WindowsSandbox.exe launcher-stub exit as authoritative guest failure after only 0.4 seconds","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/66-chief-of-staff-to-principal-engineer-sandbox-launcher-stub-correction.md"},
+        {"at":"2026-08-09T19:20:00Z","actor_role":"chief_of_staff","from_status":"returned_for_correction","to_status":"authorized","reason":"Handoff 66 authorizes one final harness-only correction governed by guest evidence or deadline, with exactly one neutral Sandbox validation","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/66-chief-of-staff-to-principal-engineer-sandbox-launcher-stub-correction.md"},
+        {"at":"2026-08-09T19:30:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Principal Engineer began the Handoff 66 launcher-stub-only correction and deterministic lifecycle regressions","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/66-chief-of-staff-to-principal-engineer-sandbox-launcher-stub-correction.md"},
+        {"at":"2026-08-09T20:00:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"ready_for_review","reason":"The final single neutral launch ignored launcher-stub exit and waited to the fixed deadline; the watchdog atomically returned guest_timeout with no guest evidence and no retry","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/67-principal-engineer-to-chief-of-staff-sandbox-launcher-stub-return.md"},
+        {"at":"2026-08-09T20:10:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"blocked","reason":"Chief of Staff accepted the typed environment stop, ended further package corrections, and routed the execution-environment decision through Handoff 68","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/68-chief-of-staff-to-product-owner-a12-environment-escalation.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-08",
+      "title": "Select the next governed A12 execution environment",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "product_owner",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-ENVIRONMENT-ROUTING", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/68-chief-of-staff-to-product-owner-a12-environment-escalation.md" },
+      "depends_on": ["V05-A12-06"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/53-chief-of-staff-to-product-owner-a12-execution-environment-decision.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/65-principal-engineer-to-chief-of-staff-neutral-launch-lifecycle-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/67-principal-engineer-to-chief-of-staff-sandbox-launcher-stub-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/68-chief-of-staff-to-product-owner-a12-environment-escalation.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/69-product-owner-to-chief-of-staff-a12-environment-decision.md"
+      ],
+      "scope": ["Select managed Hyper-V VM, host-level Windows Sandbox repair, or explicit A12 deferral/waiver and define the corresponding authority boundary"],
+      "exclusions": ["Performing host changes, launching an environment, modifying the package, executing A12, Quality, WP4, merge, and release"],
+      "acceptance_criteria": ["One route is explicitly selected", "Responsible role and permitted host changes are named", "Pre-exposure evidence and downstream authorization effects are recorded"],
+      "required_evidence": ["Handoff 67 typed guest-timeout evidence", "Host registration observation", "Product Owner decision artifact"],
+      "stop_conditions": ["Any implied host modification, environment launch, candidate exposure, A12 execution, or release authority"],
+      "history": [
+        {"at":"2026-08-09T20:10:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"Repeated governed Sandbox attempts now isolate the remaining blocker to the execution environment; Handoff 68 routes an explicit Product Owner choice and recommends a managed Hyper-V VM","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/68-chief-of-staff-to-product-owner-a12-environment-escalation.md"},
+        {"at":"2026-08-09T20:20:00Z","actor_role":"product_owner","from_status":"authorized","to_status":"in_progress","reason":"Product Owner reviewed the execution-environment alternatives in Handoff 68","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/68-chief-of-staff-to-product-owner-a12-environment-escalation.md"},
+        {"at":"2026-08-09T20:25:00Z","actor_role":"product_owner","from_status":"in_progress","to_status":"ready_for_review","reason":"Product Owner selected the recommended managed Hyper-V VM route","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/69-product-owner-to-chief-of-staff-a12-environment-decision.md"},
+        {"at":"2026-08-09T20:30:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Chief of Staff recorded PO-05-A12-HYPERV and routed bounded environment preparation through Handoff 70","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/70-chief-of-staff-to-principal-engineer-hyper-v-environment-authorization.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-09",
+      "title": "Establish a neutral managed Hyper-V environment",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "principal_engineer",
+      "reviewer_role": "chief_of_staff",
+      "status": "blocked",
+      "authorization": { "state": "approved", "decision_id": "PO-05-A12-HYPERV", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/70-chief-of-staff-to-principal-engineer-hyper-v-environment-authorization.md" },
+      "depends_on": ["V05-A12-08"],
+      "blocked_by": ["Product Owner decision V05-A12-10 is required for elevated Hyper-V preparation and official Windows installation media"],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/68-chief-of-staff-to-product-owner-a12-environment-escalation.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/69-product-owner-to-chief-of-staff-a12-environment-decision.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/70-chief-of-staff-to-principal-engineer-hyper-v-environment-authorization.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/71-principal-engineer-to-chief-of-staff-hyper-v-environment-return.md"
+      ],
+      "scope": ["Verify Hyper-V prerequisites and, only if already satisfied with suitable local Windows media, build and neutrally validate one isolated disposable VM"],
+      "exclusions": ["Downloads, automatic restart, candidate or fixture exposure, A12 execution, Quality, WP4, merge, and release"],
+      "acceptance_criteria": ["Hyper-V host and licensed media prerequisites pass", "VM has no network path", "Inputs and output are separated", "CPython 3.14.6 identity passes", "Checkpoint restoration passes", "Neutral evidence is complete"],
+      "required_evidence": ["Host prerequisite report", "VM/switch/storage configuration", "Runtime and media identities", "Neutral isolation and recovery results", "Before/after host-state inventory"],
+      "stop_conditions": ["Unsupported host, required feature enablement/restart, missing media, network path, ambiguous storage, existing-object mutation, identity drift, candidate/fixture exposure, download, or private leak"],
+      "history": [
+        {"at":"2026-08-09T20:30:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"Product Owner approved managed Hyper-V Route A; Handoff 70 authorizes bounded prerequisite checks and a neutral build only when all prerequisites already exist","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/70-chief-of-staff-to-principal-engineer-hyper-v-environment-authorization.md"},
+        {"at":"2026-08-09T20:35:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Principal Engineering began the bounded read-only Hyper-V prerequisite and local-media inspection authorized by Handoff 70","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/70-chief-of-staff-to-principal-engineer-hyper-v-environment-authorization.md"},
+        {"at":"2026-08-09T20:40:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"ready_for_review","reason":"Mandatory pre-mutation stop: elevation was unavailable and no suitable local Windows installation media was found in the authorized locations","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/71-principal-engineer-to-chief-of-staff-hyper-v-environment-return.md"},
+        {"at":"2026-08-09T20:50:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"blocked","reason":"Chief of Staff accepted the clean prerequisite stop and routed official ISO acquisition plus elevated Hyper-V preparation to Product Owner decision V05-A12-10","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/72-chief-of-staff-to-product-owner-hyper-v-prerequisite-decision.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-10",
+      "title": "Decide official Windows media acquisition and elevated Hyper-V preparation",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "product_owner",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-HYPERV-PREREQUISITE-ROUTING", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/72-chief-of-staff-to-product-owner-hyper-v-prerequisite-decision.md" },
+      "depends_on": ["V05-A12-08"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/69-product-owner-to-chief-of-staff-a12-environment-decision.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/71-principal-engineer-to-chief-of-staff-hyper-v-environment-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/72-chief-of-staff-to-product-owner-hyper-v-prerequisite-decision.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/73-product-owner-to-chief-of-staff-hyper-v-prerequisite-decision.md"
+      ],
+      "scope": ["Approve or reject one official Microsoft Windows 11 x64 ISO download and elevated Hyper-V prerequisite preparation, with any restart remaining user-controlled"],
+      "exclusions": ["Performing the download, elevation, feature change, restart, VM construction, A12, Quality, WP4, merge, and release"],
+      "acceptance_criteria": ["ISO download authority is explicit", "Elevated inspection/feature authority is explicit", "Restart control and all later exclusions are explicit"],
+      "required_evidence": ["Handoff 71 prerequisite report", "Official Microsoft Windows 11 download source", "Product Owner decision artifact"],
+      "stop_conditions": ["Any implied download, elevation, host mutation, restart, VM creation, candidate exposure, A12 execution, or release authority"],
+      "history": [
+        {"at":"2026-08-09T20:50:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"Handoff 71 identified exactly two missing prerequisites; Handoff 72 routes their bounded Product Owner decision","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/72-chief-of-staff-to-product-owner-hyper-v-prerequisite-decision.md"},
+        {"at":"2026-08-09T21:00:00Z","actor_role":"product_owner","from_status":"authorized","to_status":"in_progress","reason":"Product Owner reviewed both prerequisite authorities requested by Handoff 72","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/72-chief-of-staff-to-product-owner-hyper-v-prerequisite-decision.md"},
+        {"at":"2026-08-09T21:05:00Z","actor_role":"product_owner","from_status":"in_progress","to_status":"ready_for_review","reason":"Product Owner approved the official Microsoft ISO download and elevated Hyper-V preparation, while retaining user control of any restart","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/73-product-owner-to-chief-of-staff-hyper-v-prerequisite-decision.md"},
+        {"at":"2026-08-09T21:10:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Chief of Staff accepted PO-05-A12-HYPERV-PREREQUISITES and routed one bounded preparation cycle through Handoff 74","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/74-chief-of-staff-to-principal-engineer-hyper-v-prerequisite-authorization.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-11",
+      "title": "Acquire verified Windows media and prepare Hyper-V features",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "principal_engineer",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "PO-05-A12-HYPERV-PREREQUISITES", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/74-chief-of-staff-to-principal-engineer-hyper-v-prerequisite-authorization.md" },
+      "depends_on": ["V05-A12-10"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/71-principal-engineer-to-chief-of-staff-hyper-v-environment-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/72-chief-of-staff-to-product-owner-hyper-v-prerequisite-decision.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/73-product-owner-to-chief-of-staff-hyper-v-prerequisite-decision.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/74-chief-of-staff-to-principal-engineer-hyper-v-prerequisite-authorization.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/75-principal-engineer-to-chief-of-staff-hyper-v-prerequisite-return.md"
+      ],
+      "scope": ["Download and verify one official Microsoft Windows 11 x64 ISO, inspect Hyper-V with elevation, and enable only required Hyper-V platform/management features if necessary"],
+      "exclusions": ["Automatic restart, VM/switch/disk creation, guest installation, candidate or fixture exposure, A12, Quality, WP4, merge, and release"],
+      "acceptance_criteria": ["Official ISO provenance and Microsoft hash verification pass", "Elevated host compatibility and object inventory pass", "Required Hyper-V features are enabled or confirmed enabled", "Restart state is explicitly reported", "No VM or candidate exposure occurs"],
+      "required_evidence": ["Private acquisition and servicing logs", "Redacted host before/after state", "ISO filename/size/SHA-256 and official verification binding", "Exact file and feature-change inventory"],
+      "stop_conditions": ["Elevation failure, unsupported host, insufficient space, existing-object conflict, non-Microsoft source, ISO mismatch, unexpected feature change, servicing error, restart attempt, download beyond scope, or private leak"],
+      "history": [
+        {"at":"2026-08-09T21:10:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"Product Owner approved both prerequisites; Handoff 74 authorizes one official acquisition and elevated feature-preparation cycle, stopping before any restart or VM build","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/74-chief-of-staff-to-principal-engineer-hyper-v-prerequisite-authorization.md"},
+        {"at":"2026-08-09T21:20:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Principal Engineering began the bounded elevated host inspection and official Microsoft media acquisition authorized by Handoff 74","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/74-chief-of-staff-to-principal-engineer-hyper-v-prerequisite-authorization.md"},
+        {"at":"2026-08-09T21:45:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"ready_for_review","reason":"Official Windows 11 25H2 English x64 media passed Microsoft SHA-256 verification and required Hyper-V features were enabled with restart suppressed; servicing returned restart_required","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/75-principal-engineer-to-chief-of-staff-hyper-v-prerequisite-return.md"},
+        {"at":"2026-08-09T22:00:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Chief of Staff accepted the verified official media and bounded Hyper-V feature preparation; Handoff 76 records the mandatory user-controlled restart boundary","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/76-chief-of-staff-hyper-v-restart-checkpoint.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-12",
+      "title": "Verify Hyper-V prerequisites after the user-controlled restart",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "principal_engineer",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-HYPERV-POST-RESTART", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/77-chief-of-staff-to-principal-engineer-hyper-v-post-restart-authorization.md" },
+      "depends_on": ["V05-A12-11"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/75-principal-engineer-to-chief-of-staff-hyper-v-prerequisite-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/76-chief-of-staff-hyper-v-restart-checkpoint.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/77-chief-of-staff-to-principal-engineer-hyper-v-post-restart-authorization.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/78-principal-engineer-to-chief-of-staff-hyper-v-post-restart-return.md"
+      ],
+      "scope": ["Read-only elevated verification of Hyper-V feature, restart, management-tool, hardware, existing-object, ISO, and prerequisite-evidence state after the user-controlled restart"],
+      "exclusions": ["Restart initiation, feature changes, VM/switch/disk creation, guest installation, candidate or fixture exposure, A12, Quality, WP4, merge, and release"],
+      "acceptance_criteria": ["User restart is explicitly confirmed", "Required Hyper-V features and tools pass", "Restart state is acceptable", "Hardware capability passes", "No existing-object conflict exists", "ISO and evidence identities remain exact"],
+      "required_evidence": ["User restart confirmation", "Elevated post-restart feature and host report", "Existing Hyper-V object inventory", "ISO and prerequisite-evidence rehashes"],
+      "stop_conditions": ["Missing user confirmation, elevation failure, pending restart, disabled feature, unavailable tooling, unsupported hardware, existing-object conflict, identity mismatch, host mutation, or private leak"],
+      "history": [
+        {"at":"2026-08-09T22:00:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"blocked","reason":"Hyper-V servicing completed successfully but requires a user-controlled restart; no post-restart work is authorized until Jason confirms completion","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/76-chief-of-staff-hyper-v-restart-checkpoint.md"},
+        {"at":"2026-08-09T22:15:00Z","actor_role":"chief_of_staff","from_status":"blocked","to_status":"authorized","reason":"Jason explicitly confirmed the manual Windows restart completed; Handoff 77 authorizes one elevated read-only post-restart verification","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/77-chief-of-staff-to-principal-engineer-hyper-v-post-restart-authorization.md"},
+        {"at":"2026-08-09T22:20:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Principal Engineering began the single elevated read-only post-restart verification authorized by Handoff 77","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/77-chief-of-staff-to-principal-engineer-hyper-v-post-restart-authorization.md"},
+        {"at":"2026-08-09T22:30:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"ready_for_review","reason":"Post-restart verification passed feature, restart, tooling, hardware, object-conflict, ISO, evidence-identity, and privacy gates with disposition prerequisites_ready","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/78-principal-engineer-to-chief-of-staff-hyper-v-post-restart-return.md"},
+        {"at":"2026-08-09T22:40:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Chief of Staff accepted prerequisites_ready and authorized a separately bounded powered-off VM shell through Handoff 79","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/79-chief-of-staff-to-principal-engineer-hyper-v-vm-shell-authorization.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-13",
+      "title": "Create the isolated powered-off Hyper-V VM shell",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "principal_engineer",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-HYPERV-VM-SHELL", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/79-chief-of-staff-to-principal-engineer-hyper-v-vm-shell-authorization.md" },
+      "depends_on": ["V05-A12-12"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/78-principal-engineer-to-chief-of-staff-hyper-v-post-restart-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/79-chief-of-staff-to-principal-engineer-hyper-v-vm-shell-authorization.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/80-principal-engineer-to-chief-of-staff-hyper-v-vm-shell-return.md"
+      ],
+      "scope": ["Create one exact generation-2 powered-off VM, one private switch, one bounded VHDX, vTPM/Secure Boot configuration, and attach the verified Windows ISO without booting"],
+      "exclusions": ["VM boot, Windows installation, checkpoint, guest credential, runtime/candidate/fixture exposure, A12, download, feature change, restart, Quality, WP4, merge, and release"],
+      "acceptance_criteria": ["Exact VM/switch names and resource bounds match", "Switch has no network path", "Default Switch is unchanged", "Secure Boot and vTPM pass", "Verified ISO is attached", "VM has never started", "Only authorized objects are created"],
+      "required_evidence": ["Before/after Hyper-V object inventories", "VM firmware/resource/integration-service configuration", "Switch isolation proof", "VHDX and ISO identities", "Private created-object ledger and redacted return"],
+      "stop_conditions": ["Collision, existing-object conflict, pending restart, ISO/evidence mismatch, insufficient capacity, ambiguous storage, Default Switch change, network path, security/storage failure, VM start, unexpected object, or private leak"],
+      "history": [
+        {"at":"2026-08-09T22:40:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"Handoff 78 passed every post-restart gate; Handoff 79 authorizes one exact powered-off VM shell while retaining all guest and A12 prohibitions","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/79-chief-of-staff-to-principal-engineer-hyper-v-vm-shell-authorization.md"},
+        {"at":"2026-08-09T22:45:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Principal Engineering began collision-checked construction of the one powered-off VM shell authorized by Handoff 79","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/79-chief-of-staff-to-principal-engineer-hyper-v-vm-shell-authorization.md"},
+        {"at":"2026-08-09T23:00:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"ready_for_review","reason":"The exact powered-off Generation 2 VM, private no-uplink switch, bounded VHDX, Secure Boot, vTPM, read-only ISO, boot order, and isolation evidence are complete","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/80-principal-engineer-to-chief-of-staff-hyper-v-vm-shell-return.md"},
+        {"at":"2026-08-09T23:10:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Chief of Staff accepted the isolated powered-off shell and its Hyper-V enhanced-session platform limitation; Handoff 81 authorizes a separate offline install-to-OOBE step","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/81-chief-of-staff-to-principal-engineer-offline-windows-install-preparation.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-14",
+      "title": "Install Windows offline through the first user-controlled OOBE boundary",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "principal_engineer",
+      "reviewer_role": "chief_of_staff",
+      "status": "blocked",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-HYPERV-OFFLINE-INSTALL", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/81-chief-of-staff-to-principal-engineer-offline-windows-install-preparation.md" },
+      "depends_on": ["V05-A12-13"],
+      "blocked_by": ["The supported agent console-control runtime is inaccessible; user-controlled install task V05-A12-15 is required"],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/80-principal-engineer-to-chief-of-staff-hyper-v-vm-shell-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/81-chief-of-staff-to-principal-engineer-offline-windows-install-preparation.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/82-principal-engineer-to-chief-of-staff-offline-windows-install-return.md"
+      ],
+      "scope": ["Boot the isolated VM from the verified ISO, install Windows 11 Pro to the sole VHDX, and stop before the first user-controlled OOBE or credential decision"],
+      "exclusions": ["Guest credential creation, enhanced session/redirection, guest runtime/tools, checkpoint, candidate/fixture exposure, A12, download, host change/restart, Quality, WP4, merge, and release"],
+      "acceptance_criteria": ["Installation uses verified ISO and sole VHDX", "Windows 11 Pro is selected without product key", "Host/VM isolation remains exact", "Installer reaches first user-controlled OOBE boundary", "No credential is created or observed", "Default Switch remains unchanged"],
+      "required_evidence": ["VM lifecycle and installer-phase record", "Disk/edition/boot-order identities", "Before/after isolation inventories", "Redacted installation return"],
+      "stop_conditions": ["Network path, wrong disk, configuration drift, Default Switch change, enhanced-session/redirection, activation or online-account requirement, credential field, installer error, private exposure, or undocumented step"],
+      "history": [
+        {"at":"2026-08-09T23:10:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"Handoff 80 passed the powered-off shell gate; Handoff 81 authorizes one offline install attempt stopping before user credentials or OOBE decisions","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/81-chief-of-staff-to-principal-engineer-offline-windows-install-preparation.md"},
+        {"at":"2026-08-09T23:15:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Principal Engineering began the required basic-console control preflight before the first authorized VM boot","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/81-chief-of-staff-to-principal-engineer-offline-windows-install-preparation.md"},
+        {"at":"2026-08-09T23:20:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"ready_for_review","reason":"Mandatory pre-boot stop: the supported Windows console-control package could not initialize because its application runtime directory was inaccessible; no VM boot or installer action occurred","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/82-principal-engineer-to-chief-of-staff-offline-windows-install-return.md"},
+        {"at":"2026-08-09T23:30:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"blocked","reason":"Chief of Staff accepted the safe pre-boot stop and routed the offline installation to a user-controlled basic-console task through Handoff 83","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/83-chief-of-staff-to-product-owner-manual-offline-windows-install.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-15",
+      "title": "Complete the Windows installation manually through the basic Hyper-V console",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "product_owner",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-HYPERV-MANUAL-INSTALL", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/83-chief-of-staff-to-product-owner-manual-offline-windows-install.md" },
+      "depends_on": ["V05-A12-13"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/80-principal-engineer-to-chief-of-staff-hyper-v-vm-shell-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/82-principal-engineer-to-chief-of-staff-offline-windows-install-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/83-chief-of-staff-to-product-owner-manual-offline-windows-install.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/84-product-owner-to-chief-of-staff-manual-install-result.md"
+      ],
+      "scope": ["Jason performs one offline Windows 11 Pro installation using the basic VM console, privately creates the local guest account if supported, reaches the desktop, and shuts down the guest"],
+      "exclusions": ["Agent credential observation, enhanced session/redirection, network attachment, bypass commands, guest tooling/runtime, checkpoint, candidate/fixture exposure, A12, host changes, Quality, WP4, merge, and release"],
+      "acceptance_criteria": ["Verified ISO and sole VHDX are used", "No product key or network is used", "Local credentials remain known only to Jason", "Guest reaches desktop and shuts down or returns a precise supported stop", "No retry or workaround occurs"],
+      "required_evidence": ["Product Owner's bounded non-sensitive completion or stop statement", "Later independent powered-off VM verification"],
+      "stop_conditions": ["Network or Microsoft account requirement without supported offline option, unexpected disk, enhanced-session/redirection, installer error, configuration drift, uncertainty, or private-data exposure"],
+      "history": [
+        {"at":"2026-08-09T23:30:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"Agent console automation is unavailable but the VM remains pristine; Handoff 83 authorizes Jason to complete one offline installation without sharing credentials","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/83-chief-of-staff-to-product-owner-manual-offline-windows-install.md"},
+        {"at":"2026-08-09T23:40:00Z","actor_role":"product_owner","from_status":"authorized","to_status":"in_progress","reason":"Product Owner began the single authorized offline installation through the basic Hyper-V console","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/83-chief-of-staff-to-product-owner-manual-offline-windows-install.md"},
+        {"at":"2026-08-09T23:55:00Z","actor_role":"product_owner","from_status":"in_progress","to_status":"ready_for_review","reason":"Product Owner reached the unsupported Windows network requirement and stopped without network access or workaround, exactly as Handoff 83 required","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/84-product-owner-to-chief-of-staff-manual-install-result.md"},
+        {"at":"2026-08-10T00:05:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Chief of Staff accepted Handoff 84 as a correctly observed supported stop and preserved all offline and privacy controls","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/85-chief-of-staff-offline-account-planning-authorization.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-16",
+      "title": "Design the supported offline-account completion route",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "cto",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-OFFLINE-ACCOUNT-PLANNING", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/85-chief-of-staff-offline-account-planning-authorization.md" },
+      "depends_on": ["V05-A12-15"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/83-chief-of-staff-to-product-owner-manual-offline-windows-install.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/84-product-owner-to-chief-of-staff-manual-install-result.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/85-chief-of-staff-offline-account-planning-authorization.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/86-cto-offline-account-completion-disposition.md"
+      ],
+      "scope": ["Select and specify a supported deterministic offline method for completing Windows 11 Pro local-account setup while preserving the accepted managed Hyper-V isolation boundary", "Define later Engineering, independent-review, Product Owner execution, rollback, and verification gates"],
+      "exclusions": ["Implementation", "VM start or modification", "Credential creation or observation", "Network attachment", "Undocumented OOBE bypass", "A12", "Checkpoint", "Quality", "WP4", "Merge", "Publication", "Release"],
+      "acceptance_criteria": ["Exact supported mechanism and current-guest versus reinstall decision are explicit", "Real credentials remain Product-Owner-only and absent from artifacts", "Isolation, evidence, rollback, stop conditions, and later bounded tasks are complete", "One explicit CTO disposition is issued at the required output path"],
+      "required_evidence": ["Handoff 84 supported-stop result", "Applicable accepted Hyper-V and A12 controls", "Authoritative mechanism documentation identified by the CTO"],
+      "stop_conditions": ["Route requires network, Microsoft account, undocumented bypass, credential disclosure, weakened isolation, VM activity, implementation, or unresolved security behavior"],
+      "history": [
+        {"at":"2026-08-10T00:10:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"Handoff 85 accepts the supported stop and authorizes CTO planning at one exact output path; execution remains excluded","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/85-chief-of-staff-offline-account-planning-authorization.md"},
+        {"at":"2026-08-10T00:15:00Z","actor_role":"cto","from_status":"authorized","to_status":"in_progress","reason":"CTO began the authorized offline-account architecture review","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/85-chief-of-staff-offline-account-planning-authorization.md"},
+        {"at":"2026-08-10T00:20:00Z","actor_role":"cto","from_status":"in_progress","to_status":"ready_for_review","reason":"CTO returned the clean offline reinstall architecture in Handoff 86 without implementation or VM activity","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/86-cto-offline-account-completion-disposition.md"},
+        {"at":"2026-08-10T00:25:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Chief of Staff validated Handoff 86 as complete planning and routed the separate Product Owner architecture decision","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/87-chief-of-staff-to-product-owner-offline-account-reinstall-decision.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-17",
+      "title": "Decide the clean offline-account reinstall architecture",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "product_owner",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-OFFLINE-ACCOUNT-DECISION-ROUTING", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/87-chief-of-staff-to-product-owner-offline-account-reinstall-decision.md" },
+      "depends_on": ["V05-A12-16"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/84-product-owner-to-chief-of-staff-manual-install-result.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/86-cto-offline-account-completion-disposition.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/87-chief-of-staff-to-product-owner-offline-account-reinstall-decision.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/87-chief-of-staff-to-product-owner-offline-account-reinstall-decision.md"
+      ],
+      "scope": ["Approve, reject, or request changes to the clean offline reinstall architecture defined in Handoff 86"],
+      "exclusions": ["Implementation", "Tool acquisition", "Media creation", "Synthetic testing", "VM or VHDX mutation", "VM start", "Credential entry", "Checkpoint", "A12", "Quality", "WP4", "Merge", "Publication", "Release"],
+      "acceptance_criteria": ["Product Owner records one explicit decision against PO-05-A12-OFFLINE-ACCOUNT-REINSTALL", "Decision remains non-transitive and preserves all later gates"],
+      "required_evidence": ["Accepted Handoff 86 architecture disposition", "Chief-of-Staff decision summary in Handoff 87"],
+      "stop_conditions": ["Any implied implementation, VM, credential, network, A12, or release authority"],
+      "history": [
+        {"at":"2026-08-10T00:30:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"Accepted CTO planning is routed for the exact Product Owner architecture decision; implementation remains paused","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/87-chief-of-staff-to-product-owner-offline-account-reinstall-decision.md"},
+        {"at":"2026-08-10T00:35:00Z","actor_role":"product_owner","from_status":"authorized","to_status":"in_progress","reason":"Product Owner considered the exact clean offline reinstall architecture","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/87-chief-of-staff-to-product-owner-offline-account-reinstall-decision.md"},
+        {"at":"2026-08-10T00:40:00Z","actor_role":"product_owner","from_status":"in_progress","to_status":"ready_for_review","reason":"Product Owner approved PO-05-A12-OFFLINE-ACCOUNT-REINSTALL without granting implementation authority","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/87-chief-of-staff-to-product-owner-offline-account-reinstall-decision.md"},
+        {"at":"2026-08-10T00:45:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Chief of Staff recorded the Product Owner decision and issued the separate bounded Engineering media authorization","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/88-chief-of-staff-to-principal-engineer-offline-account-media-authorization.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-18",
+      "title": "Prepare and synthetically validate offline-account answer media",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "principal_engineer",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-OFFLINE-ACCOUNT-MEDIA", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/88-chief-of-staff-to-principal-engineer-offline-account-media-authorization.md" },
+      "depends_on": ["V05-A12-17"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/86-cto-offline-account-completion-disposition.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/87-chief-of-staff-to-product-owner-offline-account-reinstall-decision.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/88-chief-of-staff-to-principal-engineer-offline-account-media-authorization.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/89-principal-engineer-to-chief-of-staff-offline-account-media-return.md"
+      ],
+      "scope": ["Create the exact minimal synthetic Autounattend answer media defined in Handoff 86", "Validate it with Windows SIM against the exact image", "Run one installation in a separate disposable Generation 2 VM with no network adapter", "Preserve all media, VM state, and evidence for independent review"],
+      "exclusions": ["Tool acquisition", "Target Jarvis-A12-v05 access or mutation", "Target VHDX work", "Real credentials", "Target reinstall", "Checkpoint", "Candidate or fixture exposure", "A12", "Quality", "WP4", "Merge", "Push", "Publication", "Release", "Cleanup"],
+      "acceptance_criteria": ["Exact XML contract and prohibited-setting matrix pass", "Answer ISO is non-bootable, read-only, and contains exactly one root file", "Windows SIM validation passes against the exact accepted image", "One no-network synthetic installation reaches the expected local bootstrap desktop with no extra account or unrelated configuration", "Target VM and all protected inputs remain untouched", "Complete private evidence and privacy-safe Handoff 89 are returned"],
+      "required_evidence": ["Tool/image/catalog/XML/ISO identities", "Decoded semantic manifest", "Synthetic VM before/after isolation and lifecycle evidence", "Account and OOBE boolean results", "Privacy scan", "Handoff 89"],
+      "stop_conditions": ["Any unavailable tool or catalog", "Any identity, schema, setting, media, VM, network, account, run-count, evidence, or privacy mismatch", "Any need for acquisition, target-VM activity, repair, retry, or undocumented step"],
+      "history": [
+        {"at":"2026-08-10T00:45:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"Product Owner approved the architecture; Handoff 88 authorizes one bounded media build and one separate no-network synthetic validation","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/88-chief-of-staff-to-principal-engineer-offline-account-media-authorization.md"},
+        {"at":"2026-08-10T01:00:00Z","actor_role":"principal_engineer","from_status":"authorized","to_status":"in_progress","reason":"Principal Engineer began the mandatory Handoff 88 preflight before any authoring or execution","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/88-chief-of-staff-to-principal-engineer-offline-account-media-authorization.md"},
+        {"at":"2026-08-10T01:10:00Z","actor_role":"principal_engineer","from_status":"in_progress","to_status":"ready_for_review","reason":"Mandatory preflight stop: the required Windows ADK/Windows SIM, exact image catalog, and ISO authoring tooling are unavailable and elevated Hyper-V capability was not demonstrable; no authoring, media build, or synthetic VM occurred","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/89-principal-engineer-to-chief-of-staff-offline-account-media-return.md"},
+        {"at":"2026-08-10T01:20:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Chief of Staff accepted the correct mandatory stop and routed a separate CTO prerequisite plan; no media or behavior was accepted","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/90-chief-of-staff-to-cto-offline-media-tooling-plan-authorization.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-19",
+      "title": "Define the offline-media tooling acquisition and execution plan",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "cto",
+      "reviewer_role": "chief_of_staff",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-OFFLINE-MEDIA-TOOLING-PLAN", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/90-chief-of-staff-to-cto-offline-media-tooling-plan-authorization.md" },
+      "depends_on": ["V05-A12-18"],
+      "blocked_by": [],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/86-cto-offline-account-completion-disposition.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/89-principal-engineer-to-chief-of-staff-offline-account-media-return.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/90-chief-of-staff-to-cto-offline-media-tooling-plan-authorization.md"
+      ],
+      "outputs": [
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/91-cto-offline-media-tooling-acquisition-disposition.md"
+      ],
+      "scope": ["Define exact supported minimal ADK, Windows SIM, catalog, ISO-tooling, acquisition, installation, elevation, synthetic Hyper-V, rollback, evidence, and cleanup gates", "Route one explicit Product Owner tooling decision without acquisition or implementation"],
+      "exclusions": ["Download", "Installation", "Network access", "Host or PATH change", "Restart", "Catalog or ISO creation", "Answer-file authoring", "Elevation", "VM or VHDX activity", "Credentials", "Checkpoint", "Candidate or fixture exposure", "A12", "Quality", "WP4", "Merge", "Publication", "Release", "Cleanup"],
+      "acceptance_criteria": ["Exact tools, versions, components, authoritative sources, signatures or hashes, installation effects, rollback, and network controls are explicit", "Elevation and separate no-NIC synthetic VM boundary are complete", "Future tasks and output paths are exact", "One explicit CTO disposition is produced at Handoff 91"],
+      "required_evidence": ["Handoff 89 prerequisite findings", "Accepted Handoff 86 architecture", "Authoritative Microsoft tooling documentation identified by CTO"],
+      "stop_conditions": ["Unresolved tool identity", "Unsupported component", "Uncontrolled network or installer behavior", "Credential or private-data exposure", "Weakened isolation", "Implied implementation", "Missing rollback or evidence gate"],
+      "history": [
+        {"at":"2026-08-10T01:20:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"Handoff 90 accepts the stopped Engineering preflight and authorizes a consolidated CTO tooling prerequisite plan only","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/90-chief-of-staff-to-cto-offline-media-tooling-plan-authorization.md"},
+        {"at":"2026-08-10T01:25:00Z","actor_role":"cto","from_status":"authorized","to_status":"in_progress","reason":"CTO began the consolidated tooling prerequisite review","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/90-chief-of-staff-to-cto-offline-media-tooling-plan-authorization.md"},
+        {"at":"2026-08-10T01:30:00Z","actor_role":"cto","from_status":"in_progress","to_status":"ready_for_review","reason":"CTO returned Handoff 91 with the exact official toolchain and future execution gates; no acquisition or implementation occurred","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/91-cto-offline-media-tooling-acquisition-disposition.md"},
+        {"at":"2026-08-10T01:35:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"accepted","reason":"Chief of Staff accepted the technical prerequisite analysis while routing a Product Owner-directed efficiency redesign before further execution","artifact":"docs/coordination/READINESS_PROCESS_DECISION.md"}
+      ]
+    },
+    {
+      "id": "V05-GOV-01",
+      "title": "Create the reusable readiness-first execution system",
+      "workstream": "governance",
+      "priority": "P0",
+      "owner_role": "chief_of_staff",
+      "reviewer_role": "product_owner",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "PO-GOV-END-TO-END-READINESS", "artifact": "docs/coordination/READINESS_PROCESS_DECISION.md" },
+      "depends_on": ["V05-A12-19"],
+      "blocked_by": [],
+      "concurrency_group": "v05-governance-redesign",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        "docs/coordination/READINESS_PROCESS_DECISION.md",
+        "docs/coordination/WORKLIST_PROCESS.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/91-cto-offline-media-tooling-acquisition-disposition.md"
+      ],
+      "outputs": [
+        "docs/coordination/END_TO_END_READINESS_PROCESS.md",
+        "docs/coordination/V0.5_REMAINING_WORK_READINESS_PLAN.md",
+        "docs/coordination/worklists/templates/readiness-packet.json"
+      ],
+      "scope": ["Create a reusable readiness-first process, schema, template, validator support, and v0.5 remaining-work plan", "Consolidate Handoff 91 controls into a small number of conditionally preauthorized execution waves"],
+      "exclusions": ["Tool acquisition or installation", "Network or host change", "Elevation or restart", "VM or VHDX activity", "Media creation", "Credentials", "Checkpoint", "Candidate or fixture exposure", "A12", "Quality", "WP4", "Merge", "Publication", "Release"],
+      "acceptance_criteria": ["Process discovers all environment prerequisites before execution", "Worklist v1.1 remains backward-compatible with v1.0", "Validator enforces readiness for v1.1 active execution tasks", "Reusable template and v0.5 wave plan validate", "Product Owner receives one clear package for acceptance"],
+      "required_evidence": ["Validator positive and negative checks", "Schema and template validation", "v0.5 worklist remains valid", "Whitespace and link checks"],
+      "stop_conditions": ["Backward compatibility failure", "Authority ambiguity", "Readiness can be bypassed for active execution", "Any implied operational authority", "Invalid worklist or documentation"],
+      "history": [
+        {"at":"2026-08-10T01:35:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"Product Owner directed a readiness-first process redesign incorporating Handoff 91","artifact":"docs/coordination/READINESS_PROCESS_DECISION.md"},
+        {"at":"2026-08-10T01:40:00Z","actor_role":"chief_of_staff","from_status":"authorized","to_status":"in_progress","reason":"Chief of Staff began the authorized reusable process, validator, template, and v0.5 wave-plan work","artifact":"docs/coordination/READINESS_PROCESS_DECISION.md"},
+        {"at":"2026-08-10T02:10:00Z","actor_role":"chief_of_staff","from_status":"in_progress","to_status":"ready_for_review","reason":"Reusable readiness-first process, schema 1.1 support, templates, validator gate, and consolidated v0.5 wave plan are complete and validated","artifact":"docs/coordination/V0.5_REMAINING_WORK_READINESS_PLAN.md"},
+        {"at":"2026-08-10T02:20:00Z","actor_role":"product_owner","from_status":"ready_for_review","to_status":"accepted","reason":"Product Owner approved moving forward with the readiness-first process","artifact":"docs/coordination/READINESS_PROCESS_DECISION.md"}
+      ]
+    },
+    {
+      "id": "V05-RDY-01",
+      "title": "Complete the consolidated v0.5 certification readiness audit",
+      "workstream": "readiness",
+      "priority": "P0",
+      "owner_role": "chief_of_staff",
+      "reviewer_role": "product_owner",
+      "status": "accepted",
+      "authorization": { "state": "approved", "decision_id": "PO-05-READINESS-FIRST", "artifact": "docs/coordination/V0.5_READINESS_AUDIT_AUTHORIZATION.md" },
+      "depends_on": ["V05-GOV-01"],
+      "blocked_by": [],
+      "concurrency_group": "v05-readiness-audit",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [
+        "docs/coordination/V0.5_READINESS_AUDIT_AUTHORIZATION.md",
+        "docs/coordination/V0.5_REMAINING_WORK_READINESS_PLAN.md",
+        ".worktrees/v0.3.1-release/docs/handovers/v0.5/91-cto-offline-media-tooling-acquisition-disposition.md"
+      ],
+      "outputs": [
+        "docs/coordination/readiness/v0.5-certification-readiness.json",
+        "docs/coordination/V0.5_READINESS_AUDIT_RESULT.md"
+      ],
+      "scope": ["Run one consolidated read-only audit of every remaining environment, software, version, privilege, network, capacity, human action, evidence path, rollback, fallback, retry, and duration prerequisite", "Return one readiness packet and Product Owner decision summary"],
+      "exclusions": ["Download", "Acquisition", "Installation", "Elevation", "Host or service change", "Restart", "ISO/WIM/catalog/media work", "VM or VHDX activity", "Credentials", "Checkpoint", "Candidate or fixture exposure", "A12", "Quality execution", "WP4 provider use", "Merge", "Publication", "Release", "Cleanup"],
+      "acceptance_criteria": ["Every prerequisite has an observed status and exact verification", "All unresolved items and future authorities are explicit", "Five-wave effort and failure routes are complete", "No execution task is activated", "Product Owner receives one full-certification versus developer-preview decision"],
+      "required_evidence": ["Read-only host and project inventories", "Official documentation availability checks", "Capability, capacity, privilege, network, and artifact-link results", "Valid readiness JSON", "Privacy-safe audit result"],
+      "stop_conditions": ["Any requested mutation or exposure", "Private value would enter public evidence", "Missing authority for read-only check", "Unable to distinguish observed fact from assumption", "Invalid readiness packet"],
+      "history": [
+        {"at":"2026-08-10T02:20:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"authorized","reason":"Product Owner accepted the readiness-first system and authorized one consolidated read-only audit","artifact":"docs/coordination/V0.5_READINESS_AUDIT_AUTHORIZATION.md"},
+        {"at":"2026-08-10T02:25:00Z","actor_role":"chief_of_staff","from_status":"authorized","to_status":"in_progress","reason":"Chief of Staff began the complete remaining-route inventory and readiness packet","artifact":"docs/coordination/V0.5_READINESS_AUDIT_AUTHORIZATION.md"},
+        {"at":"2026-08-10T03:00:00Z","actor_role":"chief_of_staff","from_status":"in_progress","to_status":"ready_for_review","reason":"The consolidated host, tooling, network, privilege, Hyper-V, human-action, A12, Quality, fallback, retry, and effort audit is complete; one Product Owner route decision remains","artifact":"docs/coordination/V0.5_READINESS_AUDIT_RESULT.md"},
+        {"at":"2026-08-10T03:20:00Z","actor_role":"product_owner","from_status":"ready_for_review","to_status":"accepted","reason":"Product Owner approved full certification and the five-wave conditional authorization envelope","artifact":"docs/coordination/V0.5_READINESS_AUDIT_RESULT.md"}
+      ]
+    },
+    {
+      "id": "V05-A12-02",
+      "title": "Execute independent offline packaging and recovery review",
+      "workstream": "a12",
+      "priority": "P0",
+      "owner_role": "independent_packaging_reviewer",
+      "reviewer_role": "quality_release",
+      "status": "blocked",
+      "authorization": { "state": "approved", "decision_id": "COS-05-A12-H59-EXECUTION", "artifact": ".worktrees/v0.3.1-release/docs/handovers/v0.5/61-chief-of-staff-sandbox-correction-acceptance-and-a12-authorization.md" },
+      "depends_on": ["V05-A12-01", "V05-A12-03", "V05-A12-04", "V05-A12-05", "V05-A12-06"],
+      "blocked_by": ["V05-A12-07 must be completed and accepted, and a separate fresh-run authorization must be issued"],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [".worktrees/v0.3.1-release/docs/handovers/v0.5/52-chief-of-staff-a12-bundle-acceptance-and-renewed-execution-authorization.md", ".worktrees/v0.3.1-release/docs/handovers/v0.5/30-cto-v0.5-packaging-and-a12-plan.md", ".worktrees/v0.3.1-release/docs/handovers/v0.5/56-chief-of-staff-windows-sandbox-package-acceptance-and-a12-authorization.md", ".worktrees/v0.3.1-release/docs/handovers/v0.5/61-chief-of-staff-sandbox-correction-acceptance-and-a12-authorization.md"],
+      "outputs": [".worktrees/v0.3.1-release/docs/evidence/v0.5/a12-d7105e4-packaging-recovery.md"],
+      "scope": ["Install, verify, exercise synthetic fixture, uninstall, prove recovery, reinstall, and reverify entirely offline"],
+      "exclusions": ["Live provider, credential, pilot, vault, WP4, merge, and release"],
+      "acceptance_criteria": ["All Handoff 30 A12 identity, functional, privacy, recovery, and integrity checks pass"],
+      "required_evidence": ["Private raw A12 evidence", "Public redacted A12 disposition"],
+      "stop_conditions": ["Any network, identity, dependency, mutation, privacy, or recovery mismatch"],
+      "history": [
+        {"at":"2026-08-08T18:30:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"blocked","reason":"Awaiting exact A12 authorization","artifact":"docs/coordination/WORKLIST_PROCESS.md"},
+        {"at":"2026-08-08T20:15:00Z","actor_role":"chief_of_staff","from_status":"blocked","to_status":"authorized","reason":"Product Owner approved PO-05-A12 and Handoff 47 defines the exact independent offline execution boundary","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/47-chief-of-staff-to-independent-reviewer-a12-execution-authorization.md"},
+        {"at":"2026-08-08T21:00:00Z","actor_role":"independent_packaging_reviewer","from_status":"authorized","to_status":"in_progress","reason":"Independent reviewer began exact input-receipt and environment preflight under Handoff 47","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/47-chief-of-staff-to-independent-reviewer-a12-execution-authorization.md"},
+        {"at":"2026-08-08T21:10:00Z","actor_role":"independent_packaging_reviewer","from_status":"in_progress","to_status":"ready_for_review","reason":"Mandatory preflight stop: the hash-bound fixture bundle, fixture inventory, reviewed API-only driver, and exact CPython 3.14.6 runtime were unavailable; no environment was created and no installation occurred","artifact":".worktrees/v0.3.1-release/docs/evidence/v0.5/a12-d7105e4-packaging-recovery.md"},
+        {"at":"2026-08-08T21:30:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"blocked","reason":"Chief of Staff accepted the mandatory stop and paused A12 until the consolidated Handoff 48 input-bundle task is completed and independently accepted","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/48-chief-of-staff-to-principal-engineer-a12-input-bundle-authorization.md"},
+        {"at":"2026-08-08T23:15:00Z","actor_role":"chief_of_staff","from_status":"blocked","to_status":"authorized","reason":"Handoff 52 accepts the exact hash-bound bundle and independently passing readiness matrix; one fresh A12 run is reauthorized","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/52-chief-of-staff-a12-bundle-acceptance-and-renewed-execution-authorization.md"},
+        {"at":"2026-08-08T23:35:00Z","actor_role":"independent_packaging_reviewer","from_status":"authorized","to_status":"in_progress","reason":"Independent reviewer began a fresh Handoff 52 transfer, runtime, and real network-denial preflight","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/52-chief-of-staff-a12-bundle-acceptance-and-renewed-execution-authorization.md"},
+        {"at":"2026-08-08T23:45:00Z","actor_role":"independent_packaging_reviewer","from_status":"in_progress","to_status":"ready_for_review","reason":"Mandatory stop: DNS and ICMP outbound capability remained available, firewall policy inspection was denied, and the exact CPython 3.14.6 runtime was inaccessible; no fixture exposure or installation occurred","artifact":".worktrees/v0.3.1-release/docs/evidence/v0.5/a12-d7105e4-packaging-recovery.md"},
+        {"at":"2026-08-09T00:10:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"blocked","reason":"Chief of Staff accepted the environment stop and routed a separate Product Owner Windows Sandbox or managed-VM decision through Handoff 53","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/53-chief-of-staff-to-product-owner-a12-execution-environment-decision.md"},
+        {"at":"2026-08-09T13:00:00Z","actor_role":"chief_of_staff","from_status":"blocked","to_status":"authorized","reason":"Handoff 56 accepts the exact locked-down Windows Sandbox package and authorizes one fresh independent offline A12 run","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/56-chief-of-staff-windows-sandbox-package-acceptance-and-a12-authorization.md"},
+        {"at":"2026-08-09T14:00:00Z","actor_role":"independent_packaging_reviewer","from_status":"authorized","to_status":"in_progress","reason":"Independent reviewer verified the active worklist and Handoff 56, located the exact accepted Windows Sandbox package, and began the one authorized fresh offline A12 run","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/56-chief-of-staff-windows-sandbox-package-acceptance-and-a12-authorization.md"},
+        {"at":"2026-08-09T14:10:00Z","actor_role":"independent_packaging_reviewer","from_status":"in_progress","to_status":"ready_for_review","reason":"Mandatory stop after the exact accepted Windows Sandbox launch completed without exporting the required preflight result; no retry, installation, fixture execution, recovery, or later gate occurred","artifact":".worktrees/v0.3.1-release/docs/evidence/v0.5/a12-d7105e4-packaging-recovery.md"},
+        {"at":"2026-08-09T14:30:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"blocked","reason":"Chief of Staff accepted the mandatory stop and routed a separate bootstrap and identity-independent runtime correction through Handoff 57","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/57-chief-of-staff-to-principal-engineer-sandbox-bootstrap-correction.md"},
+        {"at":"2026-08-09T16:50:00Z","actor_role":"chief_of_staff","from_status":"blocked","to_status":"authorized","reason":"Handoff 61 accepts the exact H59 Sandbox correction and authorizes one fresh independent offline A12 run","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/61-chief-of-staff-sandbox-correction-acceptance-and-a12-authorization.md"},
+        {"at":"2026-08-09T17:00:00Z","actor_role":"independent_packaging_reviewer","from_status":"authorized","to_status":"in_progress","reason":"Independent reviewer verified Handoff 61, the exact H59 package, the single-launch boundary, and empty production output, then began fresh offline A12 preflight","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/61-chief-of-staff-sandbox-correction-acceptance-and-a12-authorization.md"},
+        {"at":"2026-08-09T17:15:00Z","actor_role":"independent_packaging_reviewer","from_status":"in_progress","to_status":"ready_for_review","reason":"Mandatory stop after the sole exact H59 production launch: isolation passed, but governed preflight failed closed because the WSB maps the runtime at C:\\A12\\Runtime while the accepted script requires C:\\A12\\Python\\python.exe; no retry or installation occurred","artifact":".worktrees/v0.3.1-release/docs/evidence/v0.5/a12-d7105e4-packaging-recovery.md"},
+        {"at":"2026-08-09T17:30:00Z","actor_role":"chief_of_staff","from_status":"ready_for_review","to_status":"blocked","reason":"Chief of Staff independently reproduced the runtime-path mismatch, accepted the mandatory stop, and routed the bounded V05-A12-07 correction through Handoff 62; no A12 retry is authorized","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/62-chief-of-staff-to-principal-engineer-sandbox-runtime-path-correction.md"}
+      ]
+    },
+    {
+      "id": "V05-QA-01",
+      "title": "Perform limited post-A12 Quality revalidation",
+      "workstream": "quality",
+      "priority": "P1",
+      "owner_role": "quality_release",
+      "reviewer_role": "product_owner",
+      "status": "blocked",
+      "authorization": { "state": "pending", "decision_id": null, "artifact": null },
+      "depends_on": ["V05-A12-02"],
+      "blocked_by": ["A12 must complete with an accepted disposition"],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [".worktrees/v0.3.1-release/docs/evidence/v0.5/a12-d7105e4-packaging-recovery.md"],
+      "outputs": ["<superseding-quality-release-review>"],
+      "scope": ["Revalidate packaging, installation, recovery, evidence binding, and release-artifact selection"],
+      "exclusions": ["Regenerating Engineering evidence or modifying the candidate"],
+      "acceptance_criteria": ["Quality issues one explicit release disposition"],
+      "required_evidence": ["Accepted A12 record", "Existing technical Quality review"],
+      "stop_conditions": ["Any candidate/evidence mismatch or unresolved release hazard"],
+      "history": [{"at":"2026-08-08T18:30:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"blocked","reason":"Awaiting accepted A12 evidence","artifact":"docs/coordination/WORKLIST_PROCESS.md"}]
+    },
+    {
+      "id": "V05-WP4-01",
+      "title": "Decide whether live-provider WP4 is required for v0.5 release",
+      "workstream": "live_provider",
+      "priority": "P1",
+      "owner_role": "product_owner",
+      "reviewer_role": "cto",
+      "status": "proposed",
+      "authorization": { "state": "pending", "decision_id": "PO-05-WP4", "artifact": null },
+      "depends_on": ["V05-TECH-01"],
+      "blocked_by": [],
+      "concurrency_group": "v05-live-provider",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": [".worktrees/v0.3.1-release/docs/handovers/v0.5/30-cto-v0.5-packaging-and-a12-plan.md"],
+      "outputs": ["<product-owner-wp4-decision>"],
+      "scope": ["Approve, defer, or re-scope real-provider preflight/live evidence as a separate decision"],
+      "exclusions": ["Implied credential access, live calls, or spending"],
+      "acceptance_criteria": ["Decision explicitly states whether release requires WP4 and its exact safety boundary"],
+      "required_evidence": ["CTO recommendation and current technical evidence"],
+      "stop_conditions": ["Any implied provider, credential, network, or spending authority"],
+      "history": [{"at":"2026-08-08T18:30:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"proposed","reason":"Separate Product Owner decision remains outstanding","artifact":".worktrees/v0.3.1-release/docs/handovers/v0.5/30-cto-v0.5-packaging-and-a12-plan.md"}]
+    },
+    {
+      "id": "V05-REL-01",
+      "title": "Make final v0.5 release decision and close repository records",
+      "workstream": "release",
+      "priority": "P1",
+      "owner_role": "product_owner",
+      "reviewer_role": "chief_of_staff",
+      "status": "blocked",
+      "authorization": { "state": "pending", "decision_id": "PO-05-RELEASE", "artifact": null },
+      "depends_on": ["V05-QA-01", "V05-WP4-01"],
+      "blocked_by": ["Superseding Quality disposition and WP4 decision are incomplete"],
+      "concurrency_group": "v05-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "inputs": ["<superseding-quality-release-review>", "<product-owner-wp4-decision>"],
+      "outputs": ["<product-owner-release-decision>", "<librarian-repository-closeout>"],
+      "scope": ["Decide merge/tag/publication/release", "Route documentation reconciliation and Librarian closeout"],
+      "exclusions": ["Silent waiver of Quality, A12, WP4, or evidence requirements"],
+      "acceptance_criteria": ["Final decision is recorded", "Repository and documentation closeout are independently verified"],
+      "required_evidence": ["Quality disposition", "WP4 disposition", "Chief-of-Staff closeout", "Librarian report"],
+      "stop_conditions": ["Any unresolved release blocker, dirty scope, broken documentation, or unbound artifact"],
+      "history": [{"at":"2026-08-08T18:30:00Z","actor_role":"chief_of_staff","from_status":null,"to_status":"blocked","reason":"Final release gates remain incomplete","artifact":"docs/coordination/WORKLIST_PROCESS.md"}]
+    }
+  ]
+}

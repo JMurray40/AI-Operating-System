@@ -1,0 +1,73 @@
+{
+  "schema_version": "1.0",
+  "packet_id": "example-v1-readiness",
+  "project": "Example Project",
+  "milestone": "v1",
+  "status": "draft",
+  "prepared_by": "chief_of_staff",
+  "reviewers": ["cto", "principal_engineer", "quality_release"],
+  "objective": "State the complete end-to-end outcome, not merely the next task",
+  "environments": [
+    {
+      "id": "ENV-01",
+      "purpose": "Name the build, test, clean-room, staging, or production purpose",
+      "operating_system": "Exact edition, architecture, and build",
+      "runtime": ["Exact runtime and version"],
+      "network_policy": "Exact allowed and denied connectivity",
+      "identity_and_privilege": "Exact operator, service, elevation, and private-input boundary",
+      "capacity": ["Disk, memory, CPU, and time requirements"],
+      "verification": ["Read-only checks proving every claim"],
+      "status": "unknown"
+    }
+  ],
+  "prerequisites": [
+    {
+      "id": "PRE-01",
+      "category": "software",
+      "requirement": "Exact product, feature, version, source, integrity, and license requirement",
+      "environment_id": "ENV-01",
+      "verification": "Exact read-only check",
+      "observed": "Record the actual result",
+      "status": "unknown",
+      "failure_class": "planning_gap",
+      "fallback_route": "Approved fallback task or explicit no fallback",
+      "authority_needed": "Decision or handoff required before satisfying it"
+    }
+  ],
+  "human_actions": [
+    {
+      "id": "HUM-01",
+      "actor": "product_owner",
+      "action": "Exact interaction",
+      "private_inputs": ["State none or identify private categories without values"],
+      "start_boundary": "Exact screen or accepted predecessor",
+      "stop_boundary": "Exact success and failure statements"
+    }
+  ],
+  "execution_waves": [
+    {
+      "id": "WAVE-01",
+      "objective": "One cohesive outcome",
+      "tasks": ["V1-ENG-01"],
+      "entry_criteria": ["All facts that must already be green"],
+      "exit_evidence": ["Evidence required to activate the next wave"],
+      "failure_routes": ["Preapproved stop or fallback"],
+      "retry_budget": 0,
+      "estimated_active_time": "Provide a range",
+      "estimated_elapsed_time": "Provide a range"
+    }
+  ],
+  "authorization_envelope": {
+    "decision_id": "<product-owner-decision-id>",
+    "artifact": "<authorization-artifact>",
+    "covered_waves": ["WAVE-01"],
+    "automatic_activation_rule": "Chief of Staff may activate only the next covered task after accepted predecessor evidence and green preflight",
+    "excluded_actions": ["List all actions requiring a new Product Owner decision"]
+  },
+  "unresolved": ["Every unknown must be resolved or explicitly accepted before status becomes ready"],
+  "approval": {
+    "product_owner": "pending",
+    "cto": "pending",
+    "chief_of_staff": "pending"
+  }
+}

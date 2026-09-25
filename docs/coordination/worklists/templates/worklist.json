@@ -1,0 +1,109 @@
+{
+  "schema_version": "1.2",
+  "worklist_id": "example-v1",
+  "project": "Example Project",
+  "milestone": "v1",
+  "repository_root": ".",
+  "owner_role": "chief_of_staff",
+  "updated_at": "2026-08-10T00:00:00Z",
+  "authority_note": "This queue coordinates work; linked decisions and handoffs grant authority.",
+  "delivery_policy": {
+    "effective_at": "2026-08-10T00:00:00Z",
+    "mode": "prototype_momentum",
+    "outcome_sized_tasks": true,
+    "same_task_in_scope_corrections": true,
+    "consolidated_reviewer_punchlist": true,
+    "documentation_counts_only_when_deliverable": true,
+    "explicit_human_action_routing": true,
+    "max_correction_rounds_before_root_cause_review": 1,
+    "allowed_early_stop_classes": [
+      "human_action",
+      "missing_authority",
+      "unsafe_or_irreversible",
+      "external_capability",
+      "scope_change_required"
+    ]
+  },
+  "current_focus_ids": [],
+  "readiness": {
+    "status": "draft",
+    "artifact": "<readiness-packet-path>",
+    "required_capabilities": ["List every operating-system, runtime, service, and external capability"],
+    "required_software": ["List every product, component, version, source, and integrity rule"],
+    "required_privileges": ["List every standard, elevated, service, and human-only boundary"],
+    "human_actions": ["List every Product Owner interaction and private-input boundary"],
+    "environments": ["List build, test, staging, clean-room, and production environments"],
+    "preflight_checks": ["Provide one read-only command or inspection for every prerequisite"],
+    "fallback_routes": ["Define an approved route or explicit no-fallback result for each failure"],
+    "unresolved": ["Replace with every unresolved prerequisite before execution"]
+  },
+  "authorization_envelopes": [
+    {
+      "id": "V1-WAVE-01",
+      "decision_id": "<product-owner-decision-id>",
+      "artifact": "<authorization-artifact>",
+      "covered_task_ids": ["V1-ENG-01"],
+      "activation_rule": "Chief of Staff may activate the next covered task only after its predecessor is accepted and all task preflight checks pass",
+      "max_retries": 0
+    }
+  ],
+  "tasks": [
+    {
+      "id": "V1-ENG-01",
+      "title": "Replace with the first bounded task",
+      "workstream": "engineering",
+      "priority": "P0",
+      "owner_role": "principal_engineer",
+      "reviewer_role": "chief_of_staff",
+      "status": "proposed",
+      "authorization": {
+        "state": "pending",
+        "decision_id": null,
+        "artifact": null
+      },
+      "depends_on": [],
+      "blocked_by": [],
+      "concurrency_group": "v1-release-chain",
+      "allow_parallel_in_group": false,
+      "supersedes": [],
+      "repository_state": {
+        "branch": null,
+        "executable_commit": null,
+        "tree": null,
+        "evidence_head": null
+      },
+      "inputs": ["<requirements-or-incoming-handoff>"],
+      "outputs": ["<required-return-handoff>"],
+      "scope": ["Replace with the exact permitted work"],
+      "exclusions": ["Replace with work that must not be performed"],
+      "acceptance_criteria": ["Replace with an independently checkable outcome"],
+      "required_evidence": ["Replace with exact evidence"],
+      "stop_conditions": ["Stop on authorization, identity, scope, readiness, or evidence mismatch"],
+      "execution": {
+        "wave_id": "V1-WAVE-01",
+        "kind": "execution",
+        "environment": "Name the exact environment and identity boundary",
+        "required_capabilities": ["List task-specific capabilities already proven by the readiness packet"],
+        "required_software": ["List exact task-specific software and versions"],
+        "required_privileges": ["List exact privilege level"],
+        "human_actions": ["State none or list the exact human action and privacy boundary"],
+        "preflight_checks": ["List commands that must all pass before mutation"],
+        "activation_condition": "Readiness is ready, authority exists, dependencies are accepted, and task preflight passes",
+        "pass_route": "Name the next task or closeout action",
+        "fail_route": "Name the approved fallback task or stop for Product Owner decision",
+        "retry_policy": "No retry unless the envelope explicitly permits a bounded retry",
+        "estimated_duration": "Provide an active-time range and expected human wait"
+      },
+      "history": [
+        {
+          "at": "2026-08-10T00:00:00Z",
+          "actor_role": "chief_of_staff",
+          "from_status": null,
+          "to_status": "proposed",
+          "reason": "Initial template task",
+          "artifact": "docs/coordination/WORKLIST_PROCESS.md"
+        }
+      ]
+    }
+  ]
+}

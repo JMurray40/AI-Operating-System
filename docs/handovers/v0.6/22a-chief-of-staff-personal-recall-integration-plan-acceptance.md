@@ -55,4 +55,3 @@ The Product Owner decision is:
 ## 6. Preserved exclusions
 
 No live-vault access, private-note ingestion, persistent index, embeddings, provider or credential use, network access, real microphone/speaker activation, merge, push, publication or release is authorized.
-

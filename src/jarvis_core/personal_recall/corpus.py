@@ -4,8 +4,10 @@ from __future__ import annotations
 import hashlib
 import os
 import stat
+import time
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
+from typing import Protocol
 
 from jarvis_core.models.note import Note
 from jarvis_core.parsing.markdown_parser import parse_note
@@ -19,6 +21,39 @@ _EXCLUDED_PARTS = frozenset({
     "attachments", "templates", "archive", "archives", "conversations", "sessions",
     "cache", "caches", "config", "configuration", "legacy-memory", "legacy_memory",
 })
+
+
+class CancellationCheck(Protocol):
+    def is_requested(self) -> bool: ...
+
+
+def _guard(deadline: float | None, cancellation: CancellationCheck | None) -> None:
+    if cancellation is not None and cancellation.is_requested():
+        raise PolicyError("source_boundary:cancelled")
+    if deadline is not None and time.monotonic() > deadline:
+        raise PolicyError("source_boundary:deadline")
+
+
+def _bounded_read(
+    path: Path,
+    *,
+    max_bytes: int | None,
+    deadline: float | None,
+    cancellation: CancellationCheck | None,
+) -> bytes:
+    chunks: list[bytes] = []
+    total = 0
+    with path.open("rb") as stream:
+        while True:
+            _guard(deadline, cancellation)
+            chunk = stream.read(65_536)
+            if not chunk:
+                break
+            total += len(chunk)
+            if max_bytes is not None and total > max_bytes:
+                raise PolicyError("source_boundary:resource_limit")
+            chunks.append(chunk)
+    return b"".join(chunks)
 
 
 @dataclass(frozen=True)
@@ -108,11 +143,22 @@ def _walk(root: Path, vault: Path) -> list[Path]:
     return sorted(files, key=lambda p: p.relative_to(vault).as_posix().casefold())
 
 
-def inventory_sources(policy: RecallPolicy) -> tuple[SourceInventory, ...]:
+def inventory_sources(
+    policy: RecallPolicy,
+    *,
+    max_files: int | None = None,
+    max_file_bytes: int | None = None,
+    max_total_bytes: int | None = None,
+    deadline: float | None = None,
+    cancellation: CancellationCheck | None = None,
+) -> tuple[SourceInventory, ...]:
     vault, roots = resolve_roots(policy)
     records: list[SourceInventory] = []
     seen: set[str] = set()
     for path in (p for root in roots for p in _walk(root, vault)):
+        _guard(deadline, cancellation)
+        if max_files is not None and len(records) >= max_files:
+            raise PolicyError("source_boundary:resource_limit")
         relpath = path.relative_to(vault).as_posix()
         key = relpath.casefold()
         if key in seen:
@@ -125,8 +171,9 @@ def inventory_sources(policy: RecallPolicy) -> tuple[SourceInventory, ...]:
             continue
         try:
             stat_before = path.stat()
-            with path.open("rb") as stream:
-                data = stream.read()
+            data = _bounded_read(
+                path, max_bytes=max_file_bytes, deadline=deadline, cancellation=cancellation
+            )
             stat_after = path.stat()
         except OSError as exc:
             raise PolicyError("source_boundary:read_failed") from exc
@@ -137,6 +184,8 @@ def inventory_sources(policy: RecallPolicy) -> tuple[SourceInventory, ...]:
         records.append(SourceInventory(
             relpath, len(data), stat_after.st_mtime_ns, hashlib.sha256(data).hexdigest()
         ))
+        if max_total_bytes is not None and sum(record.size for record in records) > max_total_bytes:
+            raise PolicyError("source_boundary:resource_limit")
     return tuple(records)
 
 
@@ -146,16 +195,36 @@ def build_corpus(policy: RecallPolicy, inventory: tuple[SourceInventory, ...]) -
 
 
 def acquire_sources(
-    policy: RecallPolicy, inventory: tuple[SourceInventory, ...]
+    policy: RecallPolicy,
+    inventory: tuple[SourceInventory, ...],
+    *,
+    max_file_bytes: int | None = None,
+    max_total_bytes: int | None = None,
+    deadline: float | None = None,
+    cancellation: CancellationCheck | None = None,
 ) -> tuple[AcquiredSource, ...]:
     """Open each policy-authorized frozen source once, retaining only verified bytes."""
     acquired: list[AcquiredSource] = []
     for source in inventory:
+        _guard(deadline, cancellation)
         label = policy.classify(source.relpath)
         if label is None or not within_ceiling(label, policy.max_sensitivity):
             raise PolicyError("source_boundary:unclassified")
-        path, data = read_frozen_source(policy, source)
+        if max_file_bytes is None and deadline is None and cancellation is None:
+            # Preserve the exact legacy call shape for benchmark instrumentation.
+            path, data = read_frozen_source(policy, source)
+        else:
+            path, data = read_frozen_source(
+                policy,
+                source,
+                max_file_bytes=max_file_bytes,
+                deadline=deadline,
+                cancellation=cancellation,
+            )
         acquired.append(AcquiredSource(source, path, data))
+        total = sum(len(item.data) for item in acquired)
+        if max_total_bytes is not None and total > max_total_bytes:
+            raise PolicyError("source_boundary:resource_limit")
     return tuple(acquired)
 
 
@@ -188,7 +257,14 @@ def build_corpus_from_acquired(
     return notes
 
 
-def read_frozen_source(policy: RecallPolicy, source: SourceInventory) -> tuple[Path, bytes]:
+def read_frozen_source(
+    policy: RecallPolicy,
+    source: SourceInventory,
+    *,
+    max_file_bytes: int | None = None,
+    deadline: float | None = None,
+    cancellation: CancellationCheck | None = None,
+) -> tuple[Path, bytes]:
     """Recheck path, metadata, and exact bytes before using a frozen source."""
     vault = policy.vault_root.resolve(strict=True)
     path = vault / Path(source.relpath)
@@ -196,8 +272,9 @@ def read_frozen_source(policy: RecallPolicy, source: SourceInventory) -> tuple[P
         if _is_reparse(path) or not _inside(path.resolve(strict=True), vault):
             raise PolicyError("source_boundary:changed_path")
         before = path.stat()
-        with path.open("rb") as stream:
-            data = stream.read()
+        data = _bounded_read(
+            path, max_bytes=max_file_bytes, deadline=deadline, cancellation=cancellation
+        )
         after = path.stat()
     except OSError as exc:
         raise PolicyError("source_boundary:read_failed") from exc

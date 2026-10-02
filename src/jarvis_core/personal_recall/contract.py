@@ -2,12 +2,60 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import Enum
-from pathlib import Path, PurePosixPath
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Protocol
 
 PERSONAL_RECALL_CONTRACT_VERSION = "jarvis.personal-recall.v1"
+_SENSITIVITIES = frozenset({"public", "internal", "private"})
+_IDENTITY_KINDS = frozenset({"explicit", "path_derived"})
+_COVERAGES = frozenset({"complete", "partial", "incomplete", "none", "supported"})
+_RESULT_COVERAGES = frozenset({"complete", "partial", "incomplete", "none"})
+_LIMITATIONS = frozenset(
+    {
+        "RETRIEVE_ONLY",
+        "LEXICAL_SEARCH",
+        "TOP_K_LIMIT",
+        "AUTHORIZED_SCOPE_ONLY",
+        "NO_MATCH",
+        "NO_SEARCHABLE_TERMS",
+    }
+)
+_FINGERPRINT = "sha256:"
+
+
+def _text(value: object, name: str, *, maximum: int, minimum: int = 0) -> str:
+    if type(value) is not str or not minimum <= len(value) <= maximum:
+        raise ValueError(name)
+    return value
+
+
+def _fingerprint(value: object, name: str) -> str:
+    text = _text(value, name, maximum=71, minimum=71)
+    if not text.startswith(_FINGERPRINT) or any(
+        character not in "0123456789abcdef" for character in text[7:]
+    ):
+        raise ValueError(name)
+    return text
+
+
+def _relative_path(value: object) -> str:
+    text = _text(value, "relative_path", maximum=1_024, minimum=1)
+    windows = PureWindowsPath(text)
+    posix = PurePosixPath(text)
+    if (
+        windows.is_absolute()
+        or posix.is_absolute()
+        or windows.drive
+        or windows.root
+        or "\\" in text
+        or ".." in windows.parts
+        or ".." in posix.parts
+    ):
+        raise ValueError("relative_path")
+    return text
 
 
 class RecallStatus(str, Enum):
@@ -102,6 +150,21 @@ class RecallLocator:
     line_start: int
     line_end: int
 
+    def __post_init__(self) -> None:
+        if type(self.heading_path) is not tuple or len(self.heading_path) > 64:
+            raise ValueError("heading_path")
+        for value in self.heading_path:
+            _text(value, "heading", maximum=256)
+        for name in ("line_start", "line_end"):
+            value = getattr(self, name)
+            if type(value) is not int or value < 0:
+                raise ValueError(name)
+        supported = self.line_start > 0 or self.line_end > 0
+        if supported and (self.line_start < 1 or self.line_end < self.line_start):
+            raise ValueError("locator")
+        if not supported and (self.line_start, self.line_end) != (0, 0):
+            raise ValueError("locator")
+
 
 @dataclass(frozen=True)
 class RecallCandidate:
@@ -119,18 +182,36 @@ class RecallCandidate:
     citation_coverage: str
 
     def __post_init__(self) -> None:
-        path = PurePosixPath(self.relative_path)
-        if path.is_absolute() or ".." in path.parts or "\\" in self.relative_path:
-            raise ValueError("relative_path")
-        if not 1 <= self.rank <= 5 or len(self.source_id) > 512 or len(self.title) > 256:
-            raise ValueError("candidate bounds")
-        if len(self.relative_path) > 1_024 or len(self.reason) > 512 or len(self.excerpt) > 600:
-            raise ValueError("candidate bounds")
-        if len(self.locator.heading_path) > 64 or any(
-            len(v) > 256 for v in self.locator.heading_path
+        if type(self.rank) is not int or not 1 <= self.rank <= 5:
+            raise ValueError("rank")
+        _text(self.source_id, "source_id", maximum=512, minimum=1)
+        if self.source_identity_kind not in _IDENTITY_KINDS:
+            raise ValueError("source_identity_kind")
+        _text(self.title, "title", maximum=256)
+        _relative_path(self.relative_path)
+        if self.sensitivity not in _SENSITIVITIES:
+            raise ValueError("sensitivity")
+        _fingerprint(self.revision_fingerprint, "revision_fingerprint")
+        if type(self.locator) is not RecallLocator:
+            raise ValueError("locator")
+        excerpt = _text(self.excerpt, "excerpt", maximum=600)
+        if excerpt.count("\n") > 5:
+            raise ValueError("excerpt")
+        supported = self.locator.line_start > 0
+        if supported and not excerpt:
+            raise ValueError("excerpt")
+        if not supported and excerpt:
+            raise ValueError("excerpt")
+        _text(self.reason, "reason", maximum=512)
+        if self.citation_coverage not in _COVERAGES:
+            raise ValueError("citation_coverage")
+        relevance = self.relative_relevance
+        if relevance is not None and (
+            type(relevance) not in (int, float)
+            or isinstance(relevance, bool)
+            or not math.isfinite(relevance)
+            or not 0 <= relevance <= 1
         ):
-            raise ValueError("locator bounds")
-        if self.relative_relevance is not None and not 0 <= self.relative_relevance <= 1:
             raise ValueError("relevance")
 
 
@@ -155,6 +236,50 @@ class RecallResult:
     limitations: tuple[str, ...] = ()
     candidates: tuple[RecallCandidate, ...] = ()
     error_code: RecallErrorCode | None = None
+
+    def __post_init__(self) -> None:
+        if self.contract_version != PERSONAL_RECALL_CONTRACT_VERSION:
+            raise ValueError("contract")
+        _text(self.session_instance, "session_instance", maximum=128, minimum=1)
+        if type(self.generation) is not int or self.generation < 0:
+            raise ValueError("generation")
+        _text(self.request_id, "request_id", maximum=64, minimum=1)
+        if type(self.status) is not RecallStatus:
+            raise ValueError("status")
+        if (
+            self.result_type != "ranked_retrieval_candidates"
+            or self.resolution != "unresolved"
+            or self.answer_claim != "none"
+            or self.mode != "retrieve_only"
+            or self.destination != "local_no_provider"
+            or self.sensitivity_ceiling != "private"
+        ):
+            raise ValueError("result constants")
+        for name in ("policy_id", "policy_version"):
+            _text(getattr(self, name), name, maximum=256)
+        for name in ("policy_digest", "root_digest"):
+            value = getattr(self, name)
+            if value and (len(value) != 64 or any(c not in "0123456789abcdef" for c in value)):
+                raise ValueError(name)
+        if self.coverage not in _RESULT_COVERAGES:
+            raise ValueError("coverage")
+        if type(self.limitations) is not tuple or any(
+            item not in _LIMITATIONS for item in self.limitations
+        ):
+            raise ValueError("limitations")
+        if (
+            type(self.candidates) is not tuple
+            or len(self.candidates) > 5
+            or any(type(item) is not RecallCandidate for item in self.candidates)
+        ):
+            raise ValueError("candidates")
+        if self.status is not RecallStatus.COMPLETED and self.candidates:
+            raise ValueError("candidates")
+        if self.error_code is None:
+            if self.status is not RecallStatus.COMPLETED:
+                raise ValueError("error_code")
+        elif type(self.error_code) is not RecallErrorCode or self.status is RecallStatus.COMPLETED:
+            raise ValueError("error_code")
 
 
 @dataclass(frozen=True)

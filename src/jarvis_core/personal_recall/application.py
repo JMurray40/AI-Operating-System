@@ -35,6 +35,30 @@ from jarvis_core.providers.base import ProviderResponse
 from jarvis_core.query.engine import QueryEngine
 from jarvis_core.query.passages import validate_against_text
 
+_MAX_SESSIONS = 8
+_POLICY_CODES = {
+    "source_boundary:cancelled": RecallErrorCode.CANCELLED,
+    "source_boundary:duplicate_identity": RecallErrorCode.DUPLICATE_IDENTITY,
+    "source_boundary:parse_input": RecallErrorCode.MALFORMED_SOURCE,
+    "source_boundary:parse_failure": RecallErrorCode.MALFORMED_SOURCE,
+    "source_boundary:resource_limit": RecallErrorCode.RESOURCE_LIMIT,
+    "source_boundary:deadline": RecallErrorCode.RESOURCE_LIMIT,
+    "source_boundary:fingerprint_changed": RecallErrorCode.STALE_SOURCE,
+    "source_boundary:changed_during_read": RecallErrorCode.STALE_SOURCE,
+    "source_boundary:changed_path": RecallErrorCode.STALE_SOURCE,
+    "source_boundary:metadata_unavailable": RecallErrorCode.SOURCE_UNAVAILABLE,
+    "source_boundary:read_failed": RecallErrorCode.SOURCE_UNAVAILABLE,
+    "source_boundary:scan_failed": RecallErrorCode.SOURCE_UNAVAILABLE,
+    "source_boundary:resolve_failed": RecallErrorCode.SOURCE_UNAVAILABLE,
+    "preflight:root_unavailable": RecallErrorCode.SOURCE_UNAVAILABLE,
+    "preflight:include_unavailable": RecallErrorCode.SOURCE_UNAVAILABLE,
+    "source_boundary:unclassified": RecallErrorCode.SCOPE_DENIED,
+    "source_boundary:reparse": RecallErrorCode.SOURCE_BOUNDARY,
+    "source_boundary:escape": RecallErrorCode.SOURCE_BOUNDARY,
+    "preflight:root_reparse": RecallErrorCode.SOURCE_BOUNDARY,
+    "preflight:include_boundary": RecallErrorCode.SOURCE_BOUNDARY,
+}
+
 
 class _DenyProvider:
     name = "recall-deny-provider"
@@ -53,12 +77,19 @@ class _CombinedCancellation:
 
 
 @dataclass
+class _Operation:
+    request_id: str
+    generation: int
+    cancellation: threading.Event = field(default_factory=threading.Event)
+    terminal: RecallResult | None = None
+
+
+@dataclass
 class _Session:
     generation: int = 0
     closed: bool = False
-    active_request: str | None = None
-    terminal: set[str] = field(default_factory=set)
-    cancellation: threading.Event = field(default_factory=threading.Event)
+    active: _Operation | None = None
+    terminal: dict[str, RecallResult] = field(default_factory=dict)
     lock: threading.Lock = field(default_factory=threading.Lock)
 
 
@@ -72,52 +103,59 @@ class PersonalRecallApplication:
 
     def open_session(self) -> RecallSessionRef:
         with self._lock:
-            if len(self._sessions) >= 16:
+            if len(self._sessions) >= _MAX_SESSIONS:
                 raise RuntimeError("session limit")
             identity = uuid.uuid4().hex
             self._sessions[identity] = _Session()
         return RecallSessionRef(identity, 0)
 
-    def _session(self, ref: RecallSessionRef) -> _Session | None:
+    def _live(self, ref: RecallSessionRef) -> _Session | None:
         with self._lock:
             value = self._sessions.get(ref.session_instance)
-        return (
-            value
-            if value is not None and value.generation == ref.generation and not value.closed
-            else None
-        )
+        if value is None or value.closed or value.generation != ref.generation:
+            return None
+        return value
 
     def reset(self, session: RecallSessionRef) -> RecallSessionRef:
-        current = self._session(session)
-        if current is None:
+        with self._lock:
+            current = self._sessions.get(session.session_instance)
+        if current is None or current.closed or current.generation != session.generation:
             return session
         with current.lock:
-            current.cancellation.set()
+            if current.closed or current.generation != session.generation:
+                return session
+            if current.active is not None:
+                current.active.cancellation.set()
             current.generation += 1
-            current.active_request = None
+            current.active = None
             current.terminal.clear()
-            current.cancellation = threading.Event()
             return RecallSessionRef(session.session_instance, current.generation)
 
     def close(self, session: RecallSessionRef) -> None:
         with self._lock:
             current = self._sessions.get(session.session_instance)
-        if current is not None:
-            with current.lock:
-                current.cancellation.set()
-                current.closed = True
-                current.active_request = None
+        if current is None:
+            return
+        with current.lock:
+            if current.active is not None:
+                current.active.cancellation.set()
+            current.closed = True
+            current.active = None
 
     def cancel(self, session: RecallSessionRef, request_id: str) -> RecallCancelResult:
-        current = self._session(session)
+        current = self._live(session)
         if current is None:
             return RecallCancelResult(request_id, RecallCancelStatus.UNKNOWN_REQUEST)
         with current.lock:
-            if request_id in current.terminal:
-                return RecallCancelResult(request_id, RecallCancelStatus.ALREADY_TERMINAL)
-            if current.active_request != request_id:
+            if current.generation != session.generation or current.closed:
                 return RecallCancelResult(request_id, RecallCancelStatus.UNKNOWN_REQUEST)
-            current.cancellation.set()
+            published = current.terminal.get(request_id)
+            if published is not None:
+                return RecallCancelResult(request_id, RecallCancelStatus.ALREADY_TERMINAL)
+            active = current.active
+            if active is None or active.request_id != request_id:
+                return RecallCancelResult(request_id, RecallCancelStatus.UNKNOWN_REQUEST)
+            active.cancellation.set()
             return RecallCancelResult(request_id, RecallCancelStatus.REQUESTED)
 
     def recall(
@@ -126,7 +164,7 @@ class PersonalRecallApplication:
         request: RecallRequest,
         cancellation: RecallCancellation,
     ) -> RecallResult:
-        current = self._session(session)
+        current = self._live(session)
         if current is None:
             return self._failure(session, request.request_id, RecallErrorCode.SESSION_INVALID)
         try:
@@ -134,25 +172,51 @@ class PersonalRecallApplication:
         except (ValueError, TypeError):
             return self._failure(session, request.request_id, RecallErrorCode.INVALID_REQUEST)
         with current.lock:
-            if current.active_request is not None:
+            if current.closed or current.generation != session.generation:
+                return self._failure(session, request.request_id, RecallErrorCode.SESSION_INVALID)
+            if request.request_id in current.terminal or (
+                current.active is not None and current.active.request_id == request.request_id
+            ):
                 return self._failure(session, request.request_id, RecallErrorCode.BUSY)
-            current.active_request = request.request_id
-            current.cancellation.clear()
-            generation = current.generation
-        combined = _CombinedCancellation(cancellation, current.cancellation)
+            if current.active is not None:
+                return self._failure(session, request.request_id, RecallErrorCode.BUSY)
+            operation = _Operation(request.request_id, current.generation)
+            current.active = operation
+        combined = _CombinedCancellation(cancellation, operation.cancellation)
         try:
-            result = self._execute(session, generation, request, combined)
-        finally:
-            with current.lock:
-                if current.active_request == request.request_id:
-                    current.active_request = None
-                    current.terminal.add(request.request_id)
+            result = self._execute(session, operation.generation, request, combined)
+        except Exception:
+            result = self._failure(session, request.request_id, RecallErrorCode.INTERNAL_FAILURE)
+        return self._publish(current, operation, result, combined)
+
+    def _publish(
+        self,
+        current: _Session,
+        operation: _Operation,
+        result: RecallResult,
+        cancellation: RecallCancellation,
+    ) -> RecallResult:
+        """Publish exactly one terminal result for this operation, under its session lock."""
         with current.lock:
-            if current.generation != generation or current.closed or combined.is_requested():
-                return self._failure(
-                    session, request.request_id, RecallErrorCode.CANCELLED, RecallStatus.CANCELLED
+            superseded = (
+                current.closed
+                or current.generation != operation.generation
+                or operation.cancellation.is_set()
+                or cancellation.is_requested()
+            )
+            if superseded and result.status is not RecallStatus.CANCELLED:
+                result = self._failure(
+                    RecallSessionRef(result.session_instance, operation.generation),
+                    operation.request_id,
+                    RecallErrorCode.CANCELLED,
+                    RecallStatus.CANCELLED,
                 )
-        return result
+            operation.terminal = result
+            if current.active is operation:
+                current.active = None
+            if current.generation == operation.generation and not current.closed:
+                current.terminal[operation.request_id] = result
+            return result
 
     def _execute(
         self,
@@ -255,9 +319,7 @@ class PersonalRecallApplication:
                 "AUTHORIZED_SCOPE_ONLY",
             ]
             if not candidates:
-                limitations.append(
-                    "NO_MATCH" if request.question.strip() else "NO_SEARCHABLE_TERMS"
-                )
+                limitations.append("NO_MATCH")
             coverage = answer.citation_coverage()["label"]
             if not isinstance(coverage, str):
                 return self._failure(session, request.request_id, RecallErrorCode.INTERNAL_FAILURE)
@@ -279,8 +341,6 @@ class PersonalRecallApplication:
             return self._failure(session, request.request_id, self._map_policy(exc))
         except (OSError, UnicodeError):
             return self._failure(session, request.request_id, RecallErrorCode.SOURCE_UNAVAILABLE)
-        except Exception:
-            return self._failure(session, request.request_id, RecallErrorCode.INTERNAL_FAILURE)
 
     def _failure(
         self,
@@ -303,15 +363,4 @@ class PersonalRecallApplication:
 
     @staticmethod
     def _map_policy(exc: PolicyError) -> RecallErrorCode:
-        text = str(exc)
-        if "duplicate" in text:
-            return RecallErrorCode.DUPLICATE_IDENTITY
-        if "parse" in text:
-            return RecallErrorCode.MALFORMED_SOURCE
-        if "limit" in text or "deadline" in text:
-            return RecallErrorCode.RESOURCE_LIMIT
-        if "fingerprint" in text or "changed" in text:
-            return RecallErrorCode.STALE_SOURCE
-        if "unavailable" in text or "read_failed" in text:
-            return RecallErrorCode.SOURCE_UNAVAILABLE
-        return RecallErrorCode.SOURCE_BOUNDARY
+        return _POLICY_CODES.get(str(exc), RecallErrorCode.INTERNAL_FAILURE)

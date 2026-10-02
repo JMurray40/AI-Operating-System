@@ -1,4 +1,5 @@
 """Windows-safe, read-only discovery and parsing for the authorized vault view."""
+
 from __future__ import annotations
 
 import hashlib
@@ -17,10 +18,22 @@ from jarvis_core.policy.sensitivity import within_ceiling
 
 _REPARSE = 0x400
 _HIDDEN = 0x2
-_EXCLUDED_PARTS = frozenset({
-    "attachments", "templates", "archive", "archives", "conversations", "sessions",
-    "cache", "caches", "config", "configuration", "legacy-memory", "legacy_memory",
-})
+_EXCLUDED_PARTS = frozenset(
+    {
+        "attachments",
+        "templates",
+        "archive",
+        "archives",
+        "conversations",
+        "sessions",
+        "cache",
+        "caches",
+        "config",
+        "configuration",
+        "legacy-memory",
+        "legacy_memory",
+    }
+)
 
 
 class CancellationCheck(Protocol):
@@ -41,18 +54,27 @@ def _bounded_read(
     deadline: float | None,
     cancellation: CancellationCheck | None,
 ) -> bytes:
+    """Read at most cap+1 bytes so a file that grows while open still fails closed."""
     chunks: list[bytes] = []
     total = 0
+    ceiling = None if max_bytes is None else max_bytes + 1
     with path.open("rb") as stream:
         while True:
             _guard(deadline, cancellation)
-            chunk = stream.read(65_536)
+            if ceiling is None:
+                request = 65_536
+            else:
+                remaining = ceiling - total
+                if remaining <= 0:
+                    break
+                request = min(65_536, remaining)
+            chunk = stream.read(request)
             if not chunk:
                 break
             total += len(chunk)
+            chunks.append(chunk)
             if max_bytes is not None and total > max_bytes:
                 raise PolicyError("source_boundary:resource_limit")
-            chunks.append(chunk)
     return b"".join(chunks)
 
 
@@ -80,6 +102,18 @@ def _is_reparse(path: Path) -> bool:
         raise PolicyError("source_boundary:metadata_unavailable") from exc
 
 
+def _component_is_reparse(path: Path, boundary: Path) -> bool:
+    """True when ``path`` or any ancestor down to ``boundary`` is a reparse point."""
+    current = path
+    boundary_key = str(boundary).casefold()
+    while True:
+        if _is_reparse(current):
+            return True
+        if str(current).casefold() == boundary_key or current.parent == current:
+            return False
+        current = current.parent
+
+
 def _inside(path: Path, root: Path) -> bool:
     try:
         return os.path.commonpath((str(path), str(root))) == str(root)
@@ -95,6 +129,9 @@ def resolve_roots(policy: RecallPolicy) -> tuple[Path, tuple[Path, ...]]:
         raise PolicyError("preflight:root_unavailable") from exc
     if _is_reparse(vault):
         raise PolicyError("preflight:root_reparse")
+    anchor = vault.anchor
+    if anchor and _component_is_reparse(vault.parent, Path(anchor)):
+        raise PolicyError("preflight:root_reparse")
     roots: list[Path] = []
     for name in policy.include_roots:
         candidate = vault / name
@@ -102,31 +139,62 @@ def resolve_roots(policy: RecallPolicy) -> tuple[Path, tuple[Path, ...]]:
             resolved = candidate.resolve(strict=True)
         except OSError as exc:
             raise PolicyError("preflight:include_unavailable") from exc
-        if _is_reparse(candidate) or not _inside(resolved, vault) or not resolved.is_dir():
+        if (
+            _component_is_reparse(candidate, vault)
+            or not _inside(resolved, vault)
+            or not resolved.is_dir()
+        ):
             raise PolicyError("preflight:include_boundary")
         roots.append(resolved)
     return vault, tuple(roots)
 
 
-def _walk(root: Path, vault: Path) -> list[Path]:
+_MAX_WALK_ENTRIES = 10_000
+_MAX_WALK_DEPTH = 32
+
+
+def _walk(
+    root: Path,
+    vault: Path,
+    *,
+    deadline: float | None = None,
+    cancellation: CancellationCheck | None = None,
+    max_entries: int = _MAX_WALK_ENTRIES,
+    max_depth: int = _MAX_WALK_DEPTH,
+) -> list[Path]:
+    """Walk one approved root with a fixed entry budget, depth cap, and per-entry guard.
+
+    The entry budget counts every directory entry examined, including entries that are
+    then skipped. Exceeding it or the depth cap fails the whole walk; it never returns a
+    partial file list. Defaults preserve the accepted corpus behavior for callers that
+    do not pass controls.
+    """
     files: list[Path] = []
-    pending = [root]
+    pending: list[tuple[Path, int]] = [(root, 1)]
+    examined = 0
     while pending:
-        current = pending.pop()
+        current, depth = pending.pop()
         try:
             entries = sorted(os.scandir(current), key=lambda e: e.name.casefold())
         except OSError as exc:
             raise PolicyError("source_boundary:scan_failed") from exc
         for entry in entries:
+            _guard(deadline, cancellation)
+            examined += 1
+            if examined > max_entries:
+                raise PolicyError("source_boundary:resource_limit")
             path = Path(entry.path)
             try:
                 attributes = getattr(entry.stat(follow_symlinks=False), "st_file_attributes", 0)
             except OSError as exc:
                 raise PolicyError("source_boundary:metadata_unavailable") from exc
-            if (entry.name.startswith(".") or entry.name.casefold() in _EXCLUDED_PARTS
-                    or attributes & _HIDDEN):
+            if (
+                entry.name.startswith(".")
+                or entry.name.casefold() in _EXCLUDED_PARTS
+                or attributes & _HIDDEN
+            ):
                 continue
-            if entry.is_symlink() or _is_reparse(path):
+            if entry.is_symlink() or _component_is_reparse(path, vault):
                 raise PolicyError("source_boundary:reparse")
             try:
                 resolved = path.resolve(strict=True)
@@ -135,7 +203,9 @@ def _walk(root: Path, vault: Path) -> list[Path]:
             if not _inside(resolved, vault):
                 raise PolicyError("source_boundary:escape")
             if entry.is_dir(follow_symlinks=False):
-                pending.append(path)
+                if depth + 1 > max_depth:
+                    raise PolicyError("source_boundary:resource_limit")
+                pending.append((path, depth + 1))
             elif entry.is_file(follow_symlinks=False):
                 if path.suffix.casefold() != ".md":
                     continue
@@ -155,7 +225,11 @@ def inventory_sources(
     vault, roots = resolve_roots(policy)
     records: list[SourceInventory] = []
     seen: set[str] = set()
-    for path in (p for root in roots for p in _walk(root, vault)):
+    for path in (
+        p
+        for root in roots
+        for p in _walk(root, vault, deadline=deadline, cancellation=cancellation)
+    ):
         _guard(deadline, cancellation)
         if max_files is not None and len(records) >= max_files:
             raise PolicyError("source_boundary:resource_limit")
@@ -178,13 +252,17 @@ def inventory_sources(
         except OSError as exc:
             raise PolicyError("source_boundary:read_failed") from exc
         if (stat_before.st_size, stat_before.st_mtime_ns) != (
-            stat_after.st_size, stat_after.st_mtime_ns
+            stat_after.st_size,
+            stat_after.st_mtime_ns,
         ):
             raise PolicyError("source_boundary:changed_during_read")
-        records.append(SourceInventory(
-            relpath, len(data), stat_after.st_mtime_ns, hashlib.sha256(data).hexdigest()
-        ))
-        if max_total_bytes is not None and sum(record.size for record in records) > max_total_bytes:
+        records.append(
+            SourceInventory(
+                relpath, len(data), stat_after.st_mtime_ns, hashlib.sha256(data).hexdigest()
+            )
+        )
+        total_bytes = sum(record.size for record in records)
+        if max_total_bytes is not None and total_bytes > max_total_bytes:
             raise PolicyError("source_boundary:resource_limit")
     return tuple(records)
 
@@ -247,13 +325,15 @@ def build_corpus_from_acquired(
             raise PolicyError("source_boundary:parse_failure")
         frontmatter = dict(parsed.frontmatter)
         frontmatter["sensitivity"] = label
-        notes.append(replace(
-            parsed,
-            frontmatter=frontmatter,
-            source_text=text,
-            source_fingerprint="sha256:" + source.sha256,
-            source_bytes=data,
-        ))
+        notes.append(
+            replace(
+                parsed,
+                frontmatter=frontmatter,
+                source_text=text,
+                source_fingerprint="sha256:" + source.sha256,
+                source_bytes=data,
+            )
+        )
     return notes
 
 
@@ -269,7 +349,7 @@ def read_frozen_source(
     vault = policy.vault_root.resolve(strict=True)
     path = vault / Path(source.relpath)
     try:
-        if _is_reparse(path) or not _inside(path.resolve(strict=True), vault):
+        if _component_is_reparse(path, vault) or not _inside(path.resolve(strict=True), vault):
             raise PolicyError("source_boundary:changed_path")
         before = path.stat()
         data = _bounded_read(
@@ -278,16 +358,20 @@ def read_frozen_source(
         after = path.stat()
     except OSError as exc:
         raise PolicyError("source_boundary:read_failed") from exc
-    if ((before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns)
-            or len(data) != source.size
-            or after.st_mtime_ns != source.mtime_ns
-            or hashlib.sha256(data).hexdigest() != source.sha256):
+    if (
+        (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns)
+        or len(data) != source.size
+        or after.st_mtime_ns != source.mtime_ns
+        or hashlib.sha256(data).hexdigest() != source.sha256
+    ):
         raise PolicyError("source_boundary:fingerprint_changed")
     return path, data
 
 
 def materialize_private_snapshot(
-    policy: RecallPolicy, acquired: tuple[AcquiredSource, ...], destination: Path,
+    policy: RecallPolicy,
+    acquired: tuple[AcquiredSource, ...],
+    destination: Path,
 ) -> None:
     """Create one exclusive private copy from fully verified in-memory source bytes."""
     if destination.exists() or not destination.parent.is_dir():
@@ -295,20 +379,26 @@ def materialize_private_snapshot(
     identities: set[str] = set()
     for item in acquired:
         relpath = PurePosixPath(item.inventory.relpath)
-        if (not relpath.parts or relpath.is_absolute() or ".." in relpath.parts
-                or relpath.parts[0] not in policy.include_roots
-                or relpath.suffix.casefold() != ".md"
-                or not within_ceiling(
-                    policy.classify(item.inventory.relpath) or "restricted",
-                    policy.max_sensitivity,
-                )):
+        if (
+            not relpath.parts
+            or relpath.is_absolute()
+            or ".." in relpath.parts
+            or relpath.parts[0] not in policy.include_roots
+            or relpath.suffix.casefold() != ".md"
+            or not within_ceiling(
+                policy.classify(item.inventory.relpath) or "restricted",
+                policy.max_sensitivity,
+            )
+        ):
             raise PolicyError("snapshot:source_boundary")
         identity = item.inventory.relpath.casefold()
         if identity in identities:
             raise PolicyError("snapshot:duplicate_identity")
         identities.add(identity)
-        if (len(item.data) != item.inventory.size
-                or hashlib.sha256(item.data).hexdigest() != item.inventory.sha256):
+        if (
+            len(item.data) != item.inventory.size
+            or hashlib.sha256(item.data).hexdigest() != item.inventory.sha256
+        ):
             raise PolicyError("snapshot:fingerprint_mismatch")
     destination.mkdir()
     for name in policy.include_roots:
@@ -339,6 +429,7 @@ def verify_private_snapshot(
             parent = parent.parent
     observed: set[str] = set()
     folded: set[str] = set()
+
     def scan_error(_error: OSError) -> None:
         raise PolicyError("snapshot:scan_failed")
 
@@ -353,8 +444,12 @@ def verify_private_snapshot(
             path = current_path / name
             relpath = path.relative_to(root).as_posix()
             folded_name = relpath.casefold()
-            if (_is_reparse(path) or relpath not in expected_files
-                    or path.suffix.casefold() != ".md" or folded_name in folded):
+            if (
+                _is_reparse(path)
+                or relpath not in expected_files
+                or path.suffix.casefold() != ".md"
+                or folded_name in folded
+            ):
                 raise PolicyError("snapshot:unexpected_entry")
             folded.add(folded_name)
             observed.add(relpath)

@@ -182,15 +182,62 @@ def test_cancel_publication_has_one_winner(tmp_path: Path) -> None:
     assert app.cancel(session, "race").status.value == "already_terminal"
 
 
-def test_walk_entry_budget_fails_closed(tmp_path: Path) -> None:
+def test_session_reap_after_close(tmp_path: Path) -> None:
+    app = PersonalRecallApplication(binding(tmp_path))
+    refs = [app.open_session() for _ in range(8)]
+    for ref in refs:
+        app.close(ref)
+    ninth = app.open_session()
+    assert ninth.session_instance not in {ref.session_instance for ref in refs}
+
+
+def test_cross_generation_request_id_is_busy(tmp_path: Path) -> None:
+    app = PersonalRecallApplication(binding(tmp_path))
+    session = app.open_session()
+    token = Token()
+    request = RecallRequest(PERSONAL_RECALL_CONTRACT_VERSION, "reuse", "Aurora")
+    first = app.recall(session, request, token)
+    assert first.status is RecallStatus.COMPLETED
+    reset = app.reset(session)
+    second = app.recall(reset, request, token)
+    assert second.error_code is RecallErrorCode.BUSY
+
+
+def test_depth_32_cap_fails_closed(tmp_path: Path) -> None:
     bound = binding(tmp_path)
+    deep = bound.fixture_root / "02 Projects"
+    for index in range(32):
+        deep /= f"d{index}"
+    deep.mkdir(parents=True)
+    (deep / "note.md").write_text("# Deep\\n", encoding="utf-8")
     policy = load_policy(bound.policy_path)
     with pytest.raises(PolicyError, match="resource_limit"):
-        inventory_sources(policy, max_files=1)
-    for index in range(3):
+        inventory_sources(policy)
+
+
+def test_entry_budget_is_whole_inventory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    bound = binding(tmp_path)
+    policy = load_policy(bound.policy_path)
+    for index in range(5):
         (bound.fixture_root / "00 Inbox" / f"n{index}.md").write_text("# n\n", encoding="utf-8")
+        (bound.fixture_root / "01 Daily Notes" / f"n{index}.md").write_text(
+            "# n\n", encoding="utf-8"
+        )
+    monkeypatch.setattr("jarvis_core.personal_recall.corpus._MAX_WALK_ENTRIES", 8)
     with pytest.raises(PolicyError, match="resource_limit"):
-        inventory_sources(policy, max_files=1)
+        inventory_sources(policy)
+
+
+def test_single_directory_entry_budget_stops_before_unbounded_sort(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bound = binding(tmp_path)
+    policy = load_policy(bound.policy_path)
+    for index in range(20):
+        (bound.fixture_root / "00 Inbox" / f"n{index}.txt").write_text("x", encoding="utf-8")
+    monkeypatch.setattr("jarvis_core.personal_recall.corpus._MAX_WALK_ENTRIES", 8)
+    with pytest.raises(PolicyError, match="resource_limit"):
+        inventory_sources(policy)
 
 
 def test_growing_file_read_stops_at_cap(tmp_path: Path) -> None:

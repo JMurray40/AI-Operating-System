@@ -90,6 +90,7 @@ class _Session:
     closed: bool = False
     active: _Operation | None = None
     terminal: dict[str, RecallResult] = field(default_factory=dict)
+    seen_request_ids: set[str] = field(default_factory=set)
     lock: threading.Lock = field(default_factory=threading.Lock)
 
 
@@ -103,6 +104,13 @@ class PersonalRecallApplication:
 
     def open_session(self) -> RecallSessionRef:
         with self._lock:
+            closed = [
+                identity
+                for identity, session in self._sessions.items()
+                if session.closed
+            ]
+            for identity in closed:
+                del self._sessions[identity]
             if len(self._sessions) >= _MAX_SESSIONS:
                 raise RuntimeError("session limit")
             identity = uuid.uuid4().hex
@@ -129,6 +137,7 @@ class PersonalRecallApplication:
             current.generation += 1
             current.active = None
             current.terminal.clear()
+            # Retain seen_request_ids across generations to prevent replay.
             return RecallSessionRef(session.session_instance, current.generation)
 
     def close(self, session: RecallSessionRef) -> None:
@@ -174,14 +183,17 @@ class PersonalRecallApplication:
         with current.lock:
             if current.closed or current.generation != session.generation:
                 return self._failure(session, request.request_id, RecallErrorCode.SESSION_INVALID)
-            if request.request_id in current.terminal or (
-                current.active is not None and current.active.request_id == request.request_id
+            if (
+                request.request_id in current.terminal
+                or request.request_id in current.seen_request_ids
+                or (current.active is not None and current.active.request_id == request.request_id)
             ):
                 return self._failure(session, request.request_id, RecallErrorCode.BUSY)
             if current.active is not None:
                 return self._failure(session, request.request_id, RecallErrorCode.BUSY)
             operation = _Operation(request.request_id, current.generation)
             current.active = operation
+            current.seen_request_ids.add(request.request_id)
         combined = _CombinedCancellation(cancellation, operation.cancellation)
         try:
             result = self._execute(session, operation.generation, request, combined)

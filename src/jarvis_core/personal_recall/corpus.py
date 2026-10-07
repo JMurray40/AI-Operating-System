@@ -153,6 +153,19 @@ _MAX_WALK_ENTRIES = 10_000
 _MAX_WALK_DEPTH = 32
 
 
+class _WalkBudget:
+    """One entry budget shared by every approved root in an inventory."""
+
+    def __init__(self, maximum: int) -> None:
+        self.maximum = maximum
+        self.examined = 0
+
+    def consume(self) -> None:
+        self.examined += 1
+        if self.examined > self.maximum:
+            raise PolicyError("source_boundary:resource_limit")
+
+
 def _walk(
     root: Path,
     vault: Path,
@@ -161,6 +174,7 @@ def _walk(
     cancellation: CancellationCheck | None = None,
     max_entries: int = _MAX_WALK_ENTRIES,
     max_depth: int = _MAX_WALK_DEPTH,
+    budget: _WalkBudget | None = None,
 ) -> list[Path]:
     """Walk one approved root with a fixed entry budget, depth cap, and per-entry guard.
 
@@ -171,18 +185,20 @@ def _walk(
     """
     files: list[Path] = []
     pending: list[tuple[Path, int]] = [(root, 1)]
-    examined = 0
+    shared_budget = budget if budget is not None else _WalkBudget(max_entries)
     while pending:
         current, depth = pending.pop()
         try:
-            entries = sorted(os.scandir(current), key=lambda e: e.name.casefold())
+            entries: list[os.DirEntry[str]] = []
+            with os.scandir(current) as iterator:
+                for entry in iterator:
+                    _guard(deadline, cancellation)
+                    shared_budget.consume()
+                    entries.append(entry)
         except OSError as exc:
             raise PolicyError("source_boundary:scan_failed") from exc
-        for entry in entries:
+        for entry in sorted(entries, key=lambda value: value.name.casefold()):
             _guard(deadline, cancellation)
-            examined += 1
-            if examined > max_entries:
-                raise PolicyError("source_boundary:resource_limit")
             path = Path(entry.path)
             try:
                 attributes = getattr(entry.stat(follow_symlinks=False), "st_file_attributes", 0)
@@ -225,45 +241,49 @@ def inventory_sources(
     vault, roots = resolve_roots(policy)
     records: list[SourceInventory] = []
     seen: set[str] = set()
-    for path in (
-        p
-        for root in roots
-        for p in _walk(root, vault, deadline=deadline, cancellation=cancellation)
-    ):
-        _guard(deadline, cancellation)
-        if max_files is not None and len(records) >= max_files:
-            raise PolicyError("source_boundary:resource_limit")
-        relpath = path.relative_to(vault).as_posix()
-        key = relpath.casefold()
-        if key in seen:
-            raise PolicyError("source_boundary:duplicate_identity")
-        seen.add(key)
-        label = policy.classify(relpath)
-        if label is None:
-            raise PolicyError("source_boundary:unclassified")
-        if not within_ceiling(label, policy.max_sensitivity):
-            continue
-        try:
-            stat_before = path.stat()
-            data = _bounded_read(
-                path, max_bytes=max_file_bytes, deadline=deadline, cancellation=cancellation
-            )
-            stat_after = path.stat()
-        except OSError as exc:
-            raise PolicyError("source_boundary:read_failed") from exc
-        if (stat_before.st_size, stat_before.st_mtime_ns) != (
-            stat_after.st_size,
-            stat_after.st_mtime_ns,
+    budget = _WalkBudget(_MAX_WALK_ENTRIES)
+    for root in roots:
+        for path in _walk(
+            root,
+            vault,
+            deadline=deadline,
+            cancellation=cancellation,
+            budget=budget,
         ):
-            raise PolicyError("source_boundary:changed_during_read")
-        records.append(
-            SourceInventory(
-                relpath, len(data), stat_after.st_mtime_ns, hashlib.sha256(data).hexdigest()
+            _guard(deadline, cancellation)
+            if max_files is not None and len(records) >= max_files:
+                raise PolicyError("source_boundary:resource_limit")
+            relpath = path.relative_to(vault).as_posix()
+            key = relpath.casefold()
+            if key in seen:
+                raise PolicyError("source_boundary:duplicate_identity")
+            seen.add(key)
+            label = policy.classify(relpath)
+            if label is None:
+                raise PolicyError("source_boundary:unclassified")
+            if not within_ceiling(label, policy.max_sensitivity):
+                continue
+            try:
+                stat_before = path.stat()
+                data = _bounded_read(
+                    path, max_bytes=max_file_bytes, deadline=deadline, cancellation=cancellation
+                )
+                stat_after = path.stat()
+            except OSError as exc:
+                raise PolicyError("source_boundary:read_failed") from exc
+            if (stat_before.st_size, stat_before.st_mtime_ns) != (
+                stat_after.st_size,
+                stat_after.st_mtime_ns,
+            ):
+                raise PolicyError("source_boundary:changed_during_read")
+            records.append(
+                SourceInventory(
+                    relpath, len(data), stat_after.st_mtime_ns, hashlib.sha256(data).hexdigest()
+                )
             )
-        )
-        total_bytes = sum(record.size for record in records)
-        if max_total_bytes is not None and total_bytes > max_total_bytes:
-            raise PolicyError("source_boundary:resource_limit")
+            total_bytes = sum(record.size for record in records)
+            if max_total_bytes is not None and total_bytes > max_total_bytes:
+                raise PolicyError("source_boundary:resource_limit")
     return tuple(records)
 
 

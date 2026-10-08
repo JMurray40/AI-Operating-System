@@ -23,6 +23,7 @@ Exit codes:
     6  resume: policy error
     7  resume: budget error
 """
+
 from __future__ import annotations
 
 import argparse
@@ -34,6 +35,7 @@ from pathlib import Path
 from jarvis_core.config import Config, LogLevel, OutputFormat, default_fixture_path
 from jarvis_core.context.loader import ProjectContextLoader, ProjectNotFoundError
 from jarvis_core.context.validator import validate_notes
+from jarvis_core.conversation.cli import add_chat_subparser
 from jarvis_core.health import analyze_vault, compute_vault_fingerprint, render_text
 from jarvis_core.logging_setup import configure_logging
 from jarvis_core.metrics import PerfReport, measure, track_memory
@@ -114,15 +116,19 @@ def _cmd_inspect(args: argparse.Namespace) -> int:
         types[key] = types.get(key, 0) + 1
 
     if config.output_format is OutputFormat.JSON:
-        print(_dumps({
-            "vault": str(repo.root),
-            "note_count": len(notes),
-            "link_count": total_links,
-            "attachment_count": total_attach,
-            "types": dict(sorted(types.items())),
-            "parse_errors": [{"relpath": r, "error": e} for r, e in parse_errors],
-            "notes": [n.relpath for n in notes],
-        }))
+        print(
+            _dumps(
+                {
+                    "vault": str(repo.root),
+                    "note_count": len(notes),
+                    "link_count": total_links,
+                    "attachment_count": total_attach,
+                    "types": dict(sorted(types.items())),
+                    "parse_errors": [{"relpath": r, "error": e} for r, e in parse_errors],
+                    "notes": [n.relpath for n in notes],
+                }
+            )
+        )
     else:
         print(f"Vault: {repo.root}")
         print(f"Notes: {len(notes)} | Links: {total_links} | Attachments: {total_attach}")
@@ -141,8 +147,10 @@ def _print_validation(result: ValidationResult, fmt: OutputFormat) -> None:
     if fmt is OutputFormat.JSON:
         print(_dumps(result.to_dict()))
         return
-    print(f"Validation: {'OK' if result.ok else 'FAILED'} "
-          f"({len(result.errors)} error(s), {len(result.warnings)} warning(s))")
+    print(
+        f"Validation: {'OK' if result.ok else 'FAILED'} "
+        f"({len(result.errors)} error(s), {len(result.warnings)} warning(s))"
+    )
     for issue in sorted(result.issues):
         print(f"  [{issue.severity.value}] {issue.stage.value} {issue.location}: {issue.message}")
 
@@ -252,11 +260,14 @@ def _cmd_vault_report(args: argparse.Namespace) -> int:
     perf.record("total", total.durations["total"])
     perf.peak_memory_bytes = total.peak_memory_bytes
     perf.current_memory_bytes = total.current_memory_bytes
-    generated_at = None if args.deterministic else (
-        datetime.now(timezone.utc).isoformat(timespec="seconds")
+    generated_at = (
+        None if args.deterministic else (datetime.now(timezone.utc).isoformat(timespec="seconds"))
     )
     report = analyze_vault(
-        notes, repo.root, resolution=resolution, validation=validation,
+        notes,
+        repo.root,
+        resolution=resolution,
+        validation=validation,
         perf=perf.to_dict() if args.timing else None,
         generated_at=generated_at,
         vault_version=compute_vault_fingerprint(notes),
@@ -305,21 +316,24 @@ def _print_answer(answer: QueryAnswer, trace: QueryTrace | None, fmt: OutputForm
         for c in supported:
             rel = (
                 f"relative relevance={c.relative_relevance:g}"
-                if c.relative_relevance is not None else "relative relevance=n/a"
+                if c.relative_relevance is not None
+                else "relative relevance=n/a"
             )
             loc = c.locator
             print(
-                f"  - {c.title} ({c.relpath}:{loc.line_start}-{loc.line_end})  "
-                f"[{rel}] {c.reason}"
+                f"  - {c.title} ({c.relpath}:{loc.line_start}-{loc.line_end})  [{rel}] {c.reason}"
             )
     if incomplete:
-        print("\nEvidence coverage incomplete — the following sources were referenced, but "
-              "no claim-supporting passage was found:")
+        print(
+            "\nEvidence coverage incomplete — the following sources were referenced, but "
+            "no claim-supporting passage was found:"
+        )
         for c in incomplete:
             print(f"  - {c.title} ({c.relpath})  [no supporting passage] {c.reason}")
     cov = answer.citation_coverage()
-    print(f"\nCoverage: {cov['label']} "
-          f"({cov['supported']} supported, {cov['incomplete']} incomplete)")
+    print(
+        f"\nCoverage: {cov['label']} ({cov['supported']} supported, {cov['incomplete']} incomplete)"
+    )
     if answer.excluded_count:
         print(f"({answer.excluded_count} source(s) excluded by policy)")
     if trace is not None:
@@ -403,8 +417,7 @@ def _cmd_resume(args: argparse.Namespace) -> int:
 
     evaluation_time = args.as_of or datetime.now(timezone.utc).isoformat()
     evidence_budget = (
-        args.evidence_budget if args.evidence_budget is not None
-        else DEFAULT_EVIDENCE_TOKEN_BUDGET
+        args.evidence_budget if args.evidence_budget is not None else DEFAULT_EVIDENCE_TOKEN_BUDGET
     )
     output_budget = (
         args.output_budget if args.output_budget is not None else DEFAULT_OUTPUT_TOKEN_BUDGET
@@ -460,8 +473,11 @@ def _cmd_resume_doctor(args: argparse.Namespace) -> int:
         return EXIT_FATAL
 
     report = run_diagnostics(
-        notes, scope=scope, source_root=repo.root,
-        repository_root=repository_root, evaluation_time=evaluation_time,
+        notes,
+        scope=scope,
+        source_root=repo.root,
+        repository_root=repository_root,
+        evaluation_time=evaluation_time,
     )
     if config.output_format is OutputFormat.JSON:
         print(_dumps(report.to_dict()))
@@ -479,13 +495,13 @@ def _cmd_resume_doctor(args: argparse.Namespace) -> int:
 def _add_common(parser: argparse.ArgumentParser, *, with_path: bool) -> None:
     if with_path:
         parser.add_argument(
-            "path", nargs="?", default=None,
+            "path",
+            nargs="?",
+            default=None,
             help="Vault/fixture directory (defaults to bundled sample fixtures).",
         )
-    parser.add_argument("--log-level", default="INFO",
-                        choices=[lvl.value for lvl in LogLevel])
-    parser.add_argument("--format", default="text",
-                        choices=[f.value for f in OutputFormat])
+    parser.add_argument("--log-level", default="INFO", choices=[lvl.value for lvl in LogLevel])
+    parser.add_argument("--format", default="text", choices=[f.value for f in OutputFormat])
     parser.add_argument("--max-files", type=int, default=5000)
 
 
@@ -514,8 +530,9 @@ def build_parser() -> argparse.ArgumentParser:
     p_sum.add_argument("project", help="Project name, title, alias, or id.")
     p_sum.add_argument("--path", default=None, help="Vault/fixture directory.")
     p_sum.add_argument("--provider", default="mock", help="Provider name (only 'mock').")
-    p_sum.add_argument("--model-role", default="fast",
-                       help="Role alias (coding, research, fast, private, vision).")
+    p_sum.add_argument(
+        "--model-role", default="fast", help="Role alias (coding, research, fast, private, vision)."
+    )
     _add_common(p_sum, with_path=False)
     p_sum.set_defaults(func=_cmd_summarize_project)
 
@@ -525,23 +542,35 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_common(p_report, with_path=True)
     p_report.add_argument(
-        "--output", default=None,
+        "--output",
+        default=None,
         help="Optional file to also write the report to (disabled by default).",
     )
     p_report.add_argument(
-        "--timing", dest="timing", action="store_true", default=True,
+        "--timing",
+        dest="timing",
+        action="store_true",
+        default=True,
         help="Include performance metrics (default on).",
     )
     p_report.add_argument(
-        "--no-timing", dest="timing", action="store_false",
+        "--no-timing",
+        dest="timing",
+        action="store_false",
         help="Omit performance metrics.",
     )
     p_report.add_argument(
-        "--memory", dest="memory", action="store_true", default=False,
+        "--memory",
+        dest="memory",
+        action="store_true",
+        default=False,
         help="Track peak memory via tracemalloc (adds overhead; off by default).",
     )
     p_report.add_argument(
-        "--deterministic", dest="deterministic", action="store_true", default=False,
+        "--deterministic",
+        dest="deterministic",
+        action="store_true",
+        default=False,
         help="Omit the wall-clock timestamp for reproducible snapshots.",
     )
     p_report.set_defaults(func=_cmd_vault_report)
@@ -553,7 +582,10 @@ def build_parser() -> argparse.ArgumentParser:
     p_ask.add_argument("question", help="A natural-language question about the vault.")
     p_ask.add_argument("--path", default=None, help="Vault/fixture directory.")
     p_ask.add_argument(
-        "--trace", dest="trace", action="store_true", default=False,
+        "--trace",
+        dest="trace",
+        action="store_true",
+        default=False,
         help="Show how the answer was produced (intent, ranking, context, timing).",
     )
     _add_common(p_ask, with_path=False)
@@ -588,28 +620,43 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_resume.add_argument("--path", default=None, help="Vault/fixture directory.")
     p_resume.add_argument(
-        "--trace", dest="trace", action="store_true", default=False,
+        "--trace",
+        dest="trace",
+        action="store_true",
+        default=False,
         help="Include a non-disclosing trace (versions, fingerprint, channels, timings).",
     )
     p_resume.add_argument(
-        "--as-of", dest="as_of", default=None,
+        "--as-of",
+        dest="as_of",
+        default=None,
         help="Explicit ISO-8601 UTC evaluation time for staleness/determinism (default: now).",
     )
     p_resume.add_argument(
-        "--evidence-budget", dest="evidence_budget", type=int, default=None,
+        "--evidence-budget",
+        dest="evidence_budget",
+        type=int,
+        default=None,
         help="Evidence token budget (256..32000; default 8000).",
     )
     p_resume.add_argument(
-        "--output-budget", dest="output_budget", type=int, default=None,
+        "--output-budget",
+        dest="output_budget",
+        type=int,
+        default=None,
         help="Output token budget (256..16000; default 4000).",
     )
     p_resume.add_argument(
-        "--include-repository-activity", dest="include_repository_activity",
-        action="store_true", default=False,
+        "--include-repository-activity",
+        dest="include_repository_activity",
+        action="store_true",
+        default=False,
         help="Enable local read-only Git activity (requires --repository-root).",
     )
     p_resume.add_argument(
-        "--repository-root", dest="repository_root", default=None,
+        "--repository-root",
+        dest="repository_root",
+        default=None,
         help="Local Git repository root to bind to the selected project for this invocation.",
     )
     _add_common(p_resume, with_path=False)
@@ -621,15 +668,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_doctor.add_argument("--path", default=None, help="Vault/fixture directory.")
     p_doctor.add_argument(
-        "--repository-root", dest="repository_root", default=None,
+        "--repository-root",
+        dest="repository_root",
+        default=None,
         help="Optional local Git repository root to probe (redacted diagnosis).",
     )
     p_doctor.add_argument(
-        "--as-of", dest="as_of", default=None,
+        "--as-of",
+        dest="as_of",
+        default=None,
         help="Explicit ISO-8601 UTC time for the repository staleness probe (default: now).",
     )
     _add_common(p_doctor, with_path=False)
     p_doctor.set_defaults(func=_cmd_resume_doctor)
+
+    add_chat_subparser(sub)
 
     return parser
 

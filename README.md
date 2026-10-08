@@ -104,6 +104,8 @@ The accepted near-term sequence is:
 2. v0.3.1 — Query Trust Contracts
 3. v0.4 — Read-only Project Resume CLI Pilot
 4. v0.5 — Visible-Context Conversation
+5. v0.6 — Proposed Memory
+6. v0.7 — Semantic Search and Relationship Intelligence
 
 The broader capability milestones remain in the [Roadmap](docs/ROADMAP.md); the
 [Version Roadmap](docs/product/VERSION_ROADMAP.md) records the version crosswalk and

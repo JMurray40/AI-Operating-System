@@ -1,0 +1,362 @@
+"""The sole Google Gemini wire-format boundary (H07 §4.2/§7.4, ADR-0024, WP2).
+
+Translates the normalized :class:`ProviderRequest` into exactly one approved
+``generateContent`` HTTPS call through an injected :class:`Transport`, and normalizes the
+response. It adds only the allowlisted method/path/host headers and the opaque API-key
+header, rejects any endpoint/scheme/operation escape, follows no redirect, inherits no
+proxy, emits no telemetry, performs no fallback or hidden retry, and never lets a raw
+provider payload cross the boundary.
+
+No live call occurs in this cycle — the adapter is exercised only against a fake transport
+or a bounded loopback capture server. The request path, auth header, and field shapes are
+implemented from the documented Google REST contract and MUST be reconfirmed at the
+separately authorized WP4 preflight (H07 §4.2).
+"""
+
+from __future__ import annotations
+
+import json
+from collections.abc import Mapping
+from dataclasses import dataclass
+
+from jarvis_core.providers.conversation import (
+    ERROR_BLOCKED,
+    ERROR_ENDPOINT_DENIED,
+    ERROR_MALFORMED,
+    ERROR_NETWORK,
+    ERROR_TIMEOUT,
+    ERROR_UNAVAILABLE_CREDENTIAL,
+    CancellationToken,
+    Cost,
+    NormalizedResult,
+    ProviderRequest,
+    TerminalState,
+    Usage,
+    UsageProvenance,
+)
+from jarvis_core.providers.transport import (
+    RedirectRejected,
+    Transport,
+    TransportCancelled,
+    TransportError,
+    TransportRequest,
+    TransportResponse,
+    TransportTimeout,
+)
+
+GOOGLE_ADAPTER_VERSION = "jarvis.provider.google-gemini.v0.5.0"
+
+# Approved destination identity (Handoff 06 / H07 §4.2 / AC-05-03). Enforced by EXACT equality
+# at the adapter boundary, independently of whatever the caller supplied.
+APPROVED_PROVIDER_ID = "google-gemini-developer-api"
+APPROVED_MODEL_ID = "gemini-3.5-flash-lite"
+APPROVED_API_VERSION = "v1beta"
+APPROVED_HOST = "generativelanguage.googleapis.com"
+APPROVED_SCHEME = "https"
+APPROVED_OPERATION = "generateContent"
+APPROVED_PATH = f"/{APPROVED_API_VERSION}/models/{APPROVED_MODEL_ID}:{APPROVED_OPERATION}"
+APPROVED_TIMEOUT_SECONDS = 60.0
+APPROVED_MAX_INPUT_TOKENS = 64000
+APPROVED_MAX_OUTPUT_TOKENS = 8000
+APPROVED_THINKING_LEVEL = "minimal"
+
+
+def _destination_ok(t: object) -> bool:
+    """Exact-equality destination/transport check (AC-05-03R). Any drift -> False -> BLOCKED.
+
+    A bare host (no user-info, no port) and a byte-exact path reject encoded paths, queries,
+    fragments, extra/missing slashes, case variants, alternate ports, alternate models, API
+    versions, provider IDs, streaming, and retry/feature drift in one place. This covers only
+    the transport-metadata half of the approved policy (destination, protocol, retry/streaming
+    behavior, request-side limit); see ``_content_ok`` for the content-policy half
+    (response-side limit, thinking level) that a caller could vary independently.
+    """
+    host = getattr(t, "host", "")
+    path = getattr(t, "path", "")
+    return (
+        getattr(t, "provider_id", None) == APPROVED_PROVIDER_ID
+        and getattr(t, "model_id", None) == APPROVED_MODEL_ID
+        and getattr(t, "scheme", None) == APPROVED_SCHEME
+        and host == APPROVED_HOST
+        and ":" not in host  # no alternate port
+        and "@" not in host  # no user-info
+        and path == APPROVED_PATH  # byte-exact: rejects %-encoding, ?, #, //, trailing /, case
+        and getattr(t, "operation", None) == APPROVED_OPERATION
+        and getattr(t, "streaming", True) is False
+        and getattr(t, "automatic_retries", 1) == 0
+        and float(getattr(t, "timeout_seconds", 0.0)) == APPROVED_TIMEOUT_SECONDS
+        and int(getattr(t, "max_input_tokens", 0)) == APPROVED_MAX_INPUT_TOKENS
+    )
+
+
+def _content_ok(c: object) -> bool:
+    """Exact-equality content-policy check (AC-05-03R): the response-side limit and thinking
+    level, which live on ``ProviderContent`` rather than ``TransportMetadata`` and were
+    previously never checked at this boundary — a caller could vary ``max_output_tokens`` or
+    ``thinking_level`` with no effect on ``_destination_ok`` and no BLOCKED result.
+    """
+    max_output = getattr(c, "max_output_tokens", None)
+    thinking = getattr(c, "thinking_level", None)
+    if max_output is None:
+        return False
+    try:
+        max_output_ok = int(max_output) == APPROVED_MAX_OUTPUT_TOKENS
+    except (TypeError, ValueError):
+        max_output_ok = False
+    return max_output_ok and thinking == APPROVED_THINKING_LEVEL
+
+
+# Documentation reference for the wire shape; reconfirm at the WP4 preflight.
+GOOGLE_DOC_REFERENCE = "https://ai.google.dev/api/generate-content (v1beta models.generateContent)"
+GOOGLE_DOC_VERIFIED = "2026-08-29 paid-tier preflight reference"
+
+# Versioned paid-tier standard rates (USD per token), verified from Google's official Gemini
+# pricing page on 2026-08-29 for the bounded PT48 pilot.
+GOOGLE_PRICE_TABLE_VERSION = "google-gemini-3.5-flash-lite-paid-2026-08-29"
+_USD_PER_INPUT_TOKEN = 0.30 / 1_000_000
+_USD_PER_OUTPUT_TOKEN = 2.50 / 1_000_000
+
+_MAX_RESPONSE_TEXT_CHARS = 100_000
+
+
+@dataclass(frozen=True)
+class _Parsed:
+    text: str
+    finish_reason: str
+    input_tokens: int | None
+    output_tokens: int | None
+
+
+def _estimate_cost(input_tokens: int, output_tokens: int) -> float:
+    return round(input_tokens * _USD_PER_INPUT_TOKEN + output_tokens * _USD_PER_OUTPUT_TOKEN, 6)
+
+
+class GoogleGeminiAdapter:
+    """Google Gemini Developer API complete-response adapter (non-streaming)."""
+
+    name = "google-gemini-developer-api"
+    adapter_version = GOOGLE_ADAPTER_VERSION
+
+    def __init__(self, transport: Transport) -> None:
+        self._transport = transport
+
+    # ------------------------------------------------------------------ cost hook
+    def estimate_cost_usd(self, snapshot: object) -> float:
+        """Pre-dispatch cost estimate for the per-request ceiling check (application hook).
+
+        AC-05-03R: ``budget_accounting`` is a digest-bearing field and is retained as a frozen
+        ``MappingProxyType`` (AC-05-01R), never a concrete ``dict``. The previous
+        ``isinstance(budget, dict)`` check is False for a mapping proxy, so this silently fell
+        back to a fixed zero-usage/zero-reserve estimate instead of the approved context/output
+        budgets on every real (frozen) snapshot. Checking the abstract ``Mapping`` contract
+        instead accepts both a plain dict (tests) and a frozen proxy (production).
+        """
+        budget = getattr(snapshot, "budget_accounting", {})
+        used = 0
+        reserve = 0
+        if isinstance(budget, Mapping):
+            used = int(budget.get("context_tokens_used", 0) or 0)
+            reserve = int(budget.get("output_reserve_tokens", 0) or 0)
+        # Conservative bound: assume the whole context plus a fixed instruction overhead as
+        # input, and the full output reserve as output.
+        return _estimate_cost(used + 256, reserve)
+
+    # ------------------------------------------------------------------ dispatch
+    def dispatch(
+        self, request: ProviderRequest, cancel: CancellationToken | None = None
+    ) -> NormalizedResult:
+        t = request.transport
+        # 1) Exact-equality destination/transport allowlist (AC-05-03R), regardless of caller.
+        if not _destination_ok(t):
+            return self._fail(request, TerminalState.BLOCKED, ERROR_ENDPOINT_DENIED)
+        # 1b) Exact-equality content-policy allowlist (AC-05-03R: max_output_tokens,
+        # thinking_level). Every mismatch fails BEFORE credential materialization and
+        # transport, same as the destination check above.
+        if not _content_ok(request.content):
+            return self._fail(request, TerminalState.BLOCKED, ERROR_ENDPOINT_DENIED)
+        # 2) Credential must be present (materialized by the application for one attempt).
+        if request.credential is None:
+            return self._fail(request, TerminalState.FAILED, ERROR_UNAVAILABLE_CREDENTIAL)
+        if cancel is not None and cancel.cancelled:
+            return NormalizedResult(
+                status=TerminalState.CANCELLED,
+                provider_id=t.provider_id,
+                model_id=t.model_id,
+                adapter_version=self.adapter_version,
+                finish_reason="cancelled",
+            )
+
+        body = self._project_body(request)
+        headers = {
+            "content-type": "application/json",
+            "x-goog-api-key": request.credential.reveal(),
+        }
+        wire = TransportRequest(
+            method="POST",
+            scheme=t.scheme,
+            host=t.host,
+            path=t.path,
+            headers=headers,
+            body=body,
+            timeout_seconds=t.timeout_seconds,
+        )
+        try:
+            response = self._transport.send(wire, cancel)
+        except TransportCancelled:
+            return NormalizedResult(
+                status=TerminalState.CANCELLED,
+                provider_id=t.provider_id,
+                model_id=t.model_id,
+                adapter_version=self.adapter_version,
+                finish_reason="cancelled",
+            )
+        except TransportTimeout:
+            return self._fail(request, TerminalState.FAILED, ERROR_TIMEOUT)
+        except (RedirectRejected, TransportError):
+            return self._fail(request, TerminalState.FAILED, ERROR_NETWORK)
+
+        return self._normalize(request, response)
+
+    # ------------------------------------------------------------------ projection
+    def _project_body(self, request: ProviderRequest) -> bytes:
+        c = request.content
+        # Text-only content; fixed system instruction; bounded generation config; minimal
+        # thinking via the documented thinkingConfig shape. No tools/grounding/etc.
+        payload = {
+            "systemInstruction": {"parts": [{"text": c.system_instruction}]},
+            "contents": [{"role": "user", "parts": [{"text": c.user_text}]}],
+            "generationConfig": {
+                "maxOutputTokens": c.max_output_tokens,
+                "temperature": 0,
+                "candidateCount": 1,
+                "thinkingConfig": {"thinkingBudget": 0},
+            },
+        }
+        return json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+
+    # ------------------------------------------------------------------ normalization
+    def _normalize(self, request: ProviderRequest, response: TransportResponse) -> NormalizedResult:
+        t = request.transport
+        if response.status_code != 200:
+            # Redacted: never surface a raw provider error body.
+            code = ERROR_BLOCKED if response.status_code in (400, 403, 429) else ERROR_NETWORK
+            return self._fail(request, TerminalState.FAILED, code)
+        try:
+            parsed = self._parse(response.body)
+        except (ValueError, KeyError, TypeError):
+            return self._fail(request, TerminalState.FAILED, ERROR_MALFORMED)
+        if parsed is None:
+            # Safety block or no candidate.
+            return self._fail(request, TerminalState.BLOCKED, ERROR_BLOCKED)
+        if not parsed.text.strip() or len(parsed.text) > _MAX_RESPONSE_TEXT_CHARS:
+            return self._fail(request, TerminalState.FAILED, ERROR_MALFORMED)
+
+        if parsed.input_tokens is not None and parsed.output_tokens is not None:
+            usage = Usage(parsed.input_tokens, parsed.output_tokens, UsageProvenance.REPORTED)
+            cost = Cost(
+                _estimate_cost(parsed.input_tokens, parsed.output_tokens),
+                "USD",
+                GOOGLE_PRICE_TABLE_VERSION,
+                UsageProvenance.REPORTED,
+            )
+        else:
+            usage = Usage(None, None, UsageProvenance.UNKNOWN)
+            cost = Cost(None, "USD", GOOGLE_PRICE_TABLE_VERSION, UsageProvenance.UNKNOWN)
+
+        return NormalizedResult(
+            status=TerminalState.COMPLETED,
+            provider_id=t.provider_id,
+            model_id=t.model_id,
+            adapter_version=self.adapter_version,
+            text=parsed.text,
+            finish_reason=parsed.finish_reason,
+            usage=usage,
+            cost=cost,
+        )
+
+    def _parse(self, body: bytes) -> _Parsed | None:
+        data = json.loads(body.decode("utf-8"))
+        if not isinstance(data, dict):
+            raise ValueError("response is not an object")
+        # Prompt-level safety block.
+        feedback = data.get("promptFeedback")
+        if isinstance(feedback, dict) and feedback.get("blockReason"):
+            return None
+        candidates = data.get("candidates")
+        if not isinstance(candidates, list) or not candidates:
+            return None
+        first = candidates[0]
+        if not isinstance(first, dict):
+            raise ValueError("candidate is not an object")
+        finish = str(first.get("finishReason", "STOP"))
+        content = first.get("content", {})
+        parts = content.get("parts", []) if isinstance(content, dict) else []
+        texts = [p["text"] for p in parts if isinstance(p, dict) and isinstance(p.get("text"), str)]
+        text = "".join(texts)
+        usage = data.get("usageMetadata")
+        in_tok = out_tok = None
+        if isinstance(usage, dict):
+            in_tok = usage.get("promptTokenCount")
+            out_tok = usage.get("candidatesTokenCount")
+            in_tok = int(in_tok) if isinstance(in_tok, int) else None
+            out_tok = int(out_tok) if isinstance(out_tok, int) else None
+        return _Parsed(text=text, finish_reason=finish, input_tokens=in_tok, output_tokens=out_tok)
+
+    def _fail(self, request: ProviderRequest, status: TerminalState, code: str) -> NormalizedResult:
+        t = request.transport
+        return NormalizedResult(
+            status=status,
+            provider_id=t.provider_id,
+            model_id=t.model_id,
+            adapter_version=self.adapter_version,
+            finish_reason=code,
+            error_code=code,
+            usage=Usage(None, None, UsageProvenance.UNKNOWN),
+            cost=Cost(None, "USD", GOOGLE_PRICE_TABLE_VERSION, UsageProvenance.UNKNOWN),
+        )
+
+
+def google_gemini_profile() -> object:
+    """The approved Google profile (imported lazily to avoid a hard conversation dep)."""
+    from jarvis_core.conversation.request import ProviderProfile
+
+    return ProviderProfile(
+        provider_id="google-gemini-developer-api",
+        model_id="gemini-3.5-flash-lite",
+        scheme=APPROVED_SCHEME,
+        host=APPROVED_HOST,
+        path="/v1beta/models/gemini-3.5-flash-lite:generateContent",
+        operation=APPROVED_OPERATION,
+        max_input_tokens=64000,
+        max_output_tokens=8000,
+        timeout_seconds=60.0,
+        thinking_level="minimal",
+        max_cost_usd_per_request=0.05,
+        price_table_version=GOOGLE_PRICE_TABLE_VERSION,
+        is_remote=True,
+        retention_disclosure=(
+            "Google may process and retain request data per its published API terms and "
+            "abuse-monitoring policy; zero data retention is not claimed."
+        ),
+    )
+
+
+__all__ = [
+    "APPROVED_API_VERSION",
+    "APPROVED_HOST",
+    "APPROVED_MAX_INPUT_TOKENS",
+    "APPROVED_MAX_OUTPUT_TOKENS",
+    "APPROVED_MODEL_ID",
+    "APPROVED_OPERATION",
+    "APPROVED_PATH",
+    "APPROVED_PROVIDER_ID",
+    "APPROVED_SCHEME",
+    "APPROVED_THINKING_LEVEL",
+    "APPROVED_TIMEOUT_SECONDS",
+    "GOOGLE_ADAPTER_VERSION",
+    "GOOGLE_DOC_REFERENCE",
+    "GOOGLE_DOC_VERIFIED",
+    "GOOGLE_PRICE_TABLE_VERSION",
+    "GoogleGeminiAdapter",
+    "google_gemini_profile",
+]
